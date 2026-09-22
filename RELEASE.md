@@ -23,3 +23,4 @@ Incremental alpha milestone for the original M5Stack M5Paper, establishing the p
 - [ ] 24-hour stability/heap test
 
 Do not remove the `alpha` suffix until the unchecked hardware/toolchain tests pass.
+\n## Professional UI milestone\n\n0.1.1-alpha now includes the production-oriented 540×960 PaperOS device design system and the responsive authenticated browser console. The browser controls are wired to the existing REST endpoints for live status, files, Notes, Wi-Fi, settings, remote device actions and OTA.\n

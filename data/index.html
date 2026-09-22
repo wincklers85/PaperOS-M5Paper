@@ -1,5 +1,95 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PaperOS</title><link rel="stylesheet" href="/style.css"></head><body>
-<header><div><b>PaperOS</b><small>0.1.0-alpha · M5Paper ESP32</small></div><button id="logout">Logout</button></header>
-<div id="auth" class="overlay"><section class="modal"><h1>PaperOS</h1><div id="setupBox" hidden><p>First boot setup</p><input id="deviceName" value="PaperOS" placeholder="Device name"><select id="language"><option value="it">Italiano</option><option value="en">English</option></select><input id="timezone" value="Europe/Rome" placeholder="Timezone"><input id="ssid" placeholder="Wi-Fi SSID"><input id="wifiPassword" type="password" placeholder="Wi-Fi password"><input id="adminPassword" type="password" placeholder="Admin password (min 6)"><button onclick="finishSetup()">Finish setup</button></div><div id="loginBox" hidden><input id="loginPassword" type="password" placeholder="Admin password"><button onclick="login()">Login</button></div><p id="authMsg"></p></section></div>
-<nav id="nav"></nav><main id="view"></main>
-<script src="/app.js"></script></body></html>
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111315">
+  <title>PaperOS Console</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="auth" class="auth-layer">
+    <section class="auth-card">
+      <div class="auth-brand">
+        <div class="brand-mark">P</div>
+        <div>
+          <strong>PaperOS</strong>
+          <span>Secure device console</span>
+        </div>
+      </div>
+
+      <div id="setupBox" hidden>
+        <p class="eyebrow">FIRST BOOT</p>
+        <h1>Configure your M5Paper</h1>
+        <p class="subtle">Set the device identity, local network and administrator password.</p>
+        <div class="form-grid">
+          <label>Device name<input id="deviceName" value="PaperOS" placeholder="Device name"></label>
+          <label>Language<select id="language"><option value="it">Italiano</option><option value="en">English</option></select></label>
+          <label class="wide">Timezone<input id="timezone" value="Europe/Rome" placeholder="Timezone"></label>
+          <label>Wi-Fi SSID<input id="ssid" placeholder="Wi-Fi SSID"></label>
+          <label>Wi-Fi password<input id="wifiPassword" type="password" placeholder="Wi-Fi password"></label>
+          <label class="wide">Admin password<input id="adminPassword" type="password" placeholder="Minimum 6 characters"></label>
+        </div>
+        <button class="primary full" onclick="finishSetup()">Finish setup</button>
+      </div>
+
+      <div id="loginBox" hidden>
+        <p class="eyebrow">ADMIN ACCESS</p>
+        <h1>Welcome back</h1>
+        <p class="subtle">Enter the PaperOS administrator password.</p>
+        <label>Password<input id="loginPassword" type="password" placeholder="Admin password" autocomplete="current-password"></label>
+        <button class="primary full" onclick="login()">Sign in</button>
+      </div>
+
+      <p id="authMsg" class="form-message"></p>
+      <p class="auth-version">PaperOS 0.1.1-alpha · Original M5Paper</p>
+    </section>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">P</div>
+        <div class="brand-copy">
+          <strong>PaperOS</strong>
+          <span>Device Console</span>
+        </div>
+      </div>
+
+      <div class="device-card">
+        <div>
+          <span class="status-dot" id="sideDot"></span>
+          <strong id="sideDevice">M5Paper</strong>
+        </div>
+        <span id="sideIp">Connecting…</span>
+      </div>
+
+      <nav id="nav" aria-label="PaperOS navigation"></nav>
+
+      <div class="sidebar-footer">
+        <span>PaperOS 0.1.1-alpha</span>
+        <span>M5Paper ESP32</span>
+      </div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PAPEROS / DEVICE</p>
+          <h1 id="pageTitle">Dashboard</h1>
+        </div>
+        <div class="top-actions">
+          <span class="status-chip" id="networkChip">Network</span>
+          <span class="status-chip" id="batteryChip">Battery</span>
+          <button id="logout" class="ghost">Logout</button>
+        </div>
+      </header>
+
+      <main id="view"></main>
+    </section>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

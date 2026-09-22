@@ -19,7 +19,7 @@ void PowerManager::sleepNow(uint32_t seconds) {
   M5.Display.println("PaperOS sleeping");
   M5.Display.setTextSize(1);
   M5.Display.printf("Battery: %d%%\n", batteryPercent());
-  M5.Display.println("Touch/power button to wake");
+  M5.Display.println("Touch/button to wake");
   if (seconds) M5.Display.printf("Timer wake: %lu s\n", static_cast<unsigned long>(seconds));
   M5.Display.display();
   delay(100);

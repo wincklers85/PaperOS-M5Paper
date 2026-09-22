@@ -3,7 +3,7 @@
 #include <WiFi.h>
 #include <DNSServer.h>
 #include <ESPmDNS.h>
-#include "ConfigManager.h"
+#include "../core/ConfigManager.h"
 
 namespace paperos {
 class WiFiManager {

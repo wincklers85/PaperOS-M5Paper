@@ -2,12 +2,12 @@
 #include <Arduino.h>
 #include <WebServer.h>
 #include <Update.h>
-#include "ConfigManager.h"
-#include "WiFiManager.h"
-#include "StorageManager.h"
-#include "NotesService.h"
-#include "PowerManager.h"
-#include "UiManager.h"
+#include "../core/ConfigManager.h"
+#include "../network/WiFiManager.h"
+#include "../storage/StorageManager.h"
+#include "../services/NotesService.h"
+#include "../services/PowerManager.h"
+#include "../ui/UiManager.h"
 
 namespace paperos {
 class WebServerService {

@@ -1,8 +1,8 @@
-# Release 0.1.0-alpha
+# Release 0.1.1-alpha
 
 ## Purpose
 
-First installable architecture milestone for the original M5Stack M5Paper.
+Incremental alpha milestone for the original M5Stack M5Paper, establishing the professional 540×960 GUI design-system direction while preserving the installable 0.1.x architecture.
 
 ## Release checklist
 

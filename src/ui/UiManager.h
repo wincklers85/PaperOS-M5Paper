@@ -1,11 +1,11 @@
 #pragma once
 #include <Arduino.h>
-#include "DisplayManager.h"
-#include "TouchManager.h"
-#include "WiFiManager.h"
-#include "StorageManager.h"
-#include "PowerManager.h"
-#include "ConfigManager.h"
+#include "../drivers/DisplayManager.h"
+#include "../drivers/TouchManager.h"
+#include "../network/WiFiManager.h"
+#include "../storage/StorageManager.h"
+#include "../services/PowerManager.h"
+#include "../core/ConfigManager.h"
 
 namespace paperos {
 class UiManager {

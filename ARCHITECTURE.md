@@ -59,9 +59,25 @@ Deep-sleep wake is a cold application start by ESP32 design. E-paper preserves t
 
 `WebServerService` serves static LittleFS assets and same-origin REST APIs. Authentication is a single in-RAM session token backed by a salted admin password hash. OTA uses the ESP32 Update API and dual OTA partitions.
 
+## UI design system contract
+
+Starting with 0.1.1-alpha, the physical M5Paper UI targets the native 540×960 portrait canvas and follows a shared design system rather than per-screen ad-hoc drawing.
+
+The UI layer should converge on reusable primitives for:
+
+- status bar and system indicators
+- dashboard cards
+- bottom navigation
+- app tiles
+- list rows
+- buttons and confirmation modals
+- consistent margins, spacing, radii and typography scales
+
+Screen code should describe content and interaction while shared components own geometry and visual styling. E-paper updates should redraw the smallest practical region, reserving periodic full-quality refreshes for ghosting control. New visible controls must either work or be explicitly labelled Coming Soon.
+
 ## Concurrency model
 
-0.1.0-alpha deliberately uses a cooperative Arduino loop rather than a large task graph. HTTP, UI, Wi-Fi DNS and power checks are short, bounded calls. Future MQTT/BLE/serial work can move long-lived I/O to FreeRTOS tasks/queues where it has a measurable benefit.
+0.1.1-alpha deliberately uses a cooperative Arduino loop rather than a large task graph. HTTP, UI, Wi-Fi DNS and power checks are short, bounded calls. Future MQTT/BLE/serial work can move long-lived I/O to FreeRTOS tasks/queues where it has a measurable benefit.
 
 ## Future service boundaries
 

@@ -138,7 +138,7 @@ void ConfigManager::upsertNetwork(const String& ssid, const String& password, in
       return;
     }
   }
-  config_.wifiNetworks.push_back({ssid, password, priority});
+  WiFiCredential c;\n  c.ssid = ssid;\n  c.password = password;\n  c.priority = priority;\n  config_.wifiNetworks.push_back(c);
 }
 
 bool ConfigManager::exportBackup(const String& path) {

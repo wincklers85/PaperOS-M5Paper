@@ -7,7 +7,7 @@ void DisplayManager::begin() {
   cfg.fallback_board = m5::board_t::board_M5Paper;
   cfg.clear_display = true;
   M5.begin(cfg);
-  M5.Display.setRotation(1);
+  // PaperOS UI is portrait. Keep M5GFX hardware detection, then rotate only if needed.\n  if (M5.Display.width() > M5.Display.height()) {\n    M5.Display.setRotation(M5.Display.getRotation() ^ 1);\n  }
   M5.Display.setEpdMode(m5gfx::epd_fast);
   M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
   M5.Display.setTextWrap(false);

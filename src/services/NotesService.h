@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include "StorageManager.h"
+#include "../storage/StorageManager.h"
 
 namespace paperos {
 class NotesService {

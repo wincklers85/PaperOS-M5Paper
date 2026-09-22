@@ -34,7 +34,7 @@ void UiManager::showHome(bool full) {
   M5.Display.setCursor(22,190); M5.Display.printf("IP: %s\n", wifi_.ip().toString().c_str());
   drawButton(22,260,235,84,"Apps"); drawButton(283,260,235,84,"System");
   drawButton(22,368,235,84,"Notes"); drawButton(283,368,235,84,"Settings");
-  M5.Display.setCursor(22,510); M5.Display.setTextSize(1); M5.Display.println("Touch a card. Hold power button for sleep.");
+  M5.Display.setCursor(22,510); M5.Display.setTextSize(1); M5.Display.println("Touch a card. Hold button C for sleep.");
   if (full) display_.fullRefresh(); else display_.partialRefresh(0,0,M5.Display.width(),560);
   lastFull_=millis();
 }
@@ -79,7 +79,7 @@ void UiManager::showSettings() {
 
 void UiManager::loop() {
   M5.update();
-  if (M5.BtnPWR.wasHold()) power_.sleepNow();
+  if (M5.BtnC.wasHold()) power_.sleepNow();
   if (M5.BtnA.wasClicked()) { power_.markActivity(); showHome(); return; }
   if (M5.BtnB.wasClicked()) { power_.markActivity(); showApps(); return; }
   auto e=touch_.poll();

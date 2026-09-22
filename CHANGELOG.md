@@ -2,6 +2,17 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.1-alpha] - 2026-09-23
+
+### Changed
+- Promoted the active PaperOS development baseline to 0.1.1-alpha.
+- Defined the professional 540×960 e-paper GUI direction: reusable visual components, consistent spacing, status bar, dashboard cards and bottom navigation.
+- Documented the UI design-system boundary so future screens share the same typography, geometry and refresh behavior.
+- Kept the PlatformIO build version and firmware fallback version synchronized.
+
+### Development workflow
+- The GitHub repository is the source of truth for PaperOS; future implemented improvements should be committed there together with the appropriate version/changelog update.
+
 ## [0.1.0-alpha] - 2026-09-22
 
 ### Added

@@ -65,3 +65,4 @@ String WiFiManager::statusJson() {
   d["mac"] = WiFi.macAddress();
   String out; serializeJson(d,out); return out;
 }
+}

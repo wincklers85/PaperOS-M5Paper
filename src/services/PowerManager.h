@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <M5Unified.h>
-#include "ConfigManager.h"
+#include "../core/ConfigManager.h"
 
 namespace paperos {
 class PowerManager {

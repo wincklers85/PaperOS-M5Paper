@@ -97,3 +97,18 @@ Planned interfaces:
 - `WidgetManager`
 
 Each should expose data models independent from both the e-paper UI and the Web UI so either frontend can use the same backend.
+
+
+## Professional UI layer (0.1.1-alpha)
+
+The on-device interface now has a dedicated reusable design layer in `src/ui/UiTheme.*`. It owns the 540×960 visual constants and shared components used by Home, Apps, Settings, System and Coming Soon screens:
+
+- status-area geometry and e-paper-safe spacing
+- cards, pills, app tiles and chevrons
+- Wi-Fi, Bluetooth, microSD and battery status glyphs
+- five-item bottom navigation
+- consistent typography and black/white/gray treatment
+
+`UiManager` remains responsible for navigation, real telemetry binding and touch routing. Unimplemented hardware modules are never populated with fake telemetry; they route to an explicit Coming Soon screen.
+
+The browser console in `data/` uses the same product language but a responsive web layout. It consumes the existing authenticated REST API for live dashboard telemetry, files, notes, Wi-Fi, settings, device actions and OTA. No cloud service is required for local operation.

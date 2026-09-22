@@ -124,7 +124,7 @@ input,select,textarea{
   padding:11px 12px;outline:none;margin-top:6px;
 }
 input:focus,select:focus,textarea:focus{border-color:#6d746f;box-shadow:0 0 0 3px rgba(17,19,21,.06)}
-textarea{min-height:300px;resize:vertical}
+textarea{min-height:300px;resize:vertical}\ninput[type=checkbox]{width:auto;margin:0 7px 0 0;vertical-align:middle}.check-label{display:flex;align-items:center;gap:4px;margin:8px 0 14px}
 label{display:block;font-size:.78rem;font-weight:700;color:#505652;margin-bottom:10px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
 .form-grid .wide{grid-column:1/-1}

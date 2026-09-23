@@ -49,7 +49,7 @@ void UiManager::statusBar() {
 
   const int iconY = 19;
   UiTheme::wifiIcon(350, iconY, wifi_.isConnected());
-  UiTheme::bluetoothIcon(382, iconY - 1, false);
+  UiTheme::bluetoothIcon(382, iconY - 1, bluetoothActive_);
   UiTheme::sdIcon(416, iconY - 3, storage_.available());
   UiTheme::batteryIcon(493, iconY + 1, power_.batteryPercent());
 
@@ -124,40 +124,41 @@ void UiManager::showApps() {
   UiTheme::title("Apps", 18, 78);
   UiTheme::detail("PaperOS native launcher", 20, 119);
 
-  const char* names[12] = {
+  const char* names[15] = {
     "Home", "Notes", "Files",
-    "Termo", "Solar", "Wi-Fi",
-    "Tasks", "Calendar", "Bluetooth",
-    "MQTT", "Settings", "System"
+    "Calculator", "Wi-Fi", "Bluetooth",
+    "Termo", "Solar", "Tasks",
+    "Calendar", "MQTT", "Settings",
+    "System", "Labs", "Reader"
   };
-  const char* glyphs[12] = {
+  const char* glyphs[15] = {
     "HM", "NT", "FL",
-    "TH", "SL", "WF",
-    "TK", "CL", "BT",
-    "MQ", "ST", "SYS"
+    "CAL", "WF", "BT",
+    "TH", "SL", "TK",
+    "CL", "MQ", "ST",
+    "SYS", "LAB", "RD"
   };
-  const bool ready[12] = {
+  const bool ready[15] = {
     true, true, true,
-    false, false, true,
+    true, true, true,
     false, false, false,
-    false, true, true
+    false, false, true,
+    true, true, false
   };
 
   const int tileW = 160;
-  const int tileH = 126;
-  const int startY = 148;
-  for (int i = 0; i < 12; ++i) {
+  const int tileH = 116;
+  const int startY = 146;
+  for (int i = 0; i < 15; ++i) {
     int col = i % 3;
     int row = i / 3;
     int x = 18 + col * 172;
-    int y = startY + row * 138;
+    int y = startY + row * 128;
     UiTheme::appTile(x, y, tileW, tileH, glyphs[i], names[i], !ready[i]);
   }
 
-  UiTheme::card(18, 712, 504, 128);
-  UiTheme::label("STATUS", 34, 730);
-  UiTheme::detail("Native now: Home / Notes / Files / Wi-Fi / Settings / System", 34, 765);
-  UiTheme::detail("Termo and Solar have final UI shells but no fake telemetry.", 34, 799);
+  UiTheme::card(18, 796, 504, 54);
+  UiTheme::detail("Labs = funzioni beta WinLabs Solutions", 34, 813);
 
   bottomNav(4);
   commitPage();
@@ -833,14 +834,18 @@ void UiManager::openAppIndex(int index) {
   if (index == 0) showHome();
   else if (index == 1) showNotes();
   else if (index == 2) showFiles();
-  else if (index == 3) showThermo();
-  else if (index == 4) showSolar();
-  else if (index == 5 || index == 10) showSettings();
-  else if (index == 11) showSystem();
-  else if (index == 6) showComingSoon("Tasks", 4);
-  else if (index == 7) showComingSoon("Calendar", 4);
-  else if (index == 8) showComingSoon("Bluetooth", 4);
-  else if (index == 9) showComingSoon("MQTT", 4);
+  else if (index == 3) showCalculator();
+  else if (index == 4) showWiFi();
+  else if (index == 5) showBluetooth();
+  else if (index == 6) showThermo();
+  else if (index == 7) showSolar();
+  else if (index == 8) showComingSoon("Tasks", 4);
+  else if (index == 9) showComingSoon("Calendar", 4);
+  else if (index == 10) showComingSoon("MQTT", 4);
+  else if (index == 11) showSettings();
+  else if (index == 12) showSystem();
+  else if (index == 13) showLabs();
+  else if (index == 14) showComingSoon("Reader", 4);
 }
 
 void UiManager::loop() {
@@ -885,14 +890,14 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Apps) {
-      const int startY = 148;
-      const int pitchY = 138;
-      if (e.y >= startY && e.y < startY + 4 * pitchY && e.x >= 18) {
+      const int startY = 146;
+      const int pitchY = 128;
+      if (e.y >= startY && e.y < startY + 5 * pitchY && e.x >= 18) {
         int row = (e.y - startY) / pitchY;
         int col = (e.x - 18) / 172;
         int localX = (e.x - 18) % 172;
         int localY = (e.y - startY) % pitchY;
-        if (col >= 0 && col < 3 && localX < 160 && localY < 126) openAppIndex(row * 3 + col);
+        if (col >= 0 && col < 3 && localX < 160 && localY < 116) openAppIndex(row * 3 + col);
       }
       return;
     }
@@ -940,8 +945,46 @@ void UiManager::loop() {
       return;
     }
 
-    if (page_ == Page::Settings && e.y >= 650 && e.y < 738) {
-      showSystem();
+    if (page_ == Page::Settings) {
+      if (e.y >= 145 && e.y < 249) showGeneral();
+      else if (e.y >= 267 && e.y < 345) showGeneral();
+      else if (e.y >= 357 && e.y < 435) showWiFi();
+      else if (e.y >= 447 && e.y < 525) showBluetooth();
+      else if (e.y >= 537 && e.y < 615) showTools();
+      else if (e.y >= 627 && e.y < 705) showTools();
+      else if (e.y >= 717 && e.y < 795) showLabs();
+      return;
+    }
+
+    if (page_ == Page::Labs) {
+      if (e.y >= 252 && e.y < 330) showHidLab();
+      else if (e.y >= 342 && e.y < 420) showBluetooth();
+      else if (e.y >= 432 && e.y < 510) showComingSoon("GPIO Lab", 4);
+      else if (e.y >= 522 && e.y < 600) showComingSoon("Serial Lab", 4);
+      else if (e.y >= 612 && e.y < 690) { display_.cleanRefresh(); showLabs(); }
+      else if (e.y >= 702 && e.y < 780) showSystem();
+      return;
+    }
+
+    if (page_ == Page::Calculator) {
+      const int sx = 18, sy = 266, kw = 117, kh = 92, gap = 12;
+      if (e.x >= sx && e.y >= sy) {
+        int col = (e.x - sx) / (kw + gap);
+        int row = (e.y - sy) / (kh + gap);
+        int lx = (e.x - sx) % (kw + gap);
+        int ly = (e.y - sy) % (kh + gap);
+        if (col >= 0 && col < 4 && row >= 0 && row < 5 && lx < kw && ly < kh) {
+          const char* keys[20] = {
+            "C", "+/-", "%", "/",
+            "7", "8", "9", "*",
+            "4", "5", "6", "-",
+            "1", "2", "3", "+",
+            "0", ".", "=", "BS"
+          };
+          calcKey(keys[row * 4 + col]);
+          showCalculator();
+        }
+      }
       return;
     }
   }

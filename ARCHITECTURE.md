@@ -112,3 +112,14 @@ The on-device interface now has a dedicated reusable design layer in `src/ui/UiT
 `UiManager` remains responsible for navigation, real telemetry binding and touch routing. Unimplemented hardware modules are never populated with fake telemetry; they route to an explicit Coming Soon screen.
 
 The browser console in `data/` uses the same product language but a responsive web layout. It consumes the existing authenticated REST API for live dashboard telemetry, files, notes, Wi-Fi, settings, device actions and OTA. No cloud service is required for local operation.
+
+
+## Settings and Labs (0.1.4-alpha)
+
+The native Settings experience uses grouped rounded rows inspired by modern mobile settings UIs while remaining monochrome and e-paper-safe. It exposes Generali/Info, Wi-Fi, Bluetooth, Battery & Sleep, Display and Labs.
+
+Generali/Info reports the actual PaperOS device identity and runtime target: original M5Paper, ESP32-D0WDQ6-V3, PSRAM, flash, 540×960 e-paper panel, firmware version and the software vendor attribution **WinLabs Solutions**.
+
+Labs is intentionally separated from stable functionality. Experimental entries include BLE Explorer, GPIO Lab, Serial Lab, Display Test and Developer tools.
+
+The USB HID / BadUSB Lab is a script-library workflow only on the original M5Paper. The device USB-C connector is backed by a USB-to-serial bridge rather than a native USB HID controller, so direct keyboard-HID execution is not exposed. Scripts are stored under `/PaperOS/Labs/HID` for inspection, organization and future external HID-adapter workflows.

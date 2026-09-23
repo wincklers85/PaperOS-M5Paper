@@ -8,7 +8,9 @@
 namespace paperos {
 
 void UiManager::preparePage(bool forceClean) {
-  if (forceClean || display_.pageChangesSinceClean() >= 4) {
+  // Full quality wipes are intentionally rare. Normal navigation uses the
+  // fast waveform and regional updates are used for dynamic UI.
+  if (forceClean || display_.pageChangesSinceClean() >= 12) {
     display_.cleanRefresh();
     lastDeepClean_ = millis();
   }
@@ -20,7 +22,9 @@ void UiManager::commitPage() {
 }
 
 void UiManager::begin() {
-  showHome(true);
+  // The boot splash already refreshed the complete panel; avoid a second
+  // quality wipe during startup.
+  showHome(false);
 }
 
 void UiManager::statusBar() {
@@ -79,38 +83,37 @@ void UiManager::showHome(bool forceClean) {
   preparePage(forceClean);
   statusBar();
 
-  UiTheme::title("PaperOS", 18, 78);
-  UiTheme::detail(String(VERSION) + "  /  540x960 native UI", 20, 119);
+  UiTheme::title("PaperOS", 18, 76);
+  UiTheme::detail(config_.get().deviceName + "  /  " + VERSION, 20, 116);
+  UiTheme::pill("ALPHA", 436, 79, true);
 
-  UiTheme::card(18, 146, 504, 108, true);
-  UiTheme::label("NETWORK", 34, 160);
-  UiTheme::pill(wifi_.isConnected() ? "ONLINE" : "SETUP AP", 392, 156, wifi_.isConnected());
-  UiTheme::value(wifi_.isConnected() ? WiFi.SSID() : String(SETUP_AP), 34, 194, false);
-  UiTheme::detail(wifi_.ip().toString(), 34, 228);
+  // Device overview: one dense card instead of several slow dashboard blocks.
+  UiTheme::card(18, 145, 504, 128, true);
+  UiTheme::label("CONNECTION", 34, 160);
+  String netName = wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup");
+  if (netName.length() > 23) netName = netName.substring(0, 23);
+  UiTheme::value(netName, 34, 194, false);
+  UiTheme::detail(wifi_.isConnected() ? wifi_.ip().toString() : String("192.168.4.1 / setup mode"), 34, 232);
+  M5.Display.drawFastVLine(372, 160, 94, TFT_BLACK);
+  UiTheme::label("BATTERY", 394, 160);
+  UiTheme::value(String(power_.batteryPercent()) + "%", 394, 194, false);
+  UiTheme::detail(String(power_.batteryMillivolts()) + " mV", 394, 232);
 
-  UiTheme::card(18, 266, 504, 106);
-  UiTheme::label("SOLAR", 34, 280);
-  UiTheme::pill("COMING SOON", 382, 276, false);
-  UiTheme::value("Energy dashboard", 34, 314, false);
-  UiTheme::detail("PV / home / battery / grid / MPPT", 34, 346);
-  UiTheme::chevron(491, 307);
+  UiTheme::label("QUICK ACCESS", 20, 294);
+  homeCard(18, 322, 246, 108, "NOTES", storage_.available() ? "Open notes" : "Needs SD", "Notes on microSD", true);
+  homeCard(276, 322, 246, 108, "FILES", storage_.available() ? "Browse files" : "Needs SD", "/PaperOS", true);
+  homeCard(18, 442, 246, 108, "SETTINGS", "Configure", "Wi-Fi / display / power", true);
+  homeCard(276, 442, 246, 108, "SYSTEM", String(ESP.getFreeHeap() / 1024) + " KB free", "Diagnostics", true);
 
-  homeCard(18, 384, 246, 116, "TERMO", "Coming Soon", "Puffer / boiler / room", true);
-  homeCard(276, 384, 246, 116, "NOTES", storage_.available() ? "Open notes" : "Needs SD", "Read notes on-device", true);
+  UiTheme::label("MODULES", 20, 574);
+  homeCard(18, 604, 246, 102, "TERMO", "Coming Soon", "Heating dashboard", true);
+  homeCard(276, 604, 246, 102, "SOLAR", "Coming Soon", "Energy dashboard", true);
 
-  homeCard(18, 512, 246, 116, "FILES", storage_.available() ? "Browse files" : "Needs SD", "/PaperOS", true);
-  homeCard(276, 512, 246, 116, "SYSTEM", String(ESP.getFreeHeap() / 1024) + " KB free", "Status & diagnostics", true);
-
-  UiTheme::card(18, 640, 504, 112);
-  UiTheme::label("BROWSER CONSOLE", 34, 654);
-  UiTheme::value("paperos.local", 34, 688, false);
-  UiTheme::detail("Files / Notes / Wi-Fi / Settings / OTA", 34, 724);
-  UiTheme::pill("WEB", 438, 650, true);
-
-  UiTheme::card(18, 764, 504, 86);
-  UiTheme::label("POWER", 34, 779);
-  UiTheme::detail(String("Auto sleep: ") + config_.get().sleepMinutes + " min  /  Touch wake", 34, 814);
-  UiTheme::chevron(491, 791);
+  UiTheme::card(18, 720, 504, 130);
+  UiTheme::label("WEB CONSOLE", 34, 737);
+  UiTheme::value("paperos.local", 34, 770, false);
+  UiTheme::detail("Files / Notes / Wi-Fi / Settings / OTA", 34, 809);
+  UiTheme::pill("WEB", 440, 735, true);
 
   bottomNav(0);
   commitPage();
@@ -121,8 +124,8 @@ void UiManager::showApps() {
   preparePage();
   statusBar();
 
-  UiTheme::title("Apps", 18, 78);
-  UiTheme::detail("PaperOS native launcher", 20, 119);
+  UiTheme::title("Apps", 18, 76);
+  UiTheme::detail("Native launcher  /  tap an app", 20, 116);
 
   const char* names[15] = {
     "Home", "Notes", "Files",
@@ -147,18 +150,21 @@ void UiManager::showApps() {
   };
 
   const int tileW = 160;
-  const int tileH = 116;
-  const int startY = 146;
+  const int tileH = 108;
+  const int startY = 154;
+  const int pitchY = 116;
   for (int i = 0; i < 15; ++i) {
     int col = i % 3;
     int row = i / 3;
     int x = 18 + col * 172;
-    int y = startY + row * 128;
+    int y = startY + row * pitchY;
     UiTheme::appTile(x, y, tileW, tileH, glyphs[i], names[i], !ready[i]);
   }
 
-  UiTheme::card(18, 796, 504, 54);
-  UiTheme::detail("Labs = funzioni beta WinLabs Solutions", 34, 813);
+  UiTheme::card(18, 746, 504, 104);
+  UiTheme::label("WINLABS LABS", 34, 762);
+  UiTheme::detail("Experimental tools are isolated from core PaperOS.", 34, 797);
+  UiTheme::detail("Termo / Solar remain visible but do not show fake data.", 34, 826);
 
   bottomNav(4);
   commitPage();
@@ -173,16 +179,18 @@ void UiManager::settingRow(int y, const String& titleText, const String& detailT
 
 
 void UiManager::settingsRow(int y, const String& glyph, const String& titleText, const String& detailText, bool withChevron) {
-  M5.Display.fillRoundRect(18, y, 504, 78, 14, TFT_WHITE);
-  M5.Display.drawRoundRect(18, y, 504, 78, 14, TFT_BLACK);
-  M5.Display.fillRoundRect(32, y + 14, 48, 48, 10, TFT_BLACK);
+  // Mobile-style grouped row: no nested rounded border per item.
+  M5.Display.fillRect(22, y, 496, 78, TFT_WHITE);
+  M5.Display.fillRoundRect(34, y + 15, 46, 46, 9, TFT_BLACK);
   M5.Display.setFont(&fonts::FreeSansBold9pt7b);
   M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
   M5.Display.setTextDatum(middle_center);
-  M5.Display.drawString(glyph, 56, y + 38);
+  M5.Display.drawString(glyph, 57, y + 38);
   UiTheme::resetFont();
-  UiTheme::value(titleText, 96, y + 13, false);
+
+  UiTheme::value(titleText, 96, y + 11, false);
   if (detailText.length()) UiTheme::detail(detailText, 96, y + 47);
+  M5.Display.drawFastHLine(96, y + 77, 404, TFT_BLACK);
   if (withChevron) UiTheme::chevron(490, y + 29);
 }
 
@@ -191,26 +199,29 @@ void UiManager::showSettings() {
   preparePage();
   statusBar();
 
-  UiTheme::title("Impostazioni", 154, 78);
-  UiTheme::detail("PaperOS", 239, 118);
+  UiTheme::title("Impostazioni", 18, 76);
+  UiTheme::detail("PaperOS system settings", 20, 116);
 
-  UiTheme::card(18, 145, 504, 104, true);
-  M5.Display.fillCircle(66, 197, 30, TFT_BLACK);
+  UiTheme::card(18, 145, 504, 96, true);
+  M5.Display.fillCircle(66, 193, 29, TFT_BLACK);
   M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
   M5.Display.setFont(&fonts::FreeSansBold12pt7b);
   M5.Display.setTextDatum(middle_center);
-  M5.Display.drawString("P", 66, 197);
+  M5.Display.drawString("P", 66, 193);
   UiTheme::resetFont();
-  UiTheme::value(config_.get().deviceName, 112, 166, false);
-  UiTheme::detail(String("PaperOS ") + VERSION, 112, 204);
+  UiTheme::value(config_.get().deviceName, 112, 164, false);
+  UiTheme::detail(String("PaperOS ") + VERSION + " / WinLabs Solutions", 112, 202);
   UiTheme::chevron(490, 183);
 
-  settingsRow(267, "GN", "Generali", "Info dispositivo, firmware e memoria");
-  settingsRow(357, "WF", "Wi-Fi", wifi_.isConnected() ? WiFi.SSID() : String("Non connesso"));
-  settingsRow(447, "BT", "Bluetooth", bluetoothActive_ ? "Attivo" : "Pronto");
-  settingsRow(537, "PW", "Batteria e Sleep", String(power_.batteryPercent()) + "%  /  sleep " + config_.get().sleepMinutes + " min");
-  settingsRow(627, "DS", "Display", "540x960 / anti-ghosting");
-  settingsRow(717, "LB", "Labs", "Funzioni beta WinLabs");
+  UiTheme::card(18, 257, 504, 250);
+  settingsRow(260, "GN", "Generali", "Info dispositivo, firmware e memoria");
+  settingsRow(342, "WF", "Wi-Fi", wifi_.isConnected() ? WiFi.SSID() : String("Non connesso"));
+  settingsRow(424, "BT", "Bluetooth", bluetoothActive_ ? "Pronto / BLE inizializzato" : "Pronto");
+
+  UiTheme::card(18, 522, 504, 250);
+  settingsRow(525, "PW", "Batteria e Sleep", String(power_.batteryPercent()) + "%  /  sleep " + config_.get().sleepMinutes + " min");
+  settingsRow(607, "DS", "Display", "540x960 / fast refresh / anti-ghost");
+  settingsRow(689, "LB", "Labs", "Funzioni beta WinLabs");
 
   bottomNav(4);
   commitPage();
@@ -246,34 +257,32 @@ void UiManager::showWiFi() {
   preparePage();
   statusBar();
 
-  UiTheme::title("Wi-Fi", 18, 78);
-  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Non connesso"), 20, 119);
+  UiTheme::title("Wi-Fi", 18, 76);
+  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Non connesso"), 20, 116);
 
-  UiTheme::card(18, 150, 504, 112, true);
-  UiTheme::label("CONNESSIONE", 34, 166);
-  UiTheme::value(wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup"), 34, 201, false);
-  UiTheme::detail(wifi_.ip().toString(), 34, 235);
-  UiTheme::pill(wifi_.isConnected() ? String(WiFi.RSSI()) + " dBm" : "AP", 395, 163, false);
+  UiTheme::card(18, 145, 504, 112, true);
+  UiTheme::label("CONNECTION", 34, 161);
+  String current = wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup");
+  if (current.length() > 24) current = current.substring(0, 24);
+  UiTheme::value(current, 34, 197, false);
+  UiTheme::detail(wifi_.isConnected() ? wifi_.ip().toString() : String("Setup AP active when needed"), 34, 232);
+  UiTheme::pill(wifi_.isConnected() ? String(WiFi.RSSI()) + " dBm" : "AP", 402, 160, false);
 
-  UiTheme::label("RETI DISPONIBILI", 20, 286);
-  int n = WiFi.scanNetworks(false, true);
-  int shown = min(n, 6);
-  for (int i = 0; i < shown; ++i) {
-    int y = 318 + i * 82;
-    settingsRow(y, "WF", WiFi.SSID(i), String(WiFi.RSSI(i)) + " dBm", false);
-  }
-  if (shown == 0) {
-    UiTheme::card(18, 318, 504, 120);
-    UiTheme::value("Nessuna rete trovata", 34, 350, false);
-    UiTheme::detail("Riprova aprendo nuovamente Wi-Fi.", 34, 392);
-  }
-  WiFi.scanDelete();
+  UiTheme::label("AVAILABLE NETWORKS", 20, 282);
+  UiTheme::card(18, 306, 504, 470);
+  UiTheme::value("Scanning...", 44, 350, false);
+  UiTheme::detail("The page stays responsive while Wi-Fi scans in background.", 44, 392);
+  UiTheme::detail("Tap this page again to restart the scan.", 44, 426);
 
-  UiTheme::card(18, 816, 504, 42);
-  UiTheme::detail("Per inserire password: paperos.local > Wi-Fi", 34, 827);
+  UiTheme::card(18, 792, 504, 58);
+  UiTheme::detail("Passwords and saved networks: paperos.local > Wi-Fi", 34, 811);
 
   bottomNav(4);
   commitPage();
+
+  // Async scan: opening Wi-Fi no longer blocks the UI for several seconds.
+  WiFi.scanDelete();
+  WiFi.scanNetworks(true, true);
 }
 
 void UiManager::showBluetooth() {
@@ -281,38 +290,28 @@ void UiManager::showBluetooth() {
   preparePage();
   statusBar();
 
-  UiTheme::title("Bluetooth", 18, 78);
-  UiTheme::detail("BLE scanner", 20, 119);
+  UiTheme::title("Bluetooth", 18, 76);
+  UiTheme::detail("BLE explorer", 20, 116);
 
   if (!bluetoothActive_) {
     BLEDevice::init("PaperOS");
     bluetoothActive_ = true;
   }
 
-  UiTheme::card(18, 150, 504, 94, true);
-  UiTheme::label("BLUETOOTH LE", 34, 166);
-  UiTheme::value("Scanner attivo", 34, 199, false);
-  UiTheme::pill("BETA", 433, 161, true);
+  UiTheme::card(18, 145, 504, 112, true);
+  UiTheme::label("BLUETOOTH LE", 34, 161);
+  UiTheme::value("Scanner ready", 34, 197, false);
+  UiTheme::detail("Tap this card to scan nearby BLE devices.", 34, 232);
+  UiTheme::pill("SCAN", 430, 160, true);
 
-  BLEScan* scanner = BLEDevice::getScan();
-  scanner->setActiveScan(true);
-  BLEScanResults results = scanner->start(3, false);
-  int shown = min(results.getCount(), 6);
+  UiTheme::label("DEVICES", 20, 282);
+  UiTheme::card(18, 306, 504, 470);
+  UiTheme::value("No scan running", 44, 350, false);
+  UiTheme::detail("Scanning is manual so opening Bluetooth stays instant.", 44, 392);
+  UiTheme::detail("A scan updates only this region of the e-paper panel.", 44, 426);
 
-  UiTheme::label("DISPOSITIVI VICINI", 20, 268);
-  for (int i = 0; i < shown; ++i) {
-    BLEAdvertisedDevice d = results.getDevice(i);
-    String name = d.haveName() ? String(d.getName().c_str()) : String(d.getAddress().toString().c_str());
-    if (name.length() > 24) name = name.substring(0, 24);
-    int y = 300 + i * 82;
-    settingsRow(y, "BT", name, String(d.getRSSI()) + " dBm", false);
-  }
-  if (shown == 0) {
-    UiTheme::card(18, 300, 504, 120);
-    UiTheme::value("Nessun BLE trovato", 34, 334, false);
-    UiTheme::detail("Riapri Bluetooth per eseguire una nuova scansione.", 34, 374);
-  }
-  scanner->clearResults();
+  UiTheme::card(18, 792, 504, 58);
+  UiTheme::detail("BLE scan is a Labs-grade diagnostic feature in this alpha.", 34, 811);
 
   bottomNav(4);
   commitPage();
@@ -876,28 +875,29 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Home) {
-      if (e.y >= 146 && e.y < 254) showSettings();
-      else if (e.y >= 266 && e.y < 372) showSolar();
-      else if (e.y >= 384 && e.y < 500) {
-        if (e.x < 270) showThermo();
-        else showNotes();
-      } else if (e.y >= 512 && e.y < 628) {
-        if (e.x < 270) showFiles();
+      if (e.y >= 145 && e.y < 273) showWiFi();
+      else if (e.y >= 322 && e.y < 430) {
+        if (e.x < 270) showNotes();
+        else showFiles();
+      } else if (e.y >= 442 && e.y < 550) {
+        if (e.x < 270) showSettings();
         else showSystem();
-      } else if (e.y >= 640 && e.y < 752) showSettings();
-      else if (e.y >= 764 && e.y < 850) showTools();
+      } else if (e.y >= 604 && e.y < 706) {
+        if (e.x < 270) showThermo();
+        else showSolar();
+      } else if (e.y >= 720 && e.y < 850) showSettings();
       return;
     }
 
     if (page_ == Page::Apps) {
-      const int startY = 146;
-      const int pitchY = 128;
+      const int startY = 154;
+      const int pitchY = 116;
       if (e.y >= startY && e.y < startY + 5 * pitchY && e.x >= 18) {
         int row = (e.y - startY) / pitchY;
         int col = (e.x - 18) / 172;
         int localX = (e.x - 18) % 172;
         int localY = (e.y - startY) % pitchY;
-        if (col >= 0 && col < 3 && localX < 160 && localY < 116) openAppIndex(row * 3 + col);
+        if (col >= 0 && col < 3 && localX < 160 && localY < 108) openAppIndex(row * 3 + col);
       }
       return;
     }
@@ -946,13 +946,50 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Settings) {
-      if (e.y >= 145 && e.y < 249) showGeneral();
-      else if (e.y >= 267 && e.y < 345) showGeneral();
-      else if (e.y >= 357 && e.y < 435) showWiFi();
-      else if (e.y >= 447 && e.y < 525) showBluetooth();
-      else if (e.y >= 537 && e.y < 615) showTools();
-      else if (e.y >= 627 && e.y < 705) showTools();
-      else if (e.y >= 717 && e.y < 795) showLabs();
+      if (e.y >= 145 && e.y < 241) showGeneral();
+      else if (e.y >= 260 && e.y < 338) showGeneral();
+      else if (e.y >= 342 && e.y < 420) showWiFi();
+      else if (e.y >= 424 && e.y < 502) showBluetooth();
+      else if (e.y >= 525 && e.y < 603) showTools();
+      else if (e.y >= 607 && e.y < 685) showTools();
+      else if (e.y >= 689 && e.y < 767) showLabs();
+      return;
+    }
+
+    if (page_ == Page::WiFi) {
+      showWiFi();
+      return;
+    }
+
+    if (page_ == Page::Bluetooth) {
+      if (e.y >= 145 && e.y < 257) {
+        M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
+        UiTheme::card(18, 306, 504, 470);
+        UiTheme::value("Scanning BLE...", 44, 350, false);
+        UiTheme::detail("Please keep the device awake.", 44, 392);
+        display_.partialRefresh(18, 306, 504, 470);
+
+        BLEScan* scanner = BLEDevice::getScan();
+        scanner->setActiveScan(true);
+        BLEScanResults results = scanner->start(2, false);
+        int shown = min(results.getCount(), 6);
+
+        M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
+        UiTheme::card(18, 306, 504, 470);
+        if (shown == 0) {
+          UiTheme::value("No BLE devices found", 44, 350, false);
+          UiTheme::detail("Tap SCAN to try again.", 44, 392);
+        } else {
+          for (int i = 0; i < shown; ++i) {
+            BLEAdvertisedDevice d = results.getDevice(i);
+            String name = d.haveName() ? String(d.getName().c_str()) : String(d.getAddress().toString().c_str());
+            if (name.length() > 24) name = name.substring(0, 24);
+            settingsRow(307 + i * 78, "BT", name, String(d.getRSSI()) + " dBm", false);
+          }
+        }
+        scanner->clearResults();
+        display_.partialRefresh(18, 306, 504, 470);
+      }
       return;
     }
 
@@ -982,10 +1019,43 @@ void UiManager::loop() {
             "0", ".", "=", "BS"
           };
           calcKey(keys[row * 4 + col]);
-          showCalculator();
+
+          // Only the calculator display changes; do not redraw all 20 keys.
+          M5.Display.fillRect(18, 145, 504, 100, TFT_WHITE);
+          UiTheme::card(18, 145, 504, 100, true);
+          M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+          M5.Display.setTextDatum(middle_right);
+          M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+          M5.Display.drawString(calcDisplay_, 500, 195);
+          UiTheme::resetFont();
+          display_.partialRefresh(18, 145, 504, 100);
         }
       }
       return;
+    }
+  }
+
+  // Complete an asynchronous Wi-Fi scan without blocking page entry.
+  if (page_ == Page::WiFi) {
+    int n = WiFi.scanComplete();
+    if (n >= 0) {
+      int shown = min(n, 6);
+      M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
+      UiTheme::card(18, 306, 504, 470);
+
+      if (shown == 0) {
+        UiTheme::value("No networks found", 44, 350, false);
+        UiTheme::detail("Tap this page to scan again.", 44, 392);
+      } else {
+        for (int i = 0; i < shown; ++i) {
+          String ssid = WiFi.SSID(i);
+          if (ssid.length() > 24) ssid = ssid.substring(0, 24);
+          settingsRow(307 + i * 78, "WF", ssid.length() ? ssid : String("<hidden>"), String(WiFi.RSSI(i)) + " dBm", false);
+        }
+      }
+
+      display_.partialRefresh(18, 306, 504, 470);
+      WiFi.scanDelete();
     }
   }
 
@@ -995,8 +1065,8 @@ void UiManager::loop() {
     display_.partialRefresh(0, 0, M5.Display.width(), UiTheme::StatusH);
   }
 
-  // Periodic quality refresh is deliberately rare; normal navigation uses epd_text.
-  if (millis() - lastDeepClean_ > 20UL * 60UL * 1000UL && page_ == Page::Home) {
+  // Rare quality refresh for ghosting control. Manual Clean Display is always available.
+  if (millis() - lastDeepClean_ > 25UL * 60UL * 1000UL && page_ == Page::Home) {
     showHome(true);
   }
 }

@@ -8,6 +8,7 @@ const pages=[
   {name:'Device',icon:'DV'},
   {name:'Files',icon:'FL'},
   {name:'Notes',icon:'NT'},
+  {name:'Calculator',icon:'CAL'},
   {name:'Tasks',icon:'TK'},
   {name:'Calendar',icon:'CL'},
   {name:'Bluetooth',icon:'BT'},
@@ -22,7 +23,8 @@ const pages=[
   {name:'Notifications',icon:'NO'},
   {name:'Logs',icon:'LG'},
   {name:'Settings',icon:'ST'},
-  {name:'System',icon:'SY'}
+  {name:'System',icon:'SY'},
+  {name:'Labs',icon:'LB'}
 ];
 
 nav.innerHTML=pages.map(p=>'<button data-p="'+p.name+'"><span class="nav-icon">'+p.icon+'</span><span>'+p.name+'</span></button>').join('');
@@ -141,9 +143,11 @@ async function openPage(name){
   if(name==='Device')return device();
   if(name==='Files')return files();
   if(name==='Notes')return notes();
+  if(name==='Calculator')return coming('Calculator is native on the M5Paper');
   if(name==='Wi-Fi')return wifi();
   if(name==='Settings')return settings();
   if(name==='System')return systemPage();
+  if(name==='Labs')return labs();
   return coming(name);
 }
 
@@ -466,6 +470,19 @@ async function systemPage(){
       '<section class="card half"><h3>Storage</h3><div class="card-line"><span>microSD</span><strong>'+(s.sdMounted?'Mounted':'Unavailable')+'</strong></div><div class="card-line"><span>Free</span><strong>'+bytes(s.sdFree)+'</strong></div><div class="card-line"><span>Firmware</span><strong>'+esc(s.version)+'</strong></div><div class="card-line"><span>Device</span><strong>'+esc(s.deviceName)+'</strong></div></section>'+
     '</div>';
   $('#sysRefresh').onclick=systemPage;
+}
+
+function labs(){
+  view.innerHTML=
+    '<section class="hero"><div><p class="eyebrow">WINLABS SOLUTIONS</p><h2>Labs</h2><p>Experimental PaperOS functions. Beta features may change between alpha releases.</p></div><div class="hero-meta"><div><span>Status</span><strong>Beta</strong></div><div><span>Vendor</span><strong>WinLabs Solutions</strong></div></div></section>'+
+    '<div class="grid">'+
+      '<section class="card"><h3>USB HID / BadUSB Lab</h3><div class="metric" style="font-size:1.2rem">Script library</div><div class="submetric">Store scripts in /PaperOS/Labs/HID. Native USB-C execution is unavailable on original M5Paper; an external HID-capable adapter is required.</div></section>'+
+      '<section class="card"><h3>BLE Explorer</h3><div class="metric" style="font-size:1.2rem">Beta</div><div class="submetric">BLE scan and diagnostics are available on the device.</div></section>'+
+      '<section class="card"><h3>GPIO Lab</h3><div class="metric" style="font-size:1.2rem">Coming Soon</div><div class="submetric">Experimental pin tools with explicit safety confirmations.</div></section>'+
+      '<section class="card"><h3>Serial Lab</h3><div class="metric" style="font-size:1.2rem">Coming Soon</div><div class="submetric">UART diagnostics and console tools.</div></section>'+
+      '<section class="card"><h3>Display Test</h3><div class="metric" style="font-size:1.2rem">Available</div><div class="submetric">Use the Device/Tools controls for anti-ghosting refresh tests.</div></section>'+
+      '<section class="card"><h3>Developer</h3><div class="metric" style="font-size:1.2rem">Beta</div><div class="submetric">System monitor, logs and experimental diagnostics.</div></section>'+
+    '</div>';
 }
 
 function coming(name){

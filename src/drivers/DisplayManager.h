@@ -7,9 +7,26 @@ class DisplayManager {
  public:
   void begin();
   void splash();
-  void fullRefresh();
+
+  // Fast full-screen refresh for normal page changes.
+  void pageRefresh();
+
+  // High-quality full-screen refresh used periodically or on demand.
+  void qualityRefresh();
+
+  // White-flash cleanup followed by a text refresh. Useful when ghosting is visible.
+  void cleanRefresh();
+
+  // Small-region update for clock/status.
   void partialRefresh(int32_t x, int32_t y, int32_t w, int32_t h);
+
+  void notePageChange();
+  uint32_t pageChangesSinceClean() const { return pageChangesSinceClean_; }
+
   int width() const { return M5.Display.width(); }
   int height() const { return M5.Display.height(); }
+
+ private:
+  uint32_t pageChangesSinceClean_ = 0;
 };
 }

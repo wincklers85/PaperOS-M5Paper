@@ -2,6 +2,27 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.4-alpha] - 2026-09-23
+
+### Added
+- iPhone-inspired grouped Settings screen with real navigation rows.
+- Generali/Info screen with device model, ESP32 processor, PSRAM, flash, 540×960 display, firmware and WinLabs Solutions attribution.
+- Native Wi-Fi app with live connection data and nearby network scanning.
+- Native Bluetooth LE scanner app with nearby device name/address and RSSI.
+- Native Calculator utility with touch keypad and basic arithmetic.
+- Labs app branded WinLabs Solutions for experimental features.
+- USB HID / BadUSB Lab script-library page backed by /PaperOS/Labs/HID.
+- Labs storage directories for HID and experimental scripts.
+
+### Changed
+- Main app launcher expanded to include Calculator, Wi-Fi, Bluetooth, Labs and Reader.
+- Bluetooth status icon now reflects the native BLE scanner state.
+- Settings layout now uses grouped rounded cards and icon rows inspired by modern mobile settings UIs.
+
+### Hardware note
+- Original M5Paper USB-C is connected through CP2104/CH9102 USB-to-serial hardware, so it cannot natively enumerate as a USB HID keyboard. HID script execution therefore requires an external HID-capable adapter; PaperOS does not fake unsupported USB execution.
+
+
 ## [0.1.3-alpha] - 2026-09-23
 
 ### Changed

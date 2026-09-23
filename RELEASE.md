@@ -1,4 +1,4 @@
-# Release 0.1.3-alpha
+# Release 0.1.4-alpha
 
 ## Purpose
 
@@ -23,8 +23,8 @@ Incremental alpha milestone for the original M5Stack M5Paper, establishing the p
 - [ ] 24-hour stability/heap test
 
 Do not remove the `alpha` suffix until the unchecked hardware/toolchain tests pass.
-\n## Professional UI milestone\n\n0.1.3-alpha now includes the production-oriented 540×960 PaperOS device design system and the responsive authenticated browser console. The browser controls are wired to the existing REST endpoints for live status, files, Notes, Wi-Fi, settings, remote device actions and OTA.\n
+\n## Professional UI milestone\n\n0.1.4-alpha now includes the production-oriented 540×960 PaperOS device design system and the responsive authenticated browser console. The browser controls are wired to the existing REST endpoints for live status, files, Notes, Wi-Fi, settings, remote device actions and OTA.\n
 
 ## 540×960 native UI milestone
 
-PaperOS 0.1.3-alpha fixes the UI contract to the original M5Paper's native 540×960 portrait panel, adds dedicated Solar and Termo planned dashboards, improves anti-ghosting refresh, and separates inactivity deep sleep from optional timed wake. The sleep screen remains visible on e-paper without continuous display power.
+PaperOS 0.1.4-alpha fixes the UI contract to the original M5Paper's native 540×960 portrait panel, adds dedicated Solar and Termo planned dashboards, improves anti-ghosting refresh, and separates inactivity deep sleep from optional timed wake. The sleep screen remains visible on e-paper without continuous display power.

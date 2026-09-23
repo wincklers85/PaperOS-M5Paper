@@ -2,6 +2,28 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.3-alpha] - 2026-09-23
+
+### Changed
+- Locked the on-device design system to the original M5Paper's native 540×960 portrait resolution.
+- Redesigned Home to match the PaperOS concept more closely: status bar, dashboard cards, bottom navigation and high-contrast spacing tuned for the real panel.
+- Solar and Termo now have dedicated finished UI shells but remain explicitly Coming Soon with no fake telemetry.
+- Anti-ghost cleanup now performs a high-quality white refresh before redrawing the active screen.
+- Auto sleep now stays asleep until touch/button wake instead of waking again after the inactivity timeout.
+
+### Added
+- Dedicated Solar planned dashboard with PV, home, battery, grid and MPPT placeholders.
+- Dedicated Termo planned dashboard with room, humidity, puffer and boiler integration placeholders.
+- Retained e-paper sleep screen with clock, battery, wake instructions and optional timer information.
+- Manual Sleep Now and Sleep 15 min actions.
+- Persistent touch-wake and optional timed-wake settings exposed through the browser console.
+- Browser navigation entry for the Termo module.
+
+### Fixed
+- Corrected the power-management model so inactivity sleep and scheduled wake are separate behaviors.
+- Realigned touch hitboxes to the redesigned 540×960 page geometry.
+
+
 ## [0.1.2-alpha] - 2026-09-23
 
 ### Fixed

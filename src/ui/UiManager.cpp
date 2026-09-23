@@ -600,15 +600,16 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Home) {
-      if (e.y >= 148 && e.y < 272) showSettings();
-      else if (e.y >= 286 && e.y < 412) {
-        if (e.x < 270) showSystem();
-        else showFiles();
-      } else if (e.y >= 426 && e.y < 552) {
-        if (e.x < 270) showNotes();
-        else showFiles();
-      } else if (e.y >= 566 && e.y < 678) showSystem();
-      else if (e.y >= 692 && e.y < 842) showTools();
+      if (e.y >= 146 && e.y < 254) showSettings();
+      else if (e.y >= 266 && e.y < 372) showSolar();
+      else if (e.y >= 384 && e.y < 500) {
+        if (e.x < 270) showThermo();
+        else showNotes();
+      } else if (e.y >= 512 && e.y < 628) {
+        if (e.x < 270) showFiles();
+        else showSystem();
+      } else if (e.y >= 640 && e.y < 752) showSettings();
+      else if (e.y >= 764 && e.y < 850) showTools();
       return;
     }
 
@@ -654,13 +655,15 @@ void UiManager::loop() {
       if (e.y >= 150 && e.y < 238) {
         display_.cleanRefresh();
         showTools();
-      } else if (e.y >= 250 && e.y < 338) {
+      } else if (e.y >= 242 && e.y < 330) {
         showSystem();
-      } else if (e.y >= 350 && e.y < 438) {
+      } else if (e.y >= 334 && e.y < 422) {
         showSettings();
-      } else if (e.y >= 450 && e.y < 538) {
+      } else if (e.y >= 426 && e.y < 514) {
         power_.sleepNow();
-      } else if (e.y >= 550 && e.y < 638) {
+      } else if (e.y >= 518 && e.y < 606) {
+        power_.sleepForMinutes(15);
+      } else if (e.y >= 610 && e.y < 698) {
         showSettings();
       }
       return;

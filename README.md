@@ -1,22 +1,22 @@
 # PaperOS
 
-**PaperOS 0.1.4-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
+**PaperOS 0.1.5-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
 
 > Target: M5Stack M5Paper first generation only. M5Paper S3 is not the target of this repository.
 
-## What is real in 0.1.4-alpha
+## What is real in 0.1.5-alpha
 
 - M5Unified/M5GFX initialization for original M5Paper
 - boot splash and touch UI
 - pixel-precise 540×960 Home, Apps, Settings, System Monitor, native Notes, native Files and Tools screens
 - hardware buttons: Home / Apps / hold power for sleep
 - RTC display and battery telemetry
-- high-contrast bold e-paper typography with fast text-mode page refresh
-- automatic and manual anti-ghosting display cleanup
+- high-contrast bold e-paper typography with fast-waveform page navigation and partial regional updates
+- less frequent automatic anti-ghosting cleanup plus manual Clean Display
 - dedicated Solar and Termo UI shells marked Coming Soon, with no fake telemetry
 - corrected deep-sleep behavior with retained sleep screen, touch wake and optional timer wake
-- native Wi-Fi app with scan, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
-- native Bluetooth LE scanner
+- native Wi-Fi app with non-blocking asynchronous scan, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
+- native Bluetooth LE scanner with instant page entry and tap-to-scan behavior
 - native Calculator utility
 - WinLabs Solutions Labs area with beta tools and HID script library
 - captive DNS redirect to `192.168.4.1`

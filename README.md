@@ -1,16 +1,18 @@
 # PaperOS
 
-**PaperOS 0.1.1-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
+**PaperOS 0.1.2-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
 
 > Target: M5Stack M5Paper first generation only. M5Paper S3 is not the target of this repository.
 
-## What is real in 0.1.1-alpha
+## What is real in 0.1.2-alpha
 
 - M5Unified/M5GFX initialization for original M5Paper
 - boot splash and touch UI
-- Home, Apps, Settings and System Monitor screens
+- Home, Apps, Settings, System Monitor, native Notes, native Files and Tools screens
 - hardware buttons: Home / Apps / hold power for sleep
 - RTC display and battery telemetry
+- high-contrast bold e-paper typography with fast text-mode page refresh
+- automatic and manual anti-ghosting display cleanup
 - Wi-Fi saved networks, reconnect and Setup AP (`PaperOS-Setup`)
 - captive DNS redirect to `192.168.4.1`
 - mDNS hostname `paperos.local`
@@ -113,7 +115,7 @@ All Web File Manager paths are sandboxed below `/PaperOS`.
 
 ## Release
 
-Current semantic version: **0.1.1-alpha**. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
+Current semantic version: **0.1.2-alpha**. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
 
 ## License
 

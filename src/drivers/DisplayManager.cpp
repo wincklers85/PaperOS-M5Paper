@@ -69,11 +69,13 @@ void DisplayManager::qualityRefresh() {
 }
 
 void DisplayManager::cleanRefresh() {
-  // The white pass actively clears retained particles before redrawing.
-  M5.Display.setEpdMode(m5gfx::epd_text);
+  // A quality white pass is intentionally slower, but it is used only
+  // periodically/on demand to reset visible e-paper ghosting.
+  M5.Display.setEpdMode(m5gfx::epd_quality);
   M5.Display.fillScreen(TFT_WHITE);
   M5.Display.display();
-  delay(70);
+  delay(100);
+  M5.Display.setEpdMode(m5gfx::epd_text);
   pageChangesSinceClean_ = 0;
 }
 

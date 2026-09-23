@@ -79,33 +79,37 @@ void UiManager::showHome(bool forceClean) {
   statusBar();
 
   UiTheme::title("PaperOS", 18, 78);
-  UiTheme::detail(String(VERSION) + "  /  " + config_.get().deviceName, 20, 119);
+  UiTheme::detail(String(VERSION) + "  /  540x960 native UI", 20, 119);
 
-  UiTheme::card(18, 148, 504, 124, true);
-  UiTheme::label("NETWORK", 34, 164);
-  UiTheme::pill(wifi_.isConnected() ? "ONLINE" : "SETUP AP", 392, 160, wifi_.isConnected());
-  UiTheme::value(wifi_.isConnected() ? WiFi.SSID() : String(SETUP_AP), 34, 202, false);
-  UiTheme::detail(wifi_.ip().toString(), 34, 244);
+  UiTheme::card(18, 146, 504, 108, true);
+  UiTheme::label("NETWORK", 34, 160);
+  UiTheme::pill(wifi_.isConnected() ? "ONLINE" : "SETUP AP", 392, 156, wifi_.isConnected());
+  UiTheme::value(wifi_.isConnected() ? WiFi.SSID() : String(SETUP_AP), 34, 194, false);
+  UiTheme::detail(wifi_.ip().toString(), 34, 228);
 
-  homeCard(18, 286, 246, 126, "BATTERY", String(power_.batteryPercent()) + "%", String(power_.batteryMillivolts()) + " mV");
-  String storageValue = storage_.available() ? String(storage_.freeBytes() / 1048576.0, 0) + " MB free" : "No SD";
-  homeCard(276, 286, 246, 126, "STORAGE", storageValue, storage_.available() ? "microSD ready" : "Insert microSD");
+  UiTheme::card(18, 266, 504, 106);
+  UiTheme::label("SOLAR", 34, 280);
+  UiTheme::pill("COMING SOON", 382, 276, false);
+  UiTheme::value("Energy dashboard", 34, 314, false);
+  UiTheme::detail("PV / home / battery / grid / MPPT", 34, 346);
+  UiTheme::chevron(491, 307);
 
-  homeCard(18, 426, 246, 126, "NOTES", storage_.available() ? "Open notes" : "Needs SD", "Read notes on-device");
-  homeCard(276, 426, 246, 126, "FILES", storage_.available() ? "Browse files" : "Needs SD", "/PaperOS");
+  homeCard(18, 384, 246, 116, "TERMO", "Coming Soon", "Puffer / boiler / room", true);
+  homeCard(276, 384, 246, 116, "NOTES", storage_.available() ? "Open notes" : "Needs SD", "Read notes on-device", true);
 
-  UiTheme::card(18, 566, 504, 112);
-  UiTheme::label("SYSTEM", 34, 582);
-  UiTheme::value(String(ESP.getFreeHeap() / 1024) + " KB free heap", 34, 618, false);
-  UiTheme::detail("Tap for memory, PSRAM, Wi-Fi and power", 34, 654);
-  UiTheme::chevron(492, 611);
+  homeCard(18, 512, 246, 116, "FILES", storage_.available() ? "Browse files" : "Needs SD", "/PaperOS", true);
+  homeCard(276, 512, 246, 116, "SYSTEM", String(ESP.getFreeHeap() / 1024) + " KB free", "Status & diagnostics", true);
 
-  UiTheme::card(18, 692, 504, 150);
-  UiTheme::label("QUICK ACCESS", 34, 708);
-  UiTheme::value("paperos.local", 34, 744, false);
-  UiTheme::detail("Browser console + OTA + full file management", 34, 780);
-  UiTheme::pill("TOOLS", 416, 704, true);
-  UiTheme::detail("Touch Tools below for display cleanup and power.", 34, 813);
+  UiTheme::card(18, 640, 504, 112);
+  UiTheme::label("BROWSER CONSOLE", 34, 654);
+  UiTheme::value("paperos.local", 34, 688, false);
+  UiTheme::detail("Files / Notes / Wi-Fi / Settings / OTA", 34, 724);
+  UiTheme::pill("WEB", 438, 650, true);
+
+  UiTheme::card(18, 764, 504, 86);
+  UiTheme::label("POWER", 34, 779);
+  UiTheme::detail(String("Auto sleep: ") + config_.get().sleepMinutes + " min  /  Touch wake", 34, 814);
+  UiTheme::chevron(491, 791);
 
   bottomNav(0);
   commitPage();
@@ -117,24 +121,24 @@ void UiManager::showApps() {
   statusBar();
 
   UiTheme::title("Apps", 18, 78);
-  UiTheme::detail("Native PaperOS tools", 20, 119);
+  UiTheme::detail("PaperOS native launcher", 20, 119);
 
   const char* names[12] = {
-    "Home", "Notes", "Tasks",
-    "Calendar", "Files", "PDF",
-    "Wi-Fi", "Bluetooth", "MQTT",
-    "GPIO", "Settings", "System"
+    "Home", "Notes", "Files",
+    "Termo", "Solar", "Wi-Fi",
+    "Tasks", "Calendar", "Bluetooth",
+    "MQTT", "Settings", "System"
   };
   const char* glyphs[12] = {
-    "HM", "NT", "TK",
-    "CL", "FL", "PDF",
-    "WF", "BT", "MQ",
-    "IO", "ST", "SYS"
+    "HM", "NT", "FL",
+    "TH", "SL", "WF",
+    "TK", "CL", "BT",
+    "MQ", "ST", "SYS"
   };
   const bool ready[12] = {
-    true, true, false,
-    false, true, false,
-    true, false, false,
+    true, true, true,
+    false, false, true,
+    false, false, false,
     false, true, true
   };
 
@@ -150,9 +154,9 @@ void UiManager::showApps() {
   }
 
   UiTheme::card(18, 712, 504, 128);
-  UiTheme::label("AVAILABLE NOW", 34, 730);
-  UiTheme::detail("Home / Notes / Files / Wi-Fi / Settings / System", 34, 765);
-  UiTheme::detail("Tools includes anti-ghosting refresh and sleep.", 34, 799);
+  UiTheme::label("STATUS", 34, 730);
+  UiTheme::detail("Native now: Home / Notes / Files / Wi-Fi / Settings / System", 34, 765);
+  UiTheme::detail("Termo and Solar have final UI shells but no fake telemetry.", 34, 799);
 
   bottomNav(4);
   commitPage();
@@ -171,18 +175,19 @@ void UiManager::showSettings() {
   statusBar();
 
   UiTheme::title("Settings", 18, 78);
-  UiTheme::detail("Device essentials", 20, 119);
+  UiTheme::detail("PaperOS preferences", 20, 119);
 
   settingRow(150, "Device", config_.get().deviceName + " / " + config_.get().language);
-  settingRow(250, "Wi-Fi", wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup"));
-  settingRow(350, "Power", String("Sleep after ") + config_.get().sleepMinutes + " min");
-  settingRow(450, "Storage", storage_.available() ? "microSD mounted" : "microSD unavailable");
-  settingRow(550, "Browser", String("http://") + HOSTNAME + ".local");
-  settingRow(650, "About", String("PaperOS ") + VERSION);
+  settingRow(246, "Wi-Fi", wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup"));
+  settingRow(342, "Display", "540x960 / high contrast / anti-ghost");
+  settingRow(438, "Power", String("Auto sleep ") + config_.get().sleepMinutes + " min");
+  settingRow(534, "Storage", storage_.available() ? "microSD mounted" : "microSD unavailable");
+  settingRow(630, "Browser", String("http://") + HOSTNAME + ".local");
 
-  UiTheme::card(18, 750, 504, 92);
-  UiTheme::detail("Advanced editing is available from the browser console.", 34, 775);
-  UiTheme::detail("Touch Tools for clean refresh and sleep.", 34, 807);
+  UiTheme::card(18, 738, 504, 104);
+  UiTheme::label("SLEEP & WAKE", 34, 754);
+  UiTheme::detail(config_.get().touchWakeEnabled ? "Touch wake enabled" : "Touch wake disabled", 34, 788);
+  UiTheme::detail("Timed wake is optional and separate from auto sleep.", 34, 818);
 
   bottomNav(4);
   commitPage();
@@ -429,21 +434,94 @@ void UiManager::showTools() {
   statusBar();
 
   UiTheme::title("Tools", 18, 78);
-  UiTheme::detail("Device maintenance", 20, 119);
+  UiTheme::detail("Display & power controls", 20, 119);
 
-  settingRow(150, "Clean Display", "White wipe + redraw to remove ghosting");
-  settingRow(250, "System Monitor", "Heap / PSRAM / battery / network");
-  settingRow(350, "Settings", "Wi-Fi / power / browser / storage");
-  settingRow(450, "Sleep Now", "Enter low-power deep sleep");
-  settingRow(550, "Browser Console", String("http://") + HOSTNAME + ".local");
+  settingRow(150, "Clean Display", "Quality white wipe + redraw");
+  settingRow(242, "System Monitor", "Memory / battery / network");
+  settingRow(334, "Settings", "Display / power / Wi-Fi / storage");
+  settingRow(426, "Sleep Now", "Deep sleep until touch/button");
+  settingRow(518, "Sleep 15 min", "Touch wake or timer wake");
+  settingRow(610, "Browser Console", String("http://") + HOSTNAME + ".local");
 
-  UiTheme::card(18, 670, 504, 170);
-  UiTheme::label("REFRESH POLICY", 34, 690);
-  UiTheme::detail("Normal page change: epd_text (fast + readable)", 34, 728);
-  UiTheme::detail("Automatic cleanup: every 4 page changes", 34, 762);
-  UiTheme::detail("Clean Display: immediate anti-ghosting wipe", 34, 796);
+  UiTheme::card(18, 714, 504, 128);
+  UiTheme::label("REFRESH ENGINE", 34, 730);
+  UiTheme::detail("Page changes: fast text mode", 34, 765);
+  UiTheme::detail("Automatic anti-ghost clean after repeated navigation", 34, 798);
+  UiTheme::detail("Manual Clean Display is always available here.", 34, 828);
 
   bottomNav(3);
+  commitPage();
+}
+
+void UiManager::showThermo() {
+  page_ = Page::ComingSoon;
+  comingTitle_ = "Termo";
+  comingNav_ = 4;
+
+  preparePage();
+  statusBar();
+  UiTheme::title("Termo", 18, 78);
+  UiTheme::detail("Heating & thermal dashboard", 20, 119);
+
+  UiTheme::card(18, 150, 504, 118, true);
+  UiTheme::label("STATUS", 34, 166);
+  UiTheme::pill("COMING SOON", 374, 160, false);
+  UiTheme::value("Thermal control center", 34, 203, false);
+  UiTheme::detail("No simulated temperatures are shown.", 34, 238);
+
+  homeCard(18, 282, 246, 120, "ROOM", "--.- C", "SHT30 / remote sensor", false);
+  homeCard(276, 282, 246, 120, "HUMIDITY", "-- %", "Local / remote sensor", false);
+  homeCard(18, 416, 246, 120, "PUFFER TOP", "--.- C", "Planned telemetry", false);
+  homeCard(276, 416, 246, 120, "PUFFER BOTTOM", "--.- C", "Planned telemetry", false);
+
+  UiTheme::card(18, 550, 504, 154);
+  UiTheme::label("PLANNED CONNECTIONS", 34, 568);
+  UiTheme::detail("ESP32 / MQTT / HTTP / serial bridge", 34, 606);
+  UiTheme::detail("Pellet boiler state + puffer resistances", 34, 640);
+  UiTheme::detail("Automations will activate only after real sensor binding.", 34, 674);
+
+  UiTheme::card(18, 718, 504, 124);
+  UiTheme::label("SAFETY", 34, 736);
+  UiTheme::detail("Control outputs remain disabled in this alpha.", 34, 774);
+  UiTheme::detail("Placeholders show -- instead of invented measurements.", 34, 808);
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showSolar() {
+  page_ = Page::ComingSoon;
+  comingTitle_ = "Solar";
+  comingNav_ = 4;
+
+  preparePage();
+  statusBar();
+  UiTheme::title("Solar", 18, 78);
+  UiTheme::detail("Energy dashboard", 20, 119);
+
+  UiTheme::card(18, 150, 504, 118, true);
+  UiTheme::label("STATUS", 34, 166);
+  UiTheme::pill("COMING SOON", 374, 160, false);
+  UiTheme::value("PV energy center", 34, 203, false);
+  UiTheme::detail("Waiting for a real inverter data source.", 34, 238);
+
+  homeCard(18, 282, 246, 120, "PV POWER", "--.- kW", "Planned live value", false);
+  homeCard(276, 282, 246, 120, "HOME", "--.- kW", "Planned consumption", false);
+  homeCard(18, 416, 246, 120, "BATTERY SOC", "-- %", "Planned inverter / BMS", false);
+  homeCard(276, 416, 246, 120, "GRID", "--.- kW", "Import / export", false);
+
+  UiTheme::card(18, 550, 504, 154);
+  UiTheme::label("PLANNED DETAIL", 34, 568);
+  UiTheme::detail("MPPT1 / MPPT2 / battery V+A / daily yield", 34, 606);
+  UiTheme::detail("MQTT / HTTP / serial sources supported", 34, 640);
+  UiTheme::detail("No fake production numbers are displayed.", 34, 674);
+
+  UiTheme::card(18, 718, 504, 124);
+  UiTheme::label("AUTOMATION READY", 34, 736);
+  UiTheme::detail("Future surplus rules can drive puffer heating.", 34, 774);
+  UiTheme::detail("Rules stay disabled until telemetry is connected.", 34, 808);
+
+  bottomNav(4);
   commitPage();
 }
 
@@ -481,16 +559,17 @@ void UiManager::handleBottomNav(int x) {
 }
 
 void UiManager::openAppIndex(int index) {
-  const char* names[12] = {
-    "Home", "Notes", "Tasks", "Calendar", "Files", "PDF Reader",
-    "Wi-Fi", "Bluetooth", "MQTT", "GPIO", "Settings", "System"
-  };
   if (index == 0) showHome();
   else if (index == 1) showNotes();
-  else if (index == 4) showFiles();
-  else if (index == 6 || index == 10) showSettings();
+  else if (index == 2) showFiles();
+  else if (index == 3) showThermo();
+  else if (index == 4) showSolar();
+  else if (index == 5 || index == 10) showSettings();
   else if (index == 11) showSystem();
-  else if (index >= 0 && index < 12) showComingSoon(names[index], 4);
+  else if (index == 6) showComingSoon("Tasks", 4);
+  else if (index == 7) showComingSoon("Calendar", 4);
+  else if (index == 8) showComingSoon("Bluetooth", 4);
+  else if (index == 9) showComingSoon("MQTT", 4);
 }
 
 void UiManager::loop() {

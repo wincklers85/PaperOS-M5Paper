@@ -2,6 +2,27 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.2-alpha] - 2026-09-23
+
+### Fixed
+- Reworked the original M5Paper refresh policy to reduce visible ghosting and long page-change delays.
+- Removed fractional text scaling and faint gray UI text that rendered poorly on the real e-paper panel.
+- Added explicit invalid-RTC handling in the status bar.
+
+### Changed
+- Normal full-page navigation now uses `epd_text` instead of the slow quality mode.
+- PaperOS uses a high-contrast 1-bit black/white drawing path and bold M5GFX fonts.
+- Automatic white-screen anti-ghosting cleanup runs after several page transitions, with an additional periodic cleanup.
+- Status-only updates use a faster regional refresh without forcing a slow full-screen cycle.
+
+### Added
+- Native Notes browser on the M5Paper, including direct note reading from microSD.
+- Native Files browser with directory navigation and previews for TXT, Markdown, JSON, LOG and CSV files.
+- Native Tools page with Clean Display, System Monitor, Settings, Sleep and browser-console access.
+- Manual Clean Display action for immediate ghosting removal.
+- More native navigation targets in the App Launcher.
+
+
 ## [0.1.1-alpha] - 2026-09-23
 
 ### Changed

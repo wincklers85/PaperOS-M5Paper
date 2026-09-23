@@ -21,7 +21,8 @@ void DisplayManager::begin() {
   M5.Display.setTextWrap(false);
   M5.Display.setTextDatum(top_left);
   M5.Display.fillScreen(TFT_WHITE);
-  M5.Display.display();
+  // Do not force an extra panel update here. splash() performs the first
+  // visible refresh and avoids a redundant boot-time flash.
 }
 
 void DisplayManager::splash() {
@@ -50,14 +51,17 @@ void DisplayManager::splash() {
   M5.Display.fillRoundRect(barX + 3, barY + 3, barW - 6, 8, 4, TFT_BLACK);
 
   M5.Display.display();
-  delay(500);
+  delay(120);
   M5.Display.setFont(&fonts::Font2);
   M5.Display.setTextDatum(top_left);
 }
 
 void DisplayManager::pageRefresh() {
-  M5.Display.setEpdMode(m5gfx::epd_text);
+  // Fast waveform for normal page-to-page navigation. Ghosting is handled
+  // by the less frequent quality clean in UiManager and the manual tool.
+  M5.Display.setEpdMode(m5gfx::epd_fast);
   M5.Display.display();
+  M5.Display.setEpdMode(m5gfx::epd_text);
   ++pageChangesSinceClean_;
 }
 

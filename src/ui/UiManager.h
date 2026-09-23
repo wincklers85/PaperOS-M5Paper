@@ -28,11 +28,17 @@ class UiManager {
   void showTools();
   void showThermo();
   void showSolar();
+  void showWiFi();
+  void showBluetooth();
+  void showGeneral();
+  void showLabs();
+  void showHidLab();
+  void showCalculator();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, ComingSoon
+    Files, FileView, Tools, WiFi, Bluetooth, General, Labs, HidLab, Calculator, ComingSoon
   };
 
   struct FileEntry {
@@ -56,6 +62,11 @@ class UiManager {
 
   std::vector<FileEntry> fileEntries_;
   String currentFilePath_ = "/PaperOS";
+  bool bluetoothActive_ = false;
+  String calcDisplay_ = "0";
+  double calcAccumulator_ = 0.0;
+  char calcPendingOp_ = 0;
+  bool calcResetInput_ = true;
   std::vector<String> noteIds_;
   std::vector<String> noteTitles_;
 
@@ -73,6 +84,8 @@ class UiManager {
   String parentPath(const String& path) const;
   String joinPath(const String& base, const String& name) const;
   bool isTextFile(const String& name) const;
+  void settingsRow(int y, const String& glyph, const String& title, const String& detail, bool chevron = true);
+  void calcKey(const String& key);
 };
 
 }

@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <vector>
 #include "UiTheme.h"
 #include "../drivers/DisplayManager.h"
 #include "../drivers/TouchManager.h"
@@ -17,13 +18,26 @@ class UiManager {
 
   void begin();
   void loop();
-  void showHome(bool full = true);
+
+  void showHome(bool forceClean = false);
   void showApps();
   void showSystem();
   void showSettings();
+  void showNotes();
+  void showFiles(const String& path = "/PaperOS");
+  void showTools();
 
  private:
-  enum class Page { Home, Apps, System, Settings, ComingSoon };
+  enum class Page {
+    Home, Apps, System, Settings, Notes, NoteView,
+    Files, FileView, Tools, ComingSoon
+  };
+
+  struct FileEntry {
+    String name;
+    bool directory = false;
+    uint64_t size = 0;
+  };
 
   Page page_ = Page::Home;
   DisplayManager& display_;
@@ -32,18 +46,31 @@ class UiManager {
   StorageManager& storage_;
   PowerManager& power_;
   ConfigManager& config_;
+
   uint32_t lastClock_ = 0;
-  uint32_t lastFull_ = 0;
+  uint32_t lastDeepClean_ = 0;
   int comingNav_ = 4;
   String comingTitle_;
 
+  std::vector<FileEntry> fileEntries_;
+  String currentFilePath_ = "/PaperOS";
+  std::vector<String> noteIds_;
+  std::vector<String> noteTitles_;
+
+  void preparePage(bool forceClean = false);
+  void commitPage();
   void statusBar();
   void bottomNav(int active);
   void homeCard(int x, int y, int w, int h, const String& title, const String& value, const String& detail, bool chevron = true);
   void settingRow(int y, const String& title, const String& detail);
   void showComingSoon(const String& title, int activeNav = 4);
+  void showNote(size_t index);
+  void showFilePreview(const String& fullPath, const String& name, uint64_t size);
   void handleBottomNav(int x);
   void openAppIndex(int index);
+  String parentPath(const String& path) const;
+  String joinPath(const String& base, const String& name) const;
+  bool isTextFile(const String& name) const;
 };
 
 }

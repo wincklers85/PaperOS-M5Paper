@@ -16,9 +16,12 @@ void UiTheme::beginFrame() {
 }
 
 void UiTheme::card(int x, int y, int w, int h, bool heavy) {
-  M5.Display.fillRoundRect(x, y, w, h, 12, TFT_WHITE);
-  M5.Display.drawRoundRect(x, y, w, h, 12, TFT_BLACK);
-  if (heavy) M5.Display.drawRoundRect(x + 1, y + 1, w - 2, h - 2, 11, TFT_BLACK);
+  const int radius = 10;
+  M5.Display.fillRoundRect(x, y, w, h, radius, TFT_WHITE);
+  M5.Display.drawRoundRect(x, y, w, h, radius, TFT_BLACK);
+  if (heavy) {
+    M5.Display.drawFastHLine(x + 12, y + 3, w - 24, TFT_BLACK);
+  }
 }
 
 void UiTheme::title(const String& text, int x, int y) {
@@ -115,20 +118,27 @@ void UiTheme::navItem(int index, const String& labelText, bool active) {
 }
 
 void UiTheme::appTile(int x, int y, int w, int h, const String& glyph, const String& labelText, bool comingSoon) {
-  card(x, y, w, h, !comingSoon);
-  M5.Display.drawRoundRect(x + 14, y + 14, 48, 48, 9, TFT_BLACK);
+  card(x, y, w, h, false);
 
+  const int iconX = x + 14;
+  const int iconY = y + 13;
+  const uint32_t iconBg = comingSoon ? TFT_WHITE : TFT_BLACK;
+  const uint32_t iconFg = comingSoon ? TFT_BLACK : TFT_WHITE;
+
+  M5.Display.fillRoundRect(iconX, iconY, 46, 46, 9, iconBg);
+  M5.Display.drawRoundRect(iconX, iconY, 46, 46, 9, TFT_BLACK);
   M5.Display.setFont(&fonts::FreeSansBold9pt7b);
   M5.Display.setTextDatum(middle_center);
-  M5.Display.drawString(glyph, x + 38, y + 38);
+  M5.Display.setTextColor(iconFg, iconBg);
+  M5.Display.drawString(glyph, iconX + 23, iconY + 23);
   resetFont();
 
   M5.Display.setFont(&fonts::FreeSansBold9pt7b);
-  M5.Display.drawString(labelText, x + 14, y + 72);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString(labelText, x + 14, y + 66);
   resetFont();
 
-  if (comingSoon) detail("Soon", x + 14, y + 101);
-  else label("OPEN", x + 14, y + 101);
+  detail(comingSoon ? "SOON" : "READY", x + 14, y + 91);
 }
 
 void UiTheme::batteryIcon(int x, int y, int percent) {

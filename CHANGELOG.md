@@ -2,6 +2,23 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.5-alpha] - 2026-09-23
+
+### Changed
+- Reworked the native 540×960 GUI for a denser, more professional e-paper PDA layout.
+- Home now uses a compact device overview, quick-access cards, module shortcuts and a cleaner web-console panel.
+- App tiles now use stronger monochrome icon treatment and clearer READY/SOON states.
+- Settings now uses grouped mobile-style rows with less visual clutter.
+- Normal page navigation now uses the faster e-paper waveform instead of text-mode full-screen refresh.
+- Automatic anti-ghost full cleans are much less frequent; manual Clean Display remains available.
+
+### Performance
+- Removed a redundant full-panel refresh during startup and shortened the splash hold delay.
+- Wi-Fi scanning is now asynchronous, so opening the Wi-Fi app no longer blocks the interface.
+- Bluetooth opens immediately and scans only when the user taps SCAN.
+- Calculator key presses now refresh only the result region instead of redrawing the full keypad.
+- Dynamic Wi-Fi/BLE result lists use regional e-paper refreshes.
+
 ## [0.1.4-alpha] - 2026-09-23
 
 ### Added

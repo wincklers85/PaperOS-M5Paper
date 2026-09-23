@@ -1,10 +1,10 @@
 # PaperOS
 
-**PaperOS 0.1.3-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
+**PaperOS 0.1.4-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
 
 > Target: M5Stack M5Paper first generation only. M5Paper S3 is not the target of this repository.
 
-## What is real in 0.1.3-alpha
+## What is real in 0.1.4-alpha
 
 - M5Unified/M5GFX initialization for original M5Paper
 - boot splash and touch UI
@@ -117,7 +117,7 @@ All Web File Manager paths are sandboxed below `/PaperOS`.
 
 ## Release
 
-Current semantic version: **0.1.3-alpha**. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
+Current semantic version: **0.1.4-alpha**. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
 
 ## License
 

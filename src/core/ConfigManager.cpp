@@ -46,6 +46,8 @@ bool ConfigManager::loadFromPath(const char* path) {
   config_.adminSalt = doc["adminSalt"] | "";
   config_.adminHash = doc["adminHash"] | "";
   config_.sleepMinutes = doc["sleepMinutes"] | 15;
+  config_.touchWakeEnabled = doc["touchWakeEnabled"] | true;
+  config_.scheduledWakeMinutes = doc["scheduledWakeMinutes"] | 0;
   config_.powerMode = static_cast<PowerMode>(doc["powerMode"] | 1);
   config_.wifiNetworks.clear();
   for (JsonObject n : doc["wifiNetworks"].as<JsonArray>()) {
@@ -68,6 +70,8 @@ bool ConfigManager::save() {
   doc["adminSalt"] = config_.adminSalt;
   doc["adminHash"] = config_.adminHash;
   doc["sleepMinutes"] = config_.sleepMinutes;
+  doc["touchWakeEnabled"] = config_.touchWakeEnabled;
+  doc["scheduledWakeMinutes"] = config_.scheduledWakeMinutes;
   doc["powerMode"] = static_cast<int>(config_.powerMode);
   JsonArray arr = doc.createNestedArray("wifiNetworks");
   for (const auto& n : config_.wifiNetworks) {

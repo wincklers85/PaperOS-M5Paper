@@ -26,6 +26,8 @@ class UiManager {
   void showNotes();
   void showFiles(const String& path = "/PaperOS");
   void showTools();
+  void showThermo();
+  void showSolar();
 
  private:
   enum class Page {

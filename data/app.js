@@ -13,6 +13,7 @@ const pages=[
   {name:'Bluetooth',icon:'BT'},
   {name:'Wi-Fi',icon:'WF'},
   {name:'Smart Home',icon:'HM'},
+  {name:'Termo',icon:'TH'},
   {name:'Solar',icon:'SL'},
   {name:'MQTT',icon:'MQ'},
   {name:'GPIO',icon:'IO'},
@@ -425,8 +426,11 @@ async function settings(){
         '<label>Device name<input id="sname" value="'+escAttr(s.deviceName)+'"></label>'+
         '<label>Language<select id="slang"><option value="it">Italiano</option><option value="en">English</option></select></label>'+
         '<label>Timezone<input id="stz" value="'+escAttr(s.timezone)+'"></label>'+
-        '<label>Sleep after (minutes)<input id="ssleep" type="number" min="0" value="'+Number(s.sleepMinutes||0)+'"></label>'+
+        '<label>Auto sleep after (minutes)<input id="ssleep" type="number" min="0" value="'+Number(s.sleepMinutes||0)+'"></label>'+
+        '<label>Scheduled wake (minutes, 0 = off)<input id="swake" type="number" min="0" value="'+Number(s.scheduledWakeMinutes||0)+'"></label>'+
+        '<label style="display:flex;align-items:center;gap:8px;margin-top:28px"><input id="stouch" type="checkbox" '+(s.touchWakeEnabled?'checked':'')+'> Touch screen wake</label>'+
       '</div>'+
+      '<p class="submetric">Auto sleep stays asleep until you wake the M5Paper. Timed wake is optional and separate.</p>'+
       '<button id="saveSettings" class="primary">Save settings</button>'+
     '</section>';
   $('#slang').value=s.language;
@@ -439,7 +443,9 @@ async function saveSettings(){
       deviceName:$('#sname').value,
       language:$('#slang').value,
       timezone:$('#stz').value,
-      sleepMinutes:Number($('#ssleep').value)||0
+      sleepMinutes:Number($('#ssleep').value)||0,
+      scheduledWakeMinutes:Number($('#swake').value)||0,
+      touchWakeEnabled:$('#stouch').checked
     })});
     toast('Settings saved');
     refreshShell();

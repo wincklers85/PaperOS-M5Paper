@@ -15,7 +15,10 @@
 - automatic and manual anti-ghosting display cleanup
 - dedicated Solar and Termo UI shells marked Coming Soon, with no fake telemetry
 - corrected deep-sleep behavior with retained sleep screen, touch wake and optional timer wake
-- Wi-Fi saved networks, reconnect and Setup AP (`PaperOS-Setup`)
+- native Wi-Fi app with scan, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
+- native Bluetooth LE scanner
+- native Calculator utility
+- WinLabs Solutions Labs area with beta tools and HID script library
 - captive DNS redirect to `192.168.4.1`
 - mDNS hostname `paperos.local`
 - password-protected responsive Web UI
@@ -28,6 +31,10 @@
 - e-paper sleep screen retained during deep sleep
 - timer/touch wake through M5Unified power management
 - firmware OTA upload from the Web UI
+
+## Labs and USB HID note
+
+The original M5Paper USB-C connector is wired through a CP2104/CH9102 USB-to-serial bridge, not a native USB HID controller. PaperOS therefore provides a **USB HID / BadUSB Lab** for script storage and future external-adapter workflows, but it does not pretend that the built-in USB-C port can execute HID scripts. Scripts are stored under `/PaperOS/Labs/HID`.
 
 ## Explicitly not implemented yet
 

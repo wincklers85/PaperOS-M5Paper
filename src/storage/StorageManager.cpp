@@ -15,7 +15,7 @@ bool StorageManager::begin() {
 }
 
 void StorageManager::ensureLayout() {
-  const char* dirs[] = {"/PaperOS","/PaperOS/Documents","/PaperOS/Books","/PaperOS/PDF","/PaperOS/Notes","/PaperOS/Images","/PaperOS/Downloads","/PaperOS/Logs","/PaperOS/Backup","/PaperOS/Config"};
+  const char* dirs[] = {"/PaperOS","/PaperOS/Documents","/PaperOS/Books","/PaperOS/PDF","/PaperOS/Notes","/PaperOS/Images","/PaperOS/Downloads","/PaperOS/Logs","/PaperOS/Backup","/PaperOS/Config","/PaperOS/Labs","/PaperOS/Labs/HID","/PaperOS/Labs/Scripts"};
   for (auto d : dirs) if (!SD.exists(d)) SD.mkdir(d);
 }
 

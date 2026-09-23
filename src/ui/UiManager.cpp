@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <SD.h>
 #include <ArduinoJson.h>
+#include <BLEDevice.h>
 
 namespace paperos {
 
@@ -169,28 +170,298 @@ void UiManager::settingRow(int y, const String& titleText, const String& detailT
   UiTheme::chevron(491, y + 34);
 }
 
+
+void UiManager::settingsRow(int y, const String& glyph, const String& titleText, const String& detailText, bool withChevron) {
+  M5.Display.fillRoundRect(18, y, 504, 78, 14, TFT_WHITE);
+  M5.Display.drawRoundRect(18, y, 504, 78, 14, TFT_BLACK);
+  M5.Display.fillRoundRect(32, y + 14, 48, 48, 10, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString(glyph, 56, y + 38);
+  UiTheme::resetFont();
+  UiTheme::value(titleText, 96, y + 13, false);
+  if (detailText.length()) UiTheme::detail(detailText, 96, y + 47);
+  if (withChevron) UiTheme::chevron(490, y + 29);
+}
+
 void UiManager::showSettings() {
   page_ = Page::Settings;
   preparePage();
   statusBar();
 
-  UiTheme::title("Settings", 18, 78);
-  UiTheme::detail("PaperOS preferences", 20, 119);
+  UiTheme::title("Impostazioni", 154, 78);
+  UiTheme::detail("PaperOS", 239, 118);
 
-  settingRow(150, "Device", config_.get().deviceName + " / " + config_.get().language);
-  settingRow(246, "Wi-Fi", wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup"));
-  settingRow(342, "Display", "540x960 / high contrast / anti-ghost");
-  settingRow(438, "Power", String("Auto sleep ") + config_.get().sleepMinutes + " min");
-  settingRow(534, "Storage", storage_.available() ? "microSD mounted" : "microSD unavailable");
-  settingRow(630, "Browser", String("http://") + HOSTNAME + ".local");
+  UiTheme::card(18, 145, 504, 104, true);
+  M5.Display.fillCircle(66, 197, 30, TFT_BLACK);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString("P", 66, 197);
+  UiTheme::resetFont();
+  UiTheme::value(config_.get().deviceName, 112, 166, false);
+  UiTheme::detail(String("PaperOS ") + VERSION, 112, 204);
+  UiTheme::chevron(490, 183);
 
-  UiTheme::card(18, 738, 504, 104);
-  UiTheme::label("SLEEP & WAKE", 34, 754);
-  UiTheme::detail(config_.get().touchWakeEnabled ? "Touch wake enabled" : "Touch wake disabled", 34, 788);
-  UiTheme::detail("Timed wake is optional and separate from auto sleep.", 34, 818);
+  settingsRow(267, "GN", "Generali", "Info dispositivo, firmware e memoria");
+  settingsRow(357, "WF", "Wi-Fi", wifi_.isConnected() ? WiFi.SSID() : String("Non connesso"));
+  settingsRow(447, "BT", "Bluetooth", bluetoothActive_ ? "Attivo" : "Pronto");
+  settingsRow(537, "PW", "Batteria e Sleep", String(power_.batteryPercent()) + "%  /  sleep " + config_.get().sleepMinutes + " min");
+  settingsRow(627, "DS", "Display", "540x960 / anti-ghosting");
+  settingsRow(717, "LB", "Labs", "Funzioni beta WinLabs");
 
   bottomNav(4);
   commitPage();
+}
+
+
+
+void UiManager::showGeneral() {
+  page_ = Page::General;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Generali", 18, 78);
+  UiTheme::detail("Info dispositivo", 20, 119);
+
+  settingsRow(150, "IN", "Info", String("PaperOS ") + VERSION, false);
+  settingsRow(240, "HW", "Modello", "M5Stack M5Paper original", false);
+  settingsRow(330, "CPU", "Processore", "ESP32-D0WDQ6-V3 / 240 MHz", false);
+  settingsRow(420, "RM", "Memoria", String(ESP.getPsramSize() / 1048576.0, 0) + " MB PSRAM", false);
+  settingsRow(510, "FL", "Flash", "16 MB", false);
+  settingsRow(600, "DP", "Display", "540 x 960 e-paper / 4.7 inch", false);
+  settingsRow(690, "WL", "Software", "Created by WinLabs Solutions", false);
+
+  UiTheme::card(18, 790, 504, 60);
+  UiTheme::detail(String("Build: ") + VERSION + "  /  " + VENDOR, 34, 811);
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showWiFi() {
+  page_ = Page::WiFi;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Wi-Fi", 18, 78);
+  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Non connesso"), 20, 119);
+
+  UiTheme::card(18, 150, 504, 112, true);
+  UiTheme::label("CONNESSIONE", 34, 166);
+  UiTheme::value(wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup"), 34, 201, false);
+  UiTheme::detail(wifi_.ip().toString(), 34, 235);
+  UiTheme::pill(wifi_.isConnected() ? String(WiFi.RSSI()) + " dBm" : "AP", 395, 163, false);
+
+  UiTheme::label("RETI DISPONIBILI", 20, 286);
+  int n = WiFi.scanNetworks(false, true);
+  int shown = min(n, 6);
+  for (int i = 0; i < shown; ++i) {
+    int y = 318 + i * 82;
+    settingsRow(y, "WF", WiFi.SSID(i), String(WiFi.RSSI(i)) + " dBm", false);
+  }
+  if (shown == 0) {
+    UiTheme::card(18, 318, 504, 120);
+    UiTheme::value("Nessuna rete trovata", 34, 350, false);
+    UiTheme::detail("Riprova aprendo nuovamente Wi-Fi.", 34, 392);
+  }
+  WiFi.scanDelete();
+
+  UiTheme::card(18, 816, 504, 42);
+  UiTheme::detail("Per inserire password: paperos.local > Wi-Fi", 34, 827);
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showBluetooth() {
+  page_ = Page::Bluetooth;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Bluetooth", 18, 78);
+  UiTheme::detail("BLE scanner", 20, 119);
+
+  if (!bluetoothActive_) {
+    BLEDevice::init("PaperOS");
+    bluetoothActive_ = true;
+  }
+
+  UiTheme::card(18, 150, 504, 94, true);
+  UiTheme::label("BLUETOOTH LE", 34, 166);
+  UiTheme::value("Scanner attivo", 34, 199, false);
+  UiTheme::pill("BETA", 433, 161, true);
+
+  BLEScan* scanner = BLEDevice::getScan();
+  scanner->setActiveScan(true);
+  BLEScanResults results = scanner->start(3, false);
+  int shown = min(results.getCount(), 6);
+
+  UiTheme::label("DISPOSITIVI VICINI", 20, 268);
+  for (int i = 0; i < shown; ++i) {
+    BLEAdvertisedDevice d = results.getDevice(i);
+    String name = d.haveName() ? String(d.getName().c_str()) : String(d.getAddress().toString().c_str());
+    if (name.length() > 24) name = name.substring(0, 24);
+    int y = 300 + i * 82;
+    settingsRow(y, "BT", name, String(d.getRSSI()) + " dBm", false);
+  }
+  if (shown == 0) {
+    UiTheme::card(18, 300, 504, 120);
+    UiTheme::value("Nessun BLE trovato", 34, 334, false);
+    UiTheme::detail("Riapri Bluetooth per eseguire una nuova scansione.", 34, 374);
+  }
+  scanner->clearResults();
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showLabs() {
+  page_ = Page::Labs;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Labs", 18, 78);
+  UiTheme::detail("WinLabs Solutions beta features", 20, 119);
+
+  UiTheme::card(18, 150, 504, 84, true);
+  UiTheme::pill("LABS", 34, 172, true);
+  UiTheme::detail("Funzioni sperimentali. Possono cambiare tra versioni.", 130, 180);
+
+  settingsRow(252, "USB", "USB HID / BadUSB Lab", "Script library / external HID required");
+  settingsRow(342, "BLE", "BLE Explorer", "Scan advertising / diagnostics");
+  settingsRow(432, "IO", "GPIO Lab", "Pin tools - beta");
+  settingsRow(522, "SER", "Serial Lab", "UART console - beta");
+  settingsRow(612, "EPD", "Display Test", "Refresh / ghosting diagnostics");
+  settingsRow(702, "DEV", "Developer", "Logs / heap / experimental tools");
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showHidLab() {
+  page_ = Page::HidLab;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("USB HID Lab", 18, 78);
+  UiTheme::detail("Labs / script library", 20, 119);
+
+  UiTheme::card(18, 150, 504, 150, true);
+  UiTheme::label("HARDWARE LIMIT", 34, 168);
+  UiTheme::value("External HID adapter required", 34, 204, false);
+  UiTheme::detail("M5Paper USB-C is USB-to-serial, not native HID.", 34, 246);
+  UiTheme::detail("Scripts can be stored here but are not executed over USB-C.", 34, 274);
+
+  UiTheme::label("SCRIPT LIBRARY", 20, 326);
+  int row = 0;
+  if (storage_.available()) {
+    File root = SD.open("/PaperOS/Labs/HID");
+    for (File file = root.openNextFile(); file && row < 5; file = root.openNextFile()) {
+      if (!file.isDirectory()) {
+        String n = String(file.name());
+        int slash = n.lastIndexOf('/');
+        if (slash >= 0) n = n.substring(slash + 1);
+        settingsRow(356 + row * 82, "SC", n, String((uint32_t)file.size()) + " bytes", false);
+        ++row;
+      }
+      file.close();
+    }
+    root.close();
+  }
+  if (row == 0) {
+    UiTheme::card(18, 356, 504, 118);
+    UiTheme::value("Nessuno script", 34, 390, false);
+    UiTheme::detail("Carica file in /PaperOS/Labs/HID dal File Manager web.", 34, 432);
+  }
+
+  UiTheme::card(18, 786, 504, 64);
+  UiTheme::detail("Execution on internal USB-C: unavailable on this hardware", 34, 808);
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showCalculator() {
+  page_ = Page::Calculator;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Calculator", 18, 78);
+  UiTheme::detail("PaperOS utility", 20, 119);
+
+  UiTheme::card(18, 145, 504, 100, true);
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.setTextDatum(middle_right);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString(calcDisplay_, 500, 195);
+  UiTheme::resetFont();
+
+  const char* keys[20] = {
+    "C", "+/-", "%", "/",
+    "7", "8", "9", "*",
+    "4", "5", "6", "-",
+    "1", "2", "3", "+",
+    "0", ".", "=", "BS"
+  };
+  const int sx = 18, sy = 266, kw = 117, kh = 92, gap = 12;
+  for (int i = 0; i < 20; ++i) {
+    int col = i % 4, row = i / 4;
+    int x = sx + col * (kw + gap);
+    int y = sy + row * (kh + gap);
+    UiTheme::card(x, y, kw, kh, keys[i][0] == '=');
+    M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.drawString(keys[i], x + kw/2, y + kh/2);
+    UiTheme::resetFont();
+  }
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::calcKey(const String& key) {
+  if (key == "C") {
+    calcDisplay_ = "0"; calcAccumulator_ = 0; calcPendingOp_ = 0; calcResetInput_ = true; return;
+  }
+  if (key == "BS") {
+    if (calcDisplay_.length() > 1) calcDisplay_.remove(calcDisplay_.length()-1);
+    else calcDisplay_ = "0";
+    return;
+  }
+  if (key == "+/-") {
+    if (calcDisplay_.startsWith("-")) calcDisplay_.remove(0,1);
+    else if (calcDisplay_ != "0") calcDisplay_ = "-" + calcDisplay_;
+    return;
+  }
+  if (key == "%") {
+    double v = calcDisplay_.toDouble() / 100.0;
+    calcDisplay_ = String(v, 6);
+    while (calcDisplay_.endsWith("0")) calcDisplay_.remove(calcDisplay_.length()-1);
+    if (calcDisplay_.endsWith(".")) calcDisplay_.remove(calcDisplay_.length()-1);
+    return;
+  }
+  if (key == "+" || key == "-" || key == "*" || key == "/" || key == "=") {
+    double current = calcDisplay_.toDouble();
+    if (calcPendingOp_) {
+      if (calcPendingOp_ == '+') calcAccumulator_ += current;
+      else if (calcPendingOp_ == '-') calcAccumulator_ -= current;
+      else if (calcPendingOp_ == '*') calcAccumulator_ *= current;
+      else if (calcPendingOp_ == '/' && current != 0) calcAccumulator_ /= current;
+    } else calcAccumulator_ = current;
+    calcDisplay_ = String(calcAccumulator_, 6);
+    while (calcDisplay_.endsWith("0")) calcDisplay_.remove(calcDisplay_.length()-1);
+    if (calcDisplay_.endsWith(".")) calcDisplay_.remove(calcDisplay_.length()-1);
+    calcPendingOp_ = key == "=" ? 0 : key[0];
+    calcResetInput_ = true;
+    return;
+  }
+
+  if (calcResetInput_) { calcDisplay_ = "0"; calcResetInput_ = false; }
+  if (key == "." && calcDisplay_.indexOf('.') >= 0) return;
+  if (calcDisplay_ == "0" && key != ".") calcDisplay_ = key;
+  else if (calcDisplay_.length() < 14) calcDisplay_ += key;
 }
 
 void UiManager::showSystem() {

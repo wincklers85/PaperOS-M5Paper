@@ -8,6 +8,7 @@
 
 namespace paperos {
 static constexpr const char* NAME = "PaperOS";
+static constexpr const char* VENDOR = "WinLabs Solutions";
 static constexpr const char* VERSION = PAPEROS_VERSION;
 static constexpr const char* HOSTNAME = "paperos";
 static constexpr const char* SETUP_AP = "PaperOS-Setup";

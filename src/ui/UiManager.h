@@ -125,6 +125,7 @@ class UiManager {
   std::vector<String> noteTitles_;
   std::vector<WiFiScanEntry> wifiScan_;
   std::vector<BleScanEntry> bleScan_;
+  size_t selectedBleIndex_ = 0;
   bool focusRunning_ = false;
   uint32_t focusEndMs_ = 0;
   uint32_t focusRemainingSec_ = 25UL * 60UL;

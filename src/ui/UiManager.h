@@ -101,7 +101,8 @@ class UiManager {
     MqttPayload,
     WolMac,
     BrowserSearch,
-    ManualTime
+    ManualTime,
+    PhoneCommand
   };
 
   Page page_ = Page::Home;
@@ -131,6 +132,7 @@ class UiManager {
   int bleScroll_ = 0;
   int fileScroll_ = 0;
   int textScroll_ = 0;
+  int phoneScroll_ = 0;
   int comingNav_ = 4;
   String comingTitle_;
 
@@ -188,6 +190,10 @@ class UiManager {
   String timeStatus_;
   String storageStatus_;
   String phoneLinkStatus_ = "Bridge not connected";
+  String phoneCommandDraft_ = "camera:shutter";
+  bool gpioInitialized_ = false;
+  uint8_t gpioModeState_[6] = {0,0,0,0,0,0};
+  bool gpioOutputLevel_[6] = {false,false,false,false,false,false};
   String gpioStatus_;
   std::vector<String> gattRows_;
 

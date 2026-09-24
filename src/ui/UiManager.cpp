@@ -2647,7 +2647,7 @@ void UiManager::classicTerminalExecute(const String& commandRaw) {
     classicTerminalPrint("PaperOS ROOT Terminal commands:");
     classicTerminalPrint("ver sysinfo heap battery time sd cls pwd cd dir ls type cat");
     classicTerminalPrint("mkdir md del rm copy cp move touch write append gpio wifi hid bt nfc");
-    classicTerminalPrint("reboot sleep");
+    classicTerminalPrint("reboot lock sleep deepsleep");
     classicTerminalPrint("unsafe on|off  - unlock internal GPIO 0..39");
     return;
   }
@@ -2914,11 +2914,19 @@ void UiManager::classicTerminalExecute(const String& commandRaw) {
     return;
   }
 
-  if (cmd == "sleep") {
-    classicTerminalPrint("Entering standby...");
+  if (cmd == "sleep" || cmd == "lock") {
+    classicTerminalPrint("Locking PaperOS...");
     showClassicTerminal();
-    delay(200);
+    delay(120);
     power_.sleepNow();
+    return;
+  }
+
+  if (cmd == "deepsleep") {
+    classicTerminalPrint("Entering hardware deep sleep...");
+    showClassicTerminal();
+    delay(180);
+    power_.deepSleepNow(0);
     return;
   }
 

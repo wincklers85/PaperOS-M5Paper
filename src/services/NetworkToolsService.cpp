@@ -209,11 +209,11 @@ bool NetworkToolsService::mqttSubscribe(const String& topic) {
   return mqtt_.subscribe(topic.c_str());
 }
 
-bool NetworkToolsService::mqttConnected() const {
+bool NetworkToolsService::mqttConnected() {
   return mqtt_.connected();
 }
 
-int NetworkToolsService::mqttState() const {
+int NetworkToolsService::mqttState() {
   return mqtt_.state();
 }
 

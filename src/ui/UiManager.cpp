@@ -452,6 +452,7 @@ void UiManager::readBleGatt(size_t index) {
 
 void UiManager::showBleDetail(size_t index) {
   if (index >= bleScan_.size()) return;
+  selectedBleIndex_ = index;
   page_ = Page::BleDetail;
   preparePage();
   statusBar();
@@ -2079,13 +2080,35 @@ void UiManager::loop() {
             entry.hasTxPower = d.haveTXPower();
             entry.txPower = entry.hasTxPower ? d.getTXPower() : 0;
             entry.serviceUuid = d.haveServiceUUID() ? String(d.getServiceUUID().toString().c_str()) : String();
-            entry.manufacturerHex = d.haveManufacturerData() ? bleManufacturerHex(String(d.getManufacturerData().c_str())) : String();
+
+            if (d.haveManufacturerData()) {
+              std::string raw = d.getManufacturerData();
+              String rawArduino;
+              rawArduino.reserve(raw.length());
+              for (size_t b = 0; b < raw.length(); ++b) rawArduino += static_cast<char>(raw[b]);
+              entry.manufacturerHex = bleManufacturerHex(rawArduino);
+
+              if (raw.length() >= 4 &&
+                  static_cast<uint8_t>(raw[0]) == 0x4C &&
+                  static_cast<uint8_t>(raw[1]) == 0x00 &&
+                  static_cast<uint8_t>(raw[2]) == 0x02 &&
+                  static_cast<uint8_t>(raw[3]) == 0x15) {
+                entry.beaconType = "iBeacon";
+              }
+            }
+
+            String uuidLower = entry.serviceUuid;
+            uuidLower.toLowerCase();
+            if (uuidLower.indexOf("feaa") >= 0) entry.beaconType = "Eddystone";
+            if (!entry.beaconType.length() && entry.manufacturerHex.length()) entry.beaconType = "Manufacturer beacon";
+
             bleScan_.push_back(entry);
 
             String title = entry.name;
             if (title.length() > 24) title = title.substring(0, 24);
             String detail = String(entry.rssi) + " dBm";
-            if (entry.serviceUuid.length()) detail += "  /  UUID";
+            if (entry.beaconType.length()) detail += "  /  " + entry.beaconType;
+            else if (entry.serviceUuid.length()) detail += "  /  UUID";
             settingsRow(307 + i * 88, "BT", title, detail, true);
           }
         }

@@ -2,6 +2,7 @@
 #include "PaperOS.h"
 #include <esp_system.h>
 #include <mbedtls/sha256.h>
+#include <SD.h>
 
 namespace paperos {
 
@@ -164,6 +165,112 @@ bool ConfigManager::exportBackup(const String& path) {
   src.close();
   dst.close();
   return true;
+}
+
+bool ConfigManager::exportBackupToSd(const String& path) {
+  File src = LittleFS.open(CONFIG_PATH, FILE_READ);
+  if (!src) return false;
+  if (SD.exists(path)) SD.remove(path);
+  File dst = SD.open(path, FILE_WRITE);
+  if (!dst) { src.close(); return false; }
+
+  uint8_t buf[512];
+  bool ok = true;
+  while (src.available()) {
+    size_t n = src.read(buf, sizeof(buf));
+    if (dst.write(buf, n) != n) { ok = false; break; }
+  }
+  dst.flush();
+  src.close();
+  dst.close();
+  return ok;
+}
+
+bool ConfigManager::restoreBackupFromSd(const String& path) {
+  File src = SD.open(path, FILE_READ);
+  if (!src || src.isDirectory()) { if (src) src.close(); return false; }
+
+  String json;
+  json.reserve(src.size() + 1);
+  while (src.available()) json += static_cast<char>(src.read());
+  src.close();
+
+  DynamicJsonDocument check(8192);
+  if (deserializeJson(check, json)) return false;
+  if (!check.containsKey("deviceName")) return false;
+
+  File tmp = LittleFS.open(TMP_PATH, FILE_WRITE);
+  if (!tmp) return false;
+  if (tmp.print(json) != json.length()) {
+    tmp.close();
+    LittleFS.remove(TMP_PATH);
+    return false;
+  }
+  tmp.flush();
+  tmp.close();
+
+  if (LittleFS.exists(BAK_PATH)) LittleFS.remove(BAK_PATH);
+  if (LittleFS.exists(CONFIG_PATH)) LittleFS.rename(CONFIG_PATH, BAK_PATH);
+  if (!LittleFS.rename(TMP_PATH, CONFIG_PATH)) {
+    if (LittleFS.exists(BAK_PATH)) LittleFS.rename(BAK_PATH, CONFIG_PATH);
+    return false;
+  }
+  return load();
+}
+
+bool ConfigManager::exportWifiTextToSd(const String& path) {
+  if (SD.cardType() == CARD_NONE) return false;
+  if (SD.exists(path)) SD.remove(path);
+  File f = SD.open(path, FILE_WRITE);
+  if (!f) return false;
+
+  f.println("# PaperOS saved Wi-Fi networks");
+  f.println("# WARNING: passwords below are stored as plain text by explicit user choice.");
+  f.println("# Edit blocks and then use Settings > Storage & Backup > Import Wi-Fi file.");
+  f.println();
+
+  for (const auto& n : config_.wifiNetworks) {
+    f.println(String("SSID=") + n.ssid);
+    f.println(String("Password=") + n.password);
+    f.println(String("Priority=") + n.priority);
+    f.println();
+  }
+  f.flush();
+  f.close();
+  return true;
+}
+
+bool ConfigManager::importWifiTextFromSd(const String& path) {
+  File f = SD.open(path, FILE_READ);
+  if (!f || f.isDirectory()) { if (f) f.close(); return false; }
+
+  String ssid, password;
+  int priority = 0;
+  bool imported = false;
+
+  auto commit = [&]() {
+    if (!ssid.length()) return;
+    upsertNetwork(ssid, password, priority);
+    imported = true;
+    ssid = "";
+    password = "";
+    priority = 0;
+  };
+
+  while (f.available()) {
+    String line = f.readStringUntil('\n');
+    line.trim();
+    if (!line.length()) { commit(); continue; }
+    if (line.startsWith("#")) continue;
+    if (line.startsWith("SSID=")) ssid = line.substring(5);
+    else if (line.startsWith("Password=")) password = line.substring(9);
+    else if (line.startsWith("Priority=")) priority = line.substring(9).toInt();
+  }
+  commit();
+  f.close();
+
+  if (!imported) return false;
+  return save();
 }
 
 }

@@ -1,10 +1,10 @@
 # PaperOS
 
-**PaperOS 0.1.9-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
+**PaperOS 0.2.0-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
 
 > Target: M5Stack M5Paper first generation only. M5Paper S3 is not the target of this repository.
 
-## What is real in 0.1.9-alpha
+## What is real in 0.2.0-alpha
 
 - M5Unified/M5GFX initialization for original M5Paper
 - boot splash and touch UI
@@ -21,6 +21,10 @@
 - native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)
 - native Web Reader with DuckDuckGo non-JavaScript text search, HTTP/HTTPS reader mode, relative-link navigation and scrolling
 - native RFC6238 TOTP calculator with volatile-only Base32 secret storage
+- native **iPhone Link / Apple ANCS** accessory mode with secure BLE bonding, live iOS notifications and supported notification actions
+- four persistent native UI themes: Soft, Classic, Technical and Minimal
+- frosted/depth Quick Settings overlay designed for monochrome e-paper
+- optional **PN532 NFC Lab** on Port C UART (G18/G19) with module diagnostics and ISO14443A UID scanning
 - reusable on-screen touch keyboard with pressed-key feedback and SHOW/HIDE for passwords
 - native Battery / Power Center with real rolling voltage graph, wake diagnostics, charging-likely estimation and clearly-labelled subsystem impact estimate
 - Web Power Center plus extended battery REST telemetry
@@ -95,7 +99,7 @@ The original M5Paper USB-C connector is wired through a CP2104/CH9102 USB-to-ser
 ## Current limits
 
 - **Solar and Termo telemetry** remain Coming Soon until real data sources are connected.
-- **Phone Link** is a real BLE/REST bridge, but phone notifications, SMS/messages, calls and camera actions require a companion with Android/iOS permissions. See [PHONE_LINK.md](docs/PHONE_LINK.md).
+- **iPhone Link** receives current iOS notifications natively through Apple ANCS after BLE bonding. Full Contacts, message history and call history are not ANCS data sources. Camera, sending messages and initiating calls remain companion-controlled functions. See [PHONE_LINK.md](docs/PHONE_LINK.md).
 - **PDF Reader Lite** extracts readable text from compatible/uncompressed PDF content; it is not a full graphical PDF engine.
 - **Web Reader** does not execute JavaScript, video or complex CSS; HTTPS currently uses lightweight transport without CA validation.
 - **SD formatting** supports one whole-card FAT/exFAT PaperOS volume. Multi-partition mounting/editing is intentionally not exposed yet.
@@ -187,7 +191,7 @@ All Web File Manager paths are sandboxed below `/PaperOS`.
 
 ## Release
 
-Current semantic version: **0.1.9-alpha**.. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
+Current semantic version: **0.2.0-alpha**.. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
 
 ## License
 

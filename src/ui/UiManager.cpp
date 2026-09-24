@@ -5,16 +5,19 @@
 #include <ArduinoJson.h>
 #include <BLEDevice.h>
 #include <esp_system.h>
+#include <time.h>
 
 namespace paperos {
 
 void UiManager::preparePage(bool forceClean) {
-  // Full quality wipes are intentionally rare. Normal navigation uses the
-  // fast waveform and regional updates are used for dynamic UI.
-  if (forceClean || display_.pageChangesSinceClean() >= 20) {
+  // The user explicitly prefers a clean anti-ghost transition on every
+  // full page change. Auto-display remains disabled, so after this white
+  // cleanup the next page is still composed off-screen and appears at once.
+  if (!firstPageFrame_ || forceClean) {
     display_.cleanRefresh();
     lastDeepClean_ = millis();
   }
+  firstPageFrame_ = false;
   UiTheme::beginFrame();
 }
 
@@ -182,28 +185,21 @@ void UiManager::showApps() {
   statusBar();
 
   UiTheme::title("Apps", 18, 76);
-  UiTheme::detail("Buffered launcher  /  one-pass e-paper render", 20, 116);
+  UiTheme::detail("PaperOS tools  /  buffered one-pass UI", 20, 116);
 
   const char* names[15] = {
-    "Home", "Notes", "Files",
-    "Calculator", "Wi-Fi", "Bluetooth",
-    "Termo", "Solar", "Battery",
-    "Clock", "Focus", "Settings",
+    "Notes", "Files", "Calculator",
+    "Wi-Fi", "Bluetooth", "Browser",
+    "Battery", "Clock", "Focus",
+    "OTP", "Tools", "Settings",
     "System", "Labs", "Fun"
   };
   const char* glyphs[15] = {
-    "HM", "NT", "FL",
-    "CAL", "WF", "BT",
-    "TH", "SL", "BAT",
-    "CK", "25", "ST",
+    "NT", "FL", "CAL",
+    "WF", "BT", "WEB",
+    "BAT", "CK", "25",
+    "OTP", "TL", "ST",
     "SYS", "LAB", "FUN"
-  };
-  const bool ready[15] = {
-    true, true, true,
-    true, true, true,
-    false, false, true,
-    true, true, true,
-    true, true, true
   };
 
   const int tileW = 160;
@@ -215,13 +211,13 @@ void UiManager::showApps() {
     int row = i / 3;
     int x = 18 + col * 172;
     int y = startY + row * pitchY;
-    UiTheme::appTile(x, y, tileW, tileH, glyphs[i], names[i], !ready[i]);
+    UiTheme::appTile(x, y, tileW, tileH, glyphs[i], names[i], false);
   }
 
   UiTheme::card(18, 746, 504, 104);
-  UiTheme::label("BUFFERED UI", 34, 762);
-  UiTheme::detail("The complete page is composed off-screen before one refresh.", 34, 797);
-  UiTheme::detail("Clock / Focus / Fun are lightweight native e-paper apps.", 34, 826);
+  UiTheme::label("NETWORK + SECURITY", 34, 762);
+  UiTheme::detail("Native Wi-Fi join, BLE inspector, Browser Lite and TOTP.", 34, 797);
+  UiTheme::detail("Termo / Solar remain accessible from the Home modules.", 34, 826);
 
   bottomNav(4);
   commitPage();
@@ -952,20 +948,20 @@ void UiManager::showTools() {
   statusBar();
 
   UiTheme::title("Tools", 18, 78);
-  UiTheme::detail("Display & power controls", 20, 119);
+  UiTheme::detail("Useful native utilities", 20, 119);
 
-  settingRow(150, "Clean Display", "Quality white wipe + redraw");
-  settingRow(242, "System Monitor", "Memory / battery / network");
-  settingRow(334, "Settings", "Display / power / Wi-Fi / storage");
-  settingRow(426, "Sleep Now", "Deep sleep until touch/button");
-  settingRow(518, "Sleep 15 min", "Touch wake or timer wake");
-  settingRow(610, "Browser Console", String("http://") + HOSTNAME + ".local");
+  settingRow(150, "Wi-Fi Analyzer", "Networks / RSSI / channel / connect");
+  settingRow(242, "BLE Inspector", "Nearby devices / UUID / manufacturer data");
+  settingRow(334, "Browser Lite", "HTTP / HTTPS reader mode");
+  settingRow(426, "OTP Authenticator", "RFC6238 TOTP / 6 digits / 30 sec");
+  settingRow(518, "Clean Display", "Quality white anti-ghost wipe");
+  settingRow(610, "System Monitor", "Memory / battery / network");
 
   UiTheme::card(18, 714, 504, 128);
-  UiTheme::label("REFRESH ENGINE", 34, 730);
-  UiTheme::detail("Page changes: fast text mode", 34, 765);
-  UiTheme::detail("Automatic anti-ghost clean after repeated navigation", 34, 798);
-  UiTheme::detail("Manual Clean Display is always available here.", 34, 828);
+  UiTheme::label("PAGE TRANSITIONS", 34, 730);
+  UiTheme::detail("Every full page change now performs a clean white refresh.", 34, 765);
+  UiTheme::detail("The complete next page is then committed in one buffered pass.", 34, 798);
+  UiTheme::detail("Dynamic widgets still use fast regional updates.", 34, 828);
 
   bottomNav(3);
   commitPage();
@@ -1077,17 +1073,17 @@ void UiManager::handleBottomNav(int x) {
 }
 
 void UiManager::openAppIndex(int index) {
-  if (index == 0) showHome();
-  else if (index == 1) showNotes();
-  else if (index == 2) showFiles();
-  else if (index == 3) showCalculator();
-  else if (index == 4) showWiFi();
-  else if (index == 5) showBluetooth();
-  else if (index == 6) showThermo();
-  else if (index == 7) showSolar();
-  else if (index == 8) showBattery();
-  else if (index == 9) showClock();
-  else if (index == 10) showFocus();
+  if (index == 0) showNotes();
+  else if (index == 1) showFiles();
+  else if (index == 2) showCalculator();
+  else if (index == 3) showWiFi();
+  else if (index == 4) showBluetooth();
+  else if (index == 5) showBrowser();
+  else if (index == 6) showBattery();
+  else if (index == 7) showClock();
+  else if (index == 8) showFocus();
+  else if (index == 9) showOtp();
+  else if (index == 10) showTools();
   else if (index == 11) showSettings();
   else if (index == 12) showSystem();
   else if (index == 13) showLabs();

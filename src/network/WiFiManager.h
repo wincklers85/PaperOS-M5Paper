@@ -18,15 +18,19 @@ class WiFiManager {
   bool setupApActive() const { return apActive_; }
   IPAddress ip() const { return isConnected() ? WiFi.localIP() : WiFi.softAPIP(); }
   bool timeSynced() const { return timeSynced_; }
+  bool radioEnabled() const { return radioEnabled_; }
+  void setRadioEnabled(bool enabled);
+  bool syncClockNow();
  private:
   ConfigManager& cfg_;
   DNSServer dns_;
   bool apActive_ = false;
   uint32_t lastReconnect_ = 0;
   bool timeSynced_ = false;
+  bool radioEnabled_ = true;
   void startMdns();
   bool connectKnown();
-  void syncClock();
+  bool syncClock();
   void restoreClockFromRtc();
 };
 }

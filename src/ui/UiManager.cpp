@@ -2180,6 +2180,364 @@ void UiManager::showClassicHid() {
   commitPage();
 }
 
+
+std::vector<String> UiManager::classicTokenize(const String& command) const {
+  std::vector<String> out;
+  String current;
+  bool quoted = false;
+  for (size_t i = 0; i < command.length(); ++i) {
+    char c = command[i];
+    if (c == '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && (c == ' ' || c == '\t')) {
+      if (current.length()) {
+        out.push_back(current);
+        current = "";
+      }
+    } else {
+      current += c;
+    }
+  }
+  if (current.length()) out.push_back(current);
+  return out;
+}
+
+void UiManager::classicTerminalPrint(const String& text) {
+  int start = 0;
+  while (start <= (int)text.length()) {
+    int nl = text.indexOf('\n', start);
+    String line = nl >= 0 ? text.substring(start, nl) : text.substring(start);
+
+    while (line.length() > 64) {
+      classicTerminalLines_.push_back(line.substring(0, 64));
+      line = line.substring(64);
+    }
+    classicTerminalLines_.push_back(line);
+
+    if (nl < 0) break;
+    start = nl + 1;
+  }
+  while (classicTerminalLines_.size() > 80) classicTerminalLines_.erase(classicTerminalLines_.begin());
+}
+
+bool UiManager::classicPinAllowed(int pin) const {
+  if (classicUnsafeGpio_) return pin >= 0 && pin <= 39;
+  return pin == 18 || pin == 19 || pin == 25 || pin == 26 || pin == 32 || pin == 33;
+}
+
+void UiManager::classicTerminalExecute(const String& commandRaw) {
+  String command = commandRaw;
+  command.trim();
+  if (!command.length()) return;
+
+  classicTerminalPrint(classicCwd_ + "> " + command);
+  auto a = classicTokenize(command);
+  if (a.empty()) return;
+  String cmd = a[0];
+  cmd.toLowerCase();
+
+  auto resolve = [this](const String& p) {
+    if (!p.length()) return classicCwd_;
+    if (p == "C:" || p == "c:") return String("/PaperOS");
+    if (p == "D:" || p == "d:") return String("/");
+    if (p.startsWith("/")) return p;
+    return joinPath(classicCwd_, p);
+  };
+
+  if (cmd == "help" || cmd == "?") {
+    classicTerminalPrint("PaperOS ROOT Terminal commands:");
+    classicTerminalPrint("ver sysinfo heap battery time sd cls pwd cd dir ls type cat");
+    classicTerminalPrint("mkdir md del rm copy move gpio wifi hid bt nfc reboot sleep");
+    classicTerminalPrint("unsafe on|off  - unlock internal GPIO 0..39");
+    return;
+  }
+
+  if (cmd == "cls" || cmd == "clear") {
+    classicTerminalLines_.clear();
+    return;
+  }
+
+  if (cmd == "ver") {
+    classicTerminalPrint(String("PaperOS ") + VERSION + " / Classic Desktop 3.11");
+    return;
+  }
+
+  if (cmd == "sysinfo") {
+    classicTerminalPrint(String("CPU ESP32 @ ") + getCpuFrequencyMhz() + " MHz");
+    classicTerminalPrint(String("Heap free: ") + ESP.getFreeHeap() + " / PSRAM free: " + ESP.getFreePsram());
+    classicTerminalPrint(String("Flash: ") + ESP.getFlashChipSize() + " bytes");
+    classicTerminalPrint(String("Wi-Fi: ") + (wifi_.isConnected() ? WiFi.SSID() : "offline"));
+    classicTerminalPrint(String("SD: ") + (storage_.available() ? "mounted" : "not mounted"));
+    return;
+  }
+
+  if (cmd == "heap") {
+    classicTerminalPrint(String("heap=") + ESP.getFreeHeap() + " min=" + ESP.getMinFreeHeap() +
+                         " psram=" + ESP.getFreePsram());
+    return;
+  }
+
+  if (cmd == "battery") {
+    classicTerminalPrint(String("battery=") + power_.batteryPercent() + "%  " +
+                         power_.batteryMillivolts() + "mV  trend=" + power_.batteryTrendLabel());
+    return;
+  }
+
+  if (cmd == "time") {
+    auto dt = M5.Rtc.getDateTime();
+    char b[40];
+    snprintf(b, sizeof(b), "%04d-%02d-%02d %02d:%02d:%02d",
+             dt.date.year, dt.date.month, dt.date.date,
+             dt.time.hours, dt.time.minutes, dt.time.seconds);
+    classicTerminalPrint(String(b));
+    return;
+  }
+
+  if (cmd == "sd") {
+    classicTerminalPrint(storage_.available()
+      ? String("SD mounted total=") + (uint32_t)(storage_.totalBytes()/1048576ULL) +
+        "MB free=" + (uint32_t)(storage_.freeBytes()/1048576ULL) + "MB " + storage_.filesystemHint()
+      : String("SD not mounted"));
+    return;
+  }
+
+  if (cmd == "pwd") {
+    classicTerminalPrint(classicCwd_);
+    return;
+  }
+
+  if (cmd == "cd") {
+    String p = a.size() >= 2 ? resolve(a[1]) : String("/PaperOS");
+    if (storage_.isDirectory(p)) {
+      classicCwd_ = p;
+      classicTerminalPrint(classicCwd_);
+    } else classicTerminalPrint("Path not found");
+    return;
+  }
+
+  if (cmd == "dir" || cmd == "ls") {
+    String p = a.size() >= 2 ? resolve(a[1]) : classicCwd_;
+    File d = SD.open(p);
+    if (!d || !d.isDirectory()) {
+      if (d) d.close();
+      classicTerminalPrint("Directory not found");
+      return;
+    }
+    int count = 0;
+    for (File x = d.openNextFile(); x && count < 40; x = d.openNextFile()) {
+      String n = String(x.name());
+      int slash = n.lastIndexOf('/');
+      if (slash >= 0) n = n.substring(slash + 1);
+      classicTerminalPrint((x.isDirectory() ? "<DIR> " : "      ") + n +
+                           (x.isDirectory() ? "" : String("  ") + (uint32_t)x.size()));
+      x.close();
+      ++count;
+    }
+    d.close();
+    if (!count) classicTerminalPrint("<empty>");
+    return;
+  }
+
+  if (cmd == "type" || cmd == "cat") {
+    if (a.size() < 2) { classicTerminalPrint("Usage: type <file>"); return; }
+    String p = resolve(a[1]);
+    File f = SD.open(p, FILE_READ);
+    if (!f || f.isDirectory()) { if (f) f.close(); classicTerminalPrint("File not found"); return; }
+    String content;
+    while (f.available() && content.length() < 2048) content += (char)f.read();
+    f.close();
+    classicTerminalPrint(content);
+    if (storage_.exists(p) && content.length() >= 2048) classicTerminalPrint("[output clipped at 2048 bytes]");
+    return;
+  }
+
+  if (cmd == "mkdir" || cmd == "md") {
+    if (a.size() < 2) { classicTerminalPrint("Usage: mkdir <path>"); return; }
+    String p = resolve(a[1]);
+    classicTerminalPrint(storage_.makeDir(p) ? "Directory created" : "mkdir failed");
+    return;
+  }
+
+  if (cmd == "del" || cmd == "rm") {
+    if (a.size() < 2) { classicTerminalPrint("Usage: del <path>"); return; }
+    String p = resolve(a[1]);
+    classicTerminalPrint(storage_.removePath(p) ? "Deleted" : "delete failed/protected");
+    return;
+  }
+
+  if (cmd == "copy") {
+    if (a.size() < 3) { classicTerminalPrint("Usage: copy <source> <destination>"); return; }
+    String from = resolve(a[1]), to = resolve(a[2]);
+    classicTerminalPrint(storage_.copyPath(from, to) ? "Copied" : "copy failed");
+    return;
+  }
+
+  if (cmd == "move" || cmd == "mv") {
+    if (a.size() < 3) { classicTerminalPrint("Usage: move <source> <destination>"); return; }
+    String from = resolve(a[1]), to = resolve(a[2]);
+    classicTerminalPrint(storage_.movePath(from, to) ? "Moved" : "move failed");
+    return;
+  }
+
+  if (cmd == "unsafe") {
+    if (a.size() >= 2) {
+      String v = a[1]; v.toLowerCase();
+      classicUnsafeGpio_ = v == "on" || v == "1" || v == "true";
+    }
+    classicTerminalPrint(String("unsafe GPIO=") + (classicUnsafeGpio_ ? "ON" : "OFF"));
+    if (classicUnsafeGpio_) classicTerminalPrint("WARNING: internal display/SD pins can be disrupted.");
+    return;
+  }
+
+  if (cmd == "gpio") {
+    if (a.size() < 2 || a[1] == "list") {
+      classicTerminalPrint("Expansion pins: A=25,32  B=26,33  C=18,19");
+      classicTerminalPrint(String("Internal pins: ") + (classicUnsafeGpio_ ? "UNLOCKED" : "locked; use unsafe on"));
+      return;
+    }
+    String sub = a[1]; sub.toLowerCase();
+    if (a.size() < 3) { classicTerminalPrint("gpio read|write|mode|adc <pin> [value]"); return; }
+    int pin = a[2].toInt();
+    if (!classicPinAllowed(pin)) { classicTerminalPrint("Pin locked. Use expansion GPIO or 'unsafe on'."); return; }
+
+    if (sub == "read") {
+      pinMode(pin, INPUT);
+      classicTerminalPrint(String("GPIO") + pin + "=" + digitalRead(pin));
+    } else if (sub == "write") {
+      if (a.size() < 4) { classicTerminalPrint("gpio write <pin> 0|1"); return; }
+      pinMode(pin, OUTPUT);
+      int v = a[3].toInt() ? HIGH : LOW;
+      digitalWrite(pin, v);
+      classicTerminalPrint(String("GPIO") + pin + "=" + (v == HIGH ? "HIGH" : "LOW"));
+    } else if (sub == "mode") {
+      if (a.size() < 4) { classicTerminalPrint("gpio mode <pin> in|out|pullup"); return; }
+      String m=a[3]; m.toLowerCase();
+      if (m == "out") pinMode(pin, OUTPUT);
+      else if (m == "pullup") pinMode(pin, INPUT_PULLUP);
+      else pinMode(pin, INPUT);
+      classicTerminalPrint("Mode updated");
+    } else if (sub == "adc") {
+      classicTerminalPrint(String("ADC GPIO") + pin + "=" + analogRead(pin));
+    } else classicTerminalPrint("Unknown gpio subcommand");
+    return;
+  }
+
+  if (cmd == "wifi") {
+    String sub = a.size() >= 2 ? a[1] : "status";
+    sub.toLowerCase();
+    if (sub == "on") {
+      wifi_.setRadioEnabled(true);
+      classicTerminalPrint("Wi-Fi radio ON");
+    } else if (sub == "off") {
+      wifi_.setRadioEnabled(false);
+      classicTerminalPrint("Wi-Fi radio OFF");
+    } else if (sub == "scan") {
+      int n = WiFi.scanNetworks(false, true);
+      classicTerminalPrint(String("Networks: ") + n);
+      for (int i=0; i<n && i<20; ++i)
+        classicTerminalPrint(WiFi.SSID(i) + "  " + WiFi.RSSI(i) + "dBm CH" + WiFi.channel(i));
+      WiFi.scanDelete();
+    } else {
+      classicTerminalPrint(String("radio=") + (wifi_.radioEnabled() ? "on" : "off") +
+                           " connected=" + (wifi_.isConnected() ? "yes" : "no"));
+      if (wifi_.isConnected()) classicTerminalPrint(WiFi.SSID() + " / " + WiFi.localIP().toString());
+    }
+    return;
+  }
+
+  if (cmd == "hid" || cmd == "bt") {
+    String sub = a.size() >= 2 ? a[1] : "status";
+    sub.toLowerCase();
+    if (!bluetoothActive_) {
+      BLEDevice::init("PaperOS");
+      bluetoothActive_ = true;
+    }
+    hidInput_.begin();
+
+    if (sub == "scan") {
+      classicTerminalPrint("Scanning BLE HID...");
+      hidInput_.scan(4);
+      const auto& d = hidInput_.devices();
+      for (size_t i=0;i<d.size() && i<15;++i)
+        classicTerminalPrint(String(i) + ": " + d[i].name + " / " + d[i].address);
+      if (d.empty()) classicTerminalPrint("No BLE HID found");
+    } else if (sub == "connect") {
+      if (a.size() < 3) { classicTerminalPrint("hid connect <index>"); return; }
+      int idx = a[2].toInt();
+      classicTerminalPrint(hidInput_.connect(idx) ? "HID connected" : "HID connect failed");
+    } else {
+      classicTerminalPrint(hidInput_.statusText());
+    }
+    return;
+  }
+
+  if (cmd == "nfc") {
+    String sub = a.size() >= 2 ? a[1] : "scan";
+    sub.toLowerCase();
+    if (sub == "scan") {
+      NfcTagInfo tag = nfcService_.scan(1600);
+      classicTerminalPrint(tag.found ? String("NFC UID=") + tag.uid + " / " + tag.type : String("No NFC tag"));
+    } else classicTerminalPrint(nfcService_.statusText());
+    return;
+  }
+
+  if (cmd == "reboot") {
+    classicTerminalPrint("Rebooting...");
+    showClassicTerminal();
+    delay(250);
+    ESP.restart();
+    return;
+  }
+
+  if (cmd == "sleep") {
+    classicTerminalPrint("Entering standby...");
+    showClassicTerminal();
+    delay(200);
+    power_.sleepNow();
+    return;
+  }
+
+  classicTerminalPrint("Bad command or file name");
+}
+
+void UiManager::showClassicTerminal() {
+  page_ = Page::ClassicTerminal;
+  preparePage();
+  classicDrawChrome("MS-DOS Prompt - PaperOS ROOT Terminal");
+
+  M5.Display.fillRect(24, 108, 492, 696, TFT_BLACK);
+  M5.Display.drawRect(22, 106, 496, 700, TFT_BLACK);
+
+  M5.Display.setFont(&fonts::FreeMono9pt7b);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setTextDatum(top_left);
+
+  const int visible = 22;
+  int start = max(0, static_cast<int>(classicTerminalLines_.size()) - visible);
+  int y = 118;
+  for (int i = start; i < (int)classicTerminalLines_.size(); ++i) {
+    String line = classicTerminalLines_[i];
+    if (line.length() > 66) line = line.substring(0, 66);
+    M5.Display.drawString(line, 32, y);
+    y += 27;
+  }
+
+  M5.Display.fillRect(24, 816, 492, 64, TFT_WHITE);
+  M5.Display.drawRect(24, 816, 492, 64, TFT_BLACK);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  String prompt = classicCwd_ + "> " + classicTerminalInput_;
+  if (prompt.length() > 63) prompt = "..." + prompt.substring(prompt.length() - 60);
+  M5.Display.drawString(prompt + "_", 32, 835);
+  M5.Display.setFont(&fonts::Font2);
+  M5.Display.drawString("Tap prompt for touch keyboard / BLE keyboard types directly", 32, 864);
+  UiTheme::resetFont();
+
+  classicDrawCursor();
+  commitPage();
+}
+
 void UiManager::showCalculator() {
   page_ = Page::Calculator;
   preparePage();

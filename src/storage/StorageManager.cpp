@@ -97,6 +97,7 @@ bool StorageManager::removePath(const String& path) {
   for (File child = d.openNextFile(); child; child = d.openNextFile()) {
     String n = String(child.name());
     child.close();
+    if (!n.startsWith("/")) n = path + (path.endsWith("/") ? "" : "/") + n;
     children.push_back(n);
   }
   d.close();

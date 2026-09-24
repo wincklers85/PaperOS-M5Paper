@@ -1,10 +1,10 @@
 # PaperOS
 
-**PaperOS 0.1.7-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
+**PaperOS 0.1.8-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
 
 > Target: M5Stack M5Paper first generation only. M5Paper S3 is not the target of this repository.
 
-## What is real in 0.1.7-alpha
+## What is real in 0.1.8-alpha
 
 - M5Unified/M5GFX initialization for original M5Paper
 - boot splash and touch UI
@@ -15,10 +15,10 @@
 - less frequent automatic anti-ghosting cleanup plus manual Clean Display
 - dedicated Solar and Termo UI shells marked Coming Soon, with no fake telemetry
 - corrected no-timer deep-sleep behavior with retained sleep screen, GT911 touch wake and optional timer wake
-- native Wi-Fi app with non-blocking asynchronous scan, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
-- native Bluetooth LE scanner with instant page entry, scan loading state and tap-to-scan behavior
+- native Wi-Fi Analyzer with asynchronous scan, RSSI/channel/security details, touch network selection, on-device password entry, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
+- native BLE Inspector with passive scanning, device detail, RSSI, address, TX power, service UUID and manufacturer advertising data
 - native Calculator utility
-- native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)
+- native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)\n- native Browser Lite for HTTP/HTTPS reader-mode browsing\n- native RFC6238 TOTP calculator with volatile-only Base32 secret storage\n- reusable on-screen touch keyboard for Wi-Fi, browser URLs and OTP input
 - native Battery / Power Center with voltage trend, wake diagnostics and charging-likely estimation
 - Web Power Center plus extended battery REST telemetry
 - WinLabs Solutions Labs area with beta tools and HID script library
@@ -36,6 +36,13 @@
 - firmware OTA upload from the Web UI
 
 
+
+
+## Browser Lite and OTP
+
+Browser Lite is intentionally a reader-style browser rather than a desktop browser engine. It retrieves HTTP/HTTPS pages, follows redirects, extracts readable text and exposes a small number of absolute links. JavaScript, video, downloads and complex CSS are not executed. HTTPS currently uses a lightweight connection without CA certificate validation, and PaperOS says so in the interface.
+
+The OTP tool implements standard RFC6238 TOTP with HMAC-SHA1, six digits and a 30-second step. The Base32 secret is kept only in RAM. PaperOS restores Unix time from the hardware RTC at boot and refreshes it from NTP whenever Wi-Fi connects, so OTP can continue working offline once the RTC is correct.
 
 ## Buffered e-paper rendering
 

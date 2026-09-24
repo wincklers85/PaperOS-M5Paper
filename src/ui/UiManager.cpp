@@ -8,6 +8,7 @@
 #include <BLEUtils.h>
 #include <esp_system.h>
 #include <time.h>
+#include <sys/time.h>
 
 namespace paperos {
 
@@ -459,7 +460,7 @@ void UiManager::showSettings() {
   statusBar();
 
   UiTheme::title("Impostazioni", 18, 76);
-  UiTheme::detail("PaperOS system settings", 20, 116);
+  UiTheme::detail("Swipe up/down for more options", 20, 116);
 
   UiTheme::card(18, 145, 504, 96, true);
   M5.Display.fillCircle(66, 193, 29, TFT_BLACK);
@@ -470,23 +471,108 @@ void UiManager::showSettings() {
   UiTheme::resetFont();
   UiTheme::value(config_.get().deviceName, 112, 164, false);
   UiTheme::detail(String("PaperOS ") + VERSION + " / WinLabs Solutions", 112, 202);
-  UiTheme::chevron(490, 183);
 
-  UiTheme::card(18, 257, 504, 250);
-  settingsRow(260, "GN", "Generali", "Info dispositivo, firmware e memoria");
-  settingsRow(342, "WF", "Wi-Fi", wifi_.isConnected() ? WiFi.SSID() : String("Non connesso"));
-  settingsRow(424, "BT", "Bluetooth", bluetoothActive_ ? "Pronto / BLE inizializzato" : "Pronto");
+  const char* glyphs[9] = {"GN","WF","BT","TM","PW","EP","SD","BK","LB"};
+  const char* titles[9] = {"Generali","Wi-Fi","Bluetooth","Data e ora","Batteria e Sleep","Display / EPD","Storage / SD","Backup & Restore","Labs"};
+  String details[9] = {
+    "Info dispositivo, firmware e memoria",
+    wifi_.isConnected() ? WiFi.SSID() : (wifi_.radioEnabled() ? "Non connesso" : "Radio OFF"),
+    bluetoothActive_ ? "BLE attivo" : "BLE disattivato",
+    wifi_.timeSynced() ? "NTP sincronizzato" : "RTC / sincronizzazione manuale",
+    String(power_.batteryPercent()) + "% / " + String(power_.batteryMillivolts()) + " mV",
+    String("Profilo ") + display_.profileLabel(),
+    storage_.available() ? String("microSD / ") + String((uint32_t)(storage_.freeBytes()/1048576ULL)) + " MB liberi" : "microSD non disponibile",
+    "Configurazione e reti Wi-Fi su SD",
+    "Funzioni beta WinLabs"
+  };
 
-  UiTheme::card(18, 522, 504, 250);
-  settingsRow(525, "PW", "Batteria e Sleep", String(power_.batteryPercent()) + "%  /  " + String(power_.batteryMillivolts()) + " mV");
-  settingsRow(607, "DS", "Display", "540x960 / clean transitions / buffered UI");
-  settingsRow(689, "LB", "Labs", "Funzioni beta WinLabs");
+  const int visible = 6;
+  settingsScroll_ = constrain(settingsScroll_, 0, 9 - visible);
+  UiTheme::card(18, 257, 504, 510);
+  for (int row = 0; row < visible; ++row) {
+    int idx = settingsScroll_ + row;
+    settingsRow(260 + row * 82, glyphs[idx], titles[idx], details[idx]);
+  }
+
+  UiTheme::card(18, 782, 504, 68);
+  UiTheme::detail(String(settingsScroll_ + 1) + "-" + String(settingsScroll_ + visible) + " / 9  -  swipe up/down", 34, 806);
 
   bottomNav(4);
   commitPage();
 }
 
 
+
+
+void UiManager::showDateTime() {
+  page_ = Page::DateTime;
+  preparePage();
+  statusBar();
+
+  auto dt = M5.Rtc.getDateTime();
+  char current[32];
+  snprintf(current, sizeof(current), "%04d-%02d-%02d  %02d:%02d:%02d",
+           dt.date.year, dt.date.month, dt.date.date,
+           dt.time.hours, dt.time.minutes, dt.time.seconds);
+
+  UiTheme::title("Data e ora", 18, 76);
+  UiTheme::detail("RTC + NTP synchronization", 20, 116);
+
+  UiTheme::card(18, 145, 504, 150, true);
+  UiTheme::label("CURRENT", 34, 163);
+  UiTheme::value(current, 34, 205, false);
+  UiTheme::detail(String("Timezone: ") + config_.get().timezone, 34, 252);
+
+  UiTheme::card(18, 316, 246, 112, true);
+  UiTheme::value("SYNC NTP", 70, 354, false);
+  UiTheme::detail(wifi_.isConnected() ? "Use network time" : "Wi-Fi required", 58, 394);
+
+  UiTheme::card(276, 316, 246, 112);
+  UiTheme::value("SET MANUAL", 326, 354, false);
+  UiTheme::detail("YYYY-MM-DD HH:MM", 323, 394);
+
+  UiTheme::card(18, 450, 504, 168);
+  UiTheme::label("STATUS", 34, 468);
+  UiTheme::value(timeStatus_.length() ? timeStatus_ : (wifi_.timeSynced() ? "NTP synchronized" : "RTC active"), 34, 505, false);
+  UiTheme::detail("A successful NTP sync also updates the hardware RTC.", 34, 553);
+  UiTheme::detail("TOTP can continue offline while RTC time remains correct.", 34, 586);
+
+  UiTheme::card(18, 640, 504, 118);
+  UiTheme::label("QUICK ACCESS", 34, 658);
+  UiTheme::detail("You can also trigger NTP sync from the top Quick Settings drawer.", 34, 697);
+  UiTheme::detail("Swipe down from the status bar to open it.", 34, 729);
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showStorageTools() {
+  page_ = Page::StorageTools;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Storage & Backup", 18, 76);
+  UiTheme::detail(storage_.available() ? "microSD mounted" : "microSD unavailable", 20, 116);
+
+  UiTheme::card(18, 145, 504, 100, true);
+  UiTheme::label("SD STATUS", 34, 161);
+  UiTheme::value(storage_.available() ? String((uint32_t)(storage_.freeBytes()/1048576ULL)) + " MB free" : String("No card"), 34, 198, false);
+  UiTheme::detail(storage_.available() ? String((uint32_t)(storage_.totalBytes()/1048576ULL)) + " MB total" : String("Insert microSD"), 34, 230);
+
+  settingsRow(266, "BK", "Backup settings", "/PaperOS/Backup/settings.json");
+  settingsRow(348, "RS", "Restore settings", "Load settings.json from SD");
+  settingsRow(430, "WF", "Export Wi-Fi text", "/PaperOS/Config/wifi_networks.txt");
+  settingsRow(512, "IM", "Import Wi-Fi text", "Read edited SSID/Password blocks");
+  settingsRow(594, "FM", "Format / partition", "Single-volume SD tools");
+  settingsRow(676, "IN", "Storage info", "Capacity / free / filesystem mount");
+
+  UiTheme::card(18, 770, 504, 80);
+  UiTheme::detail(storageStatus_.length() ? storageStatus_ : String("Wi-Fi text stores passwords in plain text by explicit choice."), 34, 797);
+  UiTheme::detail("Backup/restore and format actions require the microSD.", 34, 826);
+
+  bottomNav(4);
+  commitPage();
+}
 
 void UiManager::showGeneral() {
   page_ = Page::General;

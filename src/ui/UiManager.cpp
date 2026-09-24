@@ -938,7 +938,7 @@ void UiManager::showSettings() {
   UiTheme::detail(String("PaperOS ") + VERSION + "  /  " + UiTheme::styleName(), 112, 202);
 
   const char* glyphs[10] = {"GN","TH","WF","BT","TM","PW","EP","SD","BK","LB"};
-  const char* titles[10] = {"Generali","Tema","Wi-Fi","Bluetooth","Data e ora","Batteria e Sleep","Display / EPD","Storage / SD","Backup & Restore","Labs"};
+  const char* titles[10] = {"Generali","Tema","Wi-Fi","Bluetooth","Data e ora","Batteria e Lock","Display / EPD","Storage / SD","Backup & Restore","Labs"};
   String details[10] = {
     "Info dispositivo, firmware e memoria",
     String(UiTheme::styleName()) + " / tap to change",

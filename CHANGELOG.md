@@ -7,7 +7,8 @@ All notable changes follow Semantic Versioning.
 ### Buffered one-pass UI
 - Disabled M5GFX framebuffer auto-display on the original M5Paper.
 - PaperOS now composes complete screens off-screen before the explicit e-paper refresh, so cards, text and icons appear together instead of drawing visibly one element at a time.
-- Existing loading screens now also render as complete frames before background work starts.
+- Notes and Files now compose their complete SD-backed page off-screen and perform a single physical refresh; no unnecessary intermediate loading refresh is used.
+- Loading/progress screens are reserved for genuinely slow operations such as Wi-Fi/Bluetooth scans.
 - Partial refresh remains enabled only for genuinely dynamic regions such as calculator results, battery data, clock, focus timer, Wi-Fi results and random-tool results.
 
 ### Added

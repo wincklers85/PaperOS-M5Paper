@@ -1,4 +1,4 @@
-# PaperOS REST API — 0.1.0-alpha
+# PaperOS REST API — 0.1.9-alpha
 
 All authenticated endpoints use the same-origin `paperos` HttpOnly session cookie. API token support is reserved for a later hardening release.
 
@@ -47,3 +47,17 @@ Implemented endpoints:
 - `wakeReason` — ESP32 wake source reported after boot.
 
 The original M5Paper cannot report real charger state or battery current. PaperOS deliberately keeps current unavailable instead of fabricating a value.
+
+
+## Phone Link companion bridge
+
+Authenticated endpoints:
+
+- `GET /api/phone/status` — BLE bridge state, connected flag, notification count and last command.
+- `GET /api/phone/notifications` — up to 30 forwarded notifications.
+- `POST /api/phone/notify` — inject/forward a notification with JSON `{"app":"...","title":"...","body":"..."}`.
+- `POST /api/phone/command` — send a companion command with JSON `{"command":"camera:shutter"}`.
+- `POST /api/phone/start` — start BLE Phone Link advertising.
+
+The BLE GATT protocol and example commands are documented in [PHONE_LINK.md](PHONE_LINK.md).
+

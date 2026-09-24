@@ -9,6 +9,12 @@ void DisplayManager::begin() {
   cfg.clear_display = true;
   M5.begin(cfg);
 
+  // Critical for e-paper UX: M5GFX enables auto-display on framebuffer
+  // panels by default. Disable it so an entire PaperOS screen is composed
+  // off-screen first and becomes visible only on the explicit display()
+  // call in commitPage()/partialRefresh().
+  M5.Display.setAutoDisplay(false);
+
   if (M5.Display.width() > M5.Display.height()) {
     M5.Display.setRotation(M5.Display.getRotation() ^ 1);
   }

@@ -1,6 +1,7 @@
 #include "StorageManager.h"
 #include "PaperOS.h"
 #include <SdFat.h>
+#include <vector>
 
 namespace paperos {
 static constexpr int PIN_SD_CS = 4;
@@ -21,7 +22,38 @@ void StorageManager::ensureLayout() {
 }
 
 bool StorageManager::validPath(const String& path) const {
-  return path == "/PaperOS" || path.startsWith("/PaperOS/");
+  if (!path.length() || path[0] != '/') return false;
+  if (path.indexOf("..") >= 0 || path.indexOf("//") >= 0) return false;
+  return path.length() <= 240;
+}
+
+bool StorageManager::exists(const String& path) const {
+  return mounted_ && validPath(path) && SD.exists(path);
+}
+
+bool StorageManager::isDirectory(const String& path) const {
+  if (!mounted_ || !validPath(path)) return false;
+  File f = SD.open(path);
+  if (!f) return false;
+  bool d = f.isDirectory();
+  f.close();
+  return d;
+}
+
+String StorageManager::uniqueDestination(const String& directory, const String& name) const {
+  String base = directory;
+  if (!base.endsWith("/")) base += "/";
+  String candidate = base + name;
+  if (!SD.exists(candidate)) return candidate;
+
+  int dot = name.lastIndexOf('.');
+  String stem = dot > 0 ? name.substring(0, dot) : name;
+  String ext = dot > 0 ? name.substring(dot) : String();
+  for (int i = 1; i < 1000; ++i) {
+    candidate = base + stem + " (" + String(i) + ")" + ext;
+    if (!SD.exists(candidate)) return candidate;
+  }
+  return base + stem + " copy" + ext;
 }
 
 uint64_t StorageManager::totalBytes() const { return mounted_ ? SD.totalBytes() : 0; }
@@ -52,11 +84,26 @@ bool StorageManager::makeDir(const String& path) {
 }
 
 bool StorageManager::removePath(const String& path) {
-  if (!mounted_ || !validPath(path) || path == "/PaperOS") return false;
+  if (!mounted_ || !validPath(path) || path == "/" || path == "/PaperOS") return false;
   File f = SD.open(path);
   if (!f) return false;
-  bool dir = f.isDirectory(); f.close();
-  return dir ? SD.rmdir(path) : SD.remove(path);
+  bool dir = f.isDirectory();
+  f.close();
+  if (!dir) return SD.remove(path);
+
+  File d = SD.open(path);
+  if (!d) return false;
+  std::vector<String> children;
+  for (File child = d.openNextFile(); child; child = d.openNextFile()) {
+    String n = String(child.name());
+    child.close();
+    children.push_back(n);
+  }
+  d.close();
+  for (const auto& childPath : children) {
+    if (!removePath(childPath)) return false;
+  }
+  return SD.rmdir(path);
 }
 
 bool StorageManager::renamePath(const String& from, const String& to) {
@@ -73,6 +120,51 @@ bool StorageManager::copyFile(const String& from, const String& to) {
   while (src.available()) { size_t n = src.read(buf, sizeof(buf)); if (dst.write(buf,n) != n) { src.close(); dst.close(); return false; } }
   src.close(); dst.close(); return true;
 }
+
+bool StorageManager::copyPath(const String& from, const String& to) {
+  if (!mounted_ || !validPath(from) || !validPath(to) || from == "/" || from == to) return false;
+  File src = SD.open(from);
+  if (!src) return false;
+
+  if (!src.isDirectory()) {
+    src.close();
+    return copyFile(from, to);
+  }
+
+  src.close();
+  if (!SD.exists(to) && !SD.mkdir(to)) return false;
+
+  File dir = SD.open(from);
+  if (!dir || !dir.isDirectory()) { if (dir) dir.close(); return false; }
+
+  bool ok = true;
+  for (File child = dir.openNextFile(); child; child = dir.openNextFile()) {
+    String childName = String(child.name());
+    int slash = childName.lastIndexOf('/');
+    if (slash >= 0) childName = childName.substring(slash + 1);
+    bool childDir = child.isDirectory();
+    child.close();
+
+    String childFrom = from + (from.endsWith("/") ? "" : "/") + childName;
+    String childTo = to + (to.endsWith("/") ? "" : "/") + childName;
+    if (childDir) {
+      if (!copyPath(childFrom, childTo)) { ok = false; break; }
+    } else if (!copyFile(childFrom, childTo)) {
+      ok = false; break;
+    }
+  }
+  dir.close();
+  return ok;
+}
+
+bool StorageManager::movePath(const String& from, const String& to) {
+  if (!mounted_ || !validPath(from) || !validPath(to) || from == "/" || from == to) return false;
+  if (SD.exists(to)) return false;
+  if (SD.rename(from, to)) return true;
+  if (!copyPath(from, to)) return false;
+  return removePath(from);
+}
+
 bool StorageManager::formatCard(const String& typeRaw) {
   String type = typeRaw;
   type.toLowerCase();

@@ -9,6 +9,7 @@
 namespace paperos {
 void WiFiManager::begin() {
   restoreClockFromRtc();
+  radioEnabled_ = true;
   WiFi.mode(WIFI_STA);
   WiFi.setHostname(HOSTNAME);
   if (!connectKnown()) startSetupAp();
@@ -65,7 +66,7 @@ void WiFiManager::restoreClockFromRtc() {
   }
 }
 
-void WiFiManager::syncClock() {
+bool WiFiManager::syncClock() {
   const char* tz = cfg_.get().timezone == "Europe/Rome"
     ? "CET-1CEST,M3.5.0,M10.5.0/3"
     : "UTC0";
@@ -83,7 +84,9 @@ void WiFiManager::syncClock() {
       static_cast<int8_t>(info.tm_sec)
     }});
     timeSynced_ = true;
+    return true;
   }
+  return false;
 }
 
 void WiFiManager::startSetupAp() {
@@ -98,7 +101,33 @@ void WiFiManager::startMdns() {
   if (MDNS.begin(HOSTNAME)) MDNS.addService("http", "tcp", 80);
 }
 
+void WiFiManager::setRadioEnabled(bool enabled) {
+  if (radioEnabled_ == enabled) return;
+  radioEnabled_ = enabled;
+  if (!enabled) {
+    if (apActive_) {
+      dns_.stop();
+      WiFi.softAPdisconnect(true);
+      apActive_ = false;
+    }
+    MDNS.end();
+    WiFi.disconnect(true, false);
+    WiFi.mode(WIFI_OFF);
+    return;
+  }
+
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname(HOSTNAME);
+  if (!connectKnown()) startSetupAp();
+}
+
+bool WiFiManager::syncClockNow() {
+  if (!radioEnabled_ || !isConnected()) return false;
+  return syncClock();
+}
+
 void WiFiManager::loop() {
+  if (!radioEnabled_) return;
   if (apActive_) dns_.processNextRequest();
   if (!apActive_ && WiFi.status() != WL_CONNECTED && millis() - lastReconnect_ > 30000) {
     lastReconnect_ = millis();

@@ -745,6 +745,11 @@ void UiManager::handleKeyboardTap(int x, int y) {
     if (previous == InputTarget::WiFiPassword) showWiFi();
     else if (previous == InputTarget::BrowserUrl) showBrowser();
     else if (previous == InputTarget::OtpSecret) showOtp();
+    else if (previous == InputTarget::PingHost) showPingTool();
+    else if (previous == InputTarget::DnsHost) showDnsTool();
+    else if (previous == InputTarget::ApiUrl || previous == InputTarget::ApiBody) showApiTester();
+    else if (previous == InputTarget::MqttHost || previous == InputTarget::MqttTopic || previous == InputTarget::MqttPayload) showMqtt();
+    else if (previous == InputTarget::WolMac) showWakeOnLan();
     else showApps();
     return;
   }
@@ -796,6 +801,47 @@ void UiManager::finishKeyboard() {
       otpCode_ = "INVALID";
     }
     showOtp();
+    return;
+  }
+
+  if (target == InputTarget::PingHost) {
+    pingHost_ = inputValue_;
+    showPingTool();
+    return;
+  }
+  if (target == InputTarget::DnsHost) {
+    dnsHost_ = inputValue_;
+    showDnsTool();
+    return;
+  }
+  if (target == InputTarget::ApiUrl) {
+    apiUrl_ = inputValue_;
+    showApiTester();
+    return;
+  }
+  if (target == InputTarget::ApiBody) {
+    apiBody_ = inputValue_;
+    showApiTester();
+    return;
+  }
+  if (target == InputTarget::MqttHost) {
+    mqttHost_ = inputValue_;
+    showMqtt();
+    return;
+  }
+  if (target == InputTarget::MqttTopic) {
+    mqttTopic_ = inputValue_;
+    showMqtt();
+    return;
+  }
+  if (target == InputTarget::MqttPayload) {
+    mqttPayload_ = inputValue_;
+    showMqtt();
+    return;
+  }
+  if (target == InputTarget::WolMac) {
+    wolMac_ = inputValue_;
+    showWakeOnLan();
     return;
   }
 
@@ -1317,6 +1363,215 @@ void UiManager::showFilePreview(const String& fullPath, const String& name, uint
   }
 
   bottomNav(2);
+  commitPage();
+}
+
+
+void UiManager::showNetworkTools() {
+  page_ = Page::NetworkTools;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Network Toolkit", 18, 76);
+  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Wi-Fi required"), 20, 116);
+
+  settingsRow(150, "PG", "Ping", "ICMP reachability + average latency");
+  settingsRow(240, "DNS", "DNS Lookup", "Resolve hostname to IPv4");
+  settingsRow(330, "LAN", "Quick LAN Scan", "Hosts with common TCP services / .1-.64");
+  settingsRow(420, "API", "HTTP / API Tester", "GET / POST / PUT + response body");
+  settingsRow(510, "MQ", "MQTT Client", "Connect / subscribe / publish");
+  settingsRow(600, "WOL", "Wake-on-LAN", "Send magic packet to a MAC address");
+
+  UiTheme::card(18, 704, 504, 138);
+  UiTheme::label("NETWORK", 34, 722);
+  UiTheme::detail(wifi_.isConnected() ? String("IP: ") + WiFi.localIP().toString() : String("Connect from Wi-Fi Analyzer first."), 34, 758);
+  UiTheme::detail(wifi_.isConnected() ? String("Gateway: ") + WiFi.gatewayIP().toString() : String("Offline"), 34, 792);
+  UiTheme::detail("Tools run locally on the ESP32; no cloud service required.", 34, 823);
+
+  bottomNav(3);
+  commitPage();
+}
+
+void UiManager::showPingTool() {
+  page_ = Page::PingTool;
+  preparePage();
+  statusBar();
+  UiTheme::title("Ping", 18, 76);
+  UiTheme::detail("ICMP network test", 20, 116);
+
+  UiTheme::card(18, 145, 504, 110, true);
+  UiTheme::label("TARGET", 34, 162);
+  UiTheme::value(pingHost_, 34, 198, false);
+  UiTheme::pill("EDIT", 438, 160, true);
+  UiTheme::detail("Hostname or IPv4 address", 34, 232);
+
+  UiTheme::card(18, 276, 504, 100, true);
+  UiTheme::value("RUN PING", 190, 310, false);
+
+  UiTheme::card(18, 397, 504, 250);
+  UiTheme::label("RESULT", 34, 415);
+  UiTheme::value(pingResultText_.length() ? pingResultText_ : String("Not run yet"), 34, 456, false);
+  UiTheme::detail("PaperOS sends two ICMP echo requests.", 34, 510);
+  UiTheme::detail("Average latency is reported when replies are received.", 34, 545);
+
+  bottomNav(3);
+  commitPage();
+}
+
+void UiManager::showDnsTool() {
+  page_ = Page::DnsTool;
+  preparePage();
+  statusBar();
+  UiTheme::title("DNS Lookup", 18, 76);
+  UiTheme::detail("Resolve hostnames", 20, 116);
+
+  UiTheme::card(18, 145, 504, 110, true);
+  UiTheme::label("HOSTNAME", 34, 162);
+  UiTheme::value(dnsHost_, 34, 198, false);
+  UiTheme::pill("EDIT", 438, 160, true);
+  UiTheme::detail("Example: example.com", 34, 232);
+
+  UiTheme::card(18, 276, 504, 100, true);
+  UiTheme::value("RESOLVE", 204, 310, false);
+
+  UiTheme::card(18, 397, 504, 220);
+  UiTheme::label("RESULT", 34, 415);
+  UiTheme::value(dnsResultText_.length() ? dnsResultText_ : String("Not run yet"), 34, 456, false);
+  UiTheme::detail("Uses the DNS server supplied by the active Wi-Fi network.", 34, 515);
+
+  bottomNav(3);
+  commitPage();
+}
+
+void UiManager::showLanScan() {
+  page_ = Page::LanScan;
+  preparePage();
+  statusBar();
+  UiTheme::title("Quick LAN Scan", 18, 76);
+  UiTheme::detail("Common services on local /24", 20, 116);
+
+  UiTheme::card(18, 145, 504, 92, true);
+  UiTheme::value("SCAN .1 - .64", 176, 176, false);
+  UiTheme::detail("Ports 22 / 80 / 443 / 1883 / 8080", 126, 211);
+
+  UiTheme::label("DISCOVERED SERVICES", 20, 260);
+  if (lanHosts_.empty()) {
+    UiTheme::card(18, 288, 504, 350);
+    UiTheme::value("No scan results yet", 120, 342, false);
+    UiTheme::detail("Tap SCAN to probe the first 64 IPv4 addresses.", 52, 396);
+    UiTheme::detail("This detects hosts exposing common TCP services.", 52, 432);
+  } else {
+    size_t shown = lanHosts_.size() > 6 ? 6 : lanHosts_.size();
+    for (size_t i = 0; i < shown; ++i) {
+      int y = 288 + static_cast<int>(i) * 78;
+      settingsRow(y, "IP", lanHosts_[i].ip.toString(), String("Open TCP port ") + lanHosts_[i].port, false);
+    }
+  }
+
+  bottomNav(3);
+  commitPage();
+}
+
+void UiManager::showApiTester() {
+  page_ = Page::ApiTester;
+  preparePage();
+  statusBar();
+  UiTheme::title("HTTP / API Tester", 18, 76);
+  UiTheme::detail("Local and internet endpoints", 20, 116);
+
+  UiTheme::card(18, 145, 504, 105, true);
+  UiTheme::label("URL", 34, 160);
+  String shownUrl = apiUrl_;
+  if (shownUrl.length() > 48) shownUrl = "..." + shownUrl.substring(shownUrl.length() - 45);
+  UiTheme::value(shownUrl, 34, 195, false);
+  UiTheme::pill("EDIT", 438, 158, true);
+  UiTheme::detail("Tap URL to edit", 34, 227);
+
+  UiTheme::card(18, 268, 160, 92, true);
+  UiTheme::value(apiMethod_, 67, 300, false);
+  UiTheme::detail("Tap method", 49, 335);
+
+  UiTheme::card(190, 268, 160, 92);
+  UiTheme::value("BODY", 240, 300, false);
+  UiTheme::detail(apiBody_.length() ? "JSON set" : "Empty", 235, 335);
+
+  UiTheme::card(362, 268, 160, 92, true);
+  UiTheme::value("SEND", 414, 300, false);
+
+  UiTheme::card(18, 380, 504, 350);
+  UiTheme::label("RESPONSE", 34, 398);
+  if (apiResult_.status) {
+    UiTheme::value(String("HTTP ") + apiResult_.status, 34, 433, false);
+    String body = apiResult_.body;
+    if (body.length() > 950) body = body.substring(0, 950);
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    M5.Display.setTextWrap(true, true);
+    M5.Display.setCursor(34, 480);
+    M5.Display.print(body.length() ? body : apiResult_.error);
+    M5.Display.setTextWrap(false);
+    UiTheme::resetFont();
+  } else {
+    UiTheme::value(apiResult_.error.length() ? apiResult_.error : String("No request yet"), 34, 433, false);
+    UiTheme::detail("GET, POST and PUT are supported.", 34, 488);
+  }
+
+  bottomNav(3);
+  commitPage();
+}
+
+void UiManager::showMqtt() {
+  page_ = Page::Mqtt;
+  preparePage();
+  statusBar();
+  UiTheme::title("MQTT Client", 18, 76);
+  UiTheme::detail(networkTools_.mqttConnected() ? String("CONNECTED") : String("DISCONNECTED"), 20, 116);
+
+  settingsRow(145, "BR", "Broker", mqttHost_.length() ? mqttHost_ : String("Tap to set host"));
+  settingsRow(235, "TP", "Topic", mqttTopic_);
+  settingsRow(325, "PL", "Payload", mqttPayload_.length() > 34 ? mqttPayload_.substring(0, 34) + "..." : mqttPayload_);
+
+  UiTheme::card(18, 430, 160, 95, true);
+  UiTheme::value(networkTools_.mqttConnected() ? "DROP" : "CONNECT", 41, 463, false);
+  UiTheme::card(190, 430, 160, 95);
+  UiTheme::value("SUB", 247, 463, false);
+  UiTheme::card(362, 430, 160, 95);
+  UiTheme::value("PUB", 416, 463, false);
+
+  UiTheme::card(18, 545, 504, 190);
+  UiTheme::label("LAST MESSAGE", 34, 563);
+  UiTheme::value(networkTools_.mqttLastTopic().length() ? networkTools_.mqttLastTopic() : String("No message"), 34, 599, false);
+  String p = networkTools_.mqttLastPayload();
+  if (p.length() > 130) p = p.substring(0, 130) + "...";
+  UiTheme::detail(p.length() ? p : mqttStatus_, 34, 642);
+  UiTheme::detail(String("State: ") + networkTools_.mqttState() + "  /  Port 1883", 34, 700);
+
+  bottomNav(3);
+  commitPage();
+}
+
+void UiManager::showWakeOnLan() {
+  page_ = Page::WakeOnLan;
+  preparePage();
+  statusBar();
+  UiTheme::title("Wake-on-LAN", 18, 76);
+  UiTheme::detail("Magic packet sender", 20, 116);
+
+  UiTheme::card(18, 145, 504, 110, true);
+  UiTheme::label("TARGET MAC", 34, 162);
+  UiTheme::value(wolMac_.length() ? wolMac_ : String("00:00:00:00:00:00"), 34, 198, false);
+  UiTheme::pill("EDIT", 438, 160, true);
+  UiTheme::detail("Format AA:BB:CC:DD:EE:FF", 34, 232);
+
+  UiTheme::card(18, 276, 504, 100, true);
+  UiTheme::value("SEND MAGIC PACKET", 132, 310, false);
+
+  UiTheme::card(18, 397, 504, 210);
+  UiTheme::label("STATUS", 34, 415);
+  UiTheme::value(wolStatus_.length() ? wolStatus_ : String("Ready"), 34, 456, false);
+  UiTheme::detail("UDP broadcast on the current subnet, port 9.", 34, 510);
+  UiTheme::detail("The target machine must have Wake-on-LAN enabled.", 34, 546);
+
+  bottomNav(3);
   commitPage();
 }
 

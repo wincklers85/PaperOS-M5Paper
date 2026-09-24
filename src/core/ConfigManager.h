@@ -18,6 +18,10 @@ class ConfigManager {
   bool checkAdminPassword(const String& password) const;
   void upsertNetwork(const String& ssid, const String& password, int priority = 0);
   bool exportBackup(const String& path);
+  bool exportBackupToSd(const String& path = "/PaperOS/Backup/settings.json");
+  bool restoreBackupFromSd(const String& path = "/PaperOS/Backup/settings.json");
+  bool exportWifiTextToSd(const String& path = "/PaperOS/Config/wifi_networks.txt");
+  bool importWifiTextFromSd(const String& path = "/PaperOS/Config/wifi_networks.txt");
 
  private:
   AppConfig config_;

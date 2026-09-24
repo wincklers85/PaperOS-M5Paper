@@ -124,6 +124,7 @@ bool StorageManager::copyFile(const String& from, const String& to) {
 
 bool StorageManager::copyPath(const String& from, const String& to) {
   if (!mounted_ || !validPath(from) || !validPath(to) || from == "/" || from == to) return false;
+  if (to.startsWith(from + "/")) return false;
   File src = SD.open(from);
   if (!src) return false;
 
@@ -160,6 +161,7 @@ bool StorageManager::copyPath(const String& from, const String& to) {
 
 bool StorageManager::movePath(const String& from, const String& to) {
   if (!mounted_ || !validPath(from) || !validPath(to) || from == "/" || from == to) return false;
+  if (to.startsWith(from + "/")) return false;
   if (SD.exists(to)) return false;
   if (SD.rename(from, to)) return true;
   if (!copyPath(from, to)) return false;

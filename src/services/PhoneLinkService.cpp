@@ -144,9 +144,30 @@ void PhoneLinkService::pushNotification(const String& app, const String& title, 
   if (notifications_.size() > 40) notifications_.resize(40);
 }
 
+void PhoneLinkService::updatePhoneStatus(int batteryPercent, bool charging, bool chargingKnown, const String& name) {
+  if (batteryPercent >= 0 && batteryPercent <= 100) phoneBatteryPercent_ = batteryPercent;
+  if (chargingKnown) {
+    phoneCharging_ = charging;
+    phoneChargingKnown_ = true;
+  }
+  if (name.length()) phoneName_ = name;
+  phoneStatusUpdatedMs_ = millis();
+}
+
 void PhoneLinkService::onNotificationWrite(const String& payload) {
   DynamicJsonDocument doc(1536);
   if (!deserializeJson(doc, payload)) {
+    const char* type = doc["type"] | "";
+    const bool hasBattery = doc.containsKey("battery");
+    const bool hasCharging = doc.containsKey("charging");
+    if (!strcmp(type, "status") || hasBattery || hasCharging) {
+      int battery = hasBattery ? doc["battery"].as<int>() : -1;
+      bool charging = hasCharging ? doc["charging"].as<bool>() : false;
+      String name = String((const char*)(doc["device"] | "iPhone"));
+      updatePhoneStatus(battery, charging, hasCharging, name);
+      if (!doc.containsKey("title") && !doc.containsKey("body")) return;
+    }
+
     pushNotification(
       String((const char*)(doc["app"] | "Phone")),
       String((const char*)(doc["title"] | "")),

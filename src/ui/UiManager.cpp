@@ -1490,14 +1490,18 @@ void UiManager::loop() {
   if (e.clicked) {
     power_.markActivity();
 
-    // Battery indicator in the status bar is always a direct shortcut.
-    if (e.y < UiTheme::StatusH && e.x >= 430) {
+    if (page_ != Page::Keyboard && e.y < UiTheme::StatusH && e.x >= 430) {
       showBattery();
       return;
     }
 
-    if (e.y >= UiTheme::NavY) {
+    if (page_ != Page::Keyboard && e.y >= UiTheme::NavY) {
       handleBottomNav(e.x);
+      return;
+    }
+
+    if (page_ == Page::Keyboard) {
+      handleKeyboardTap(e.x, e.y);
       return;
     }
 
@@ -1514,7 +1518,9 @@ void UiManager::loop() {
       } else if (e.y >= 604 && e.y < 706) {
         if (e.x < 270) showThermo();
         else showSolar();
-      } else if (e.y >= 720 && e.y < 850) showSettings();
+      } else if (e.y >= 720 && e.y < 850) {
+        showSettings();
+      }
       return;
     }
 
@@ -1557,20 +1563,14 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Tools) {
-      if (e.y >= 150 && e.y < 238) {
+      if (e.y >= 150 && e.y < 238) showWiFi();
+      else if (e.y >= 242 && e.y < 330) showBluetooth();
+      else if (e.y >= 334 && e.y < 422) showBrowser();
+      else if (e.y >= 426 && e.y < 514) showOtp();
+      else if (e.y >= 518 && e.y < 606) {
         display_.cleanRefresh();
         showTools();
-      } else if (e.y >= 242 && e.y < 330) {
-        showSystem();
-      } else if (e.y >= 334 && e.y < 422) {
-        showSettings();
-      } else if (e.y >= 426 && e.y < 514) {
-        power_.sleepNow();
-      } else if (e.y >= 518 && e.y < 606) {
-        power_.sleepForMinutes(15);
-      } else if (e.y >= 610 && e.y < 698) {
-        showSettings();
-      }
+      } else if (e.y >= 610 && e.y < 698) showSystem();
       return;
     }
 
@@ -1586,41 +1586,111 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::WiFi) {
-      showWiFi();
+      if (e.y >= 145 && e.y < 263) {
+        showWiFi();
+        return;
+      }
+      if (e.y >= 310 && e.y < 776) {
+        int idx = (e.y - 310) / 88;
+        if (idx >= 0 && idx < static_cast<int>(wifiScan_.size())) {
+          const WiFiScanEntry entry = wifiScan_[idx];
+          if (!entry.ssid.length()) return;
+          selectedWifiSsid_ = entry.ssid;
+          if (entry.encrypted) {
+            showKeyboard(InputTarget::WiFiPassword, String("Password for ") + entry.ssid, "", true);
+          } else {
+            showAppLoading("Wi-Fi", String("Connecting to ") + entry.ssid, 65);
+            bool ok = wifi_.connect(entry.ssid, "", true);
+            wifiStatusMessage_ = ok ? String("Connected to ") + entry.ssid : String("Connection failed: ") + entry.ssid;
+            showWiFi();
+          }
+        }
+      }
       return;
     }
 
     if (page_ == Page::Bluetooth) {
       if (e.y >= 145 && e.y < 257) {
+        bleScan_.clear();
+
         M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
         UiTheme::card(18, 306, 504, 470);
         UiTheme::value("Scanning BLE...", 44, 350, false);
-        UiTheme::detail("Radio scan in progress.", 44, 392);
+        UiTheme::detail("Passive advertising scan in progress.", 44, 392);
         M5.Display.drawRoundRect(44, 442, 438, 18, 9, TFT_BLACK);
         M5.Display.fillRoundRect(47, 445, 292, 12, 6, TFT_BLACK);
-        UiTheme::detail("Results appear when the scan completes.", 44, 486);
         display_.partialRefresh(18, 306, 504, 470);
 
         BLEScan* scanner = BLEDevice::getScan();
         scanner->setActiveScan(true);
         BLEScanResults results = scanner->start(2, false);
-        int shown = min(results.getCount(), 6);
+        int shown = min(results.getCount(), 5);
 
         M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
         UiTheme::card(18, 306, 504, 470);
+
         if (shown == 0) {
           UiTheme::value("No BLE devices found", 44, 350, false);
           UiTheme::detail("Tap SCAN to try again.", 44, 392);
         } else {
           for (int i = 0; i < shown; ++i) {
             BLEAdvertisedDevice d = results.getDevice(i);
-            String name = d.haveName() ? String(d.getName().c_str()) : String(d.getAddress().toString().c_str());
-            if (name.length() > 24) name = name.substring(0, 24);
-            settingsRow(307 + i * 78, "BT", name, String(d.getRSSI()) + " dBm", false);
+            BleScanEntry entry;
+            entry.address = String(d.getAddress().toString().c_str());
+            entry.name = d.haveName() ? String(d.getName().c_str()) : entry.address;
+            entry.rssi = d.getRSSI();
+            entry.hasTxPower = d.haveTXPower();
+            entry.txPower = entry.hasTxPower ? d.getTXPower() : 0;
+            entry.serviceUuid = d.haveServiceUUID() ? String(d.getServiceUUID().toString().c_str()) : String();
+            entry.manufacturerHex = d.haveManufacturerData() ? bleManufacturerHex(String(d.getManufacturerData().c_str())) : String();
+            bleScan_.push_back(entry);
+
+            String title = entry.name;
+            if (title.length() > 24) title = title.substring(0, 24);
+            String detail = String(entry.rssi) + " dBm";
+            if (entry.serviceUuid.length()) detail += "  /  UUID";
+            settingsRow(307 + i * 88, "BT", title, detail, true);
           }
         }
+
         scanner->clearResults();
         display_.partialRefresh(18, 306, 504, 470);
+        return;
+      }
+
+      if (e.y >= 306 && e.y < 776) {
+        int idx = (e.y - 306) / 88;
+        if (idx >= 0 && idx < static_cast<int>(bleScan_.size())) showBleDetail(static_cast<size_t>(idx));
+      }
+      return;
+    }
+
+    if (page_ == Page::Browser) {
+      if (e.y >= 145 && e.y < 253) {
+        showKeyboard(InputTarget::BrowserUrl, "Web address", browserUrl_.length() ? browserUrl_ : String("https://"), false);
+        return;
+      }
+      if (browserPage_.ok && e.y >= 744 && e.y < 852) {
+        int idx = (e.y - 744) / 54;
+        int ly = (e.y - 744) % 54;
+        if (idx >= 0 && idx < static_cast<int>(browserPage_.links.size()) && idx < 2 && ly < 48) {
+          fetchBrowserUrl(browserPage_.links[idx]);
+        }
+      }
+      return;
+    }
+
+    if (page_ == Page::Otp) {
+      if (e.y >= 414 && e.y < 526) {
+        if (e.x < 270) {
+          showKeyboard(InputTarget::OtpSecret, "Base32 OTP secret", otpSecret_, false);
+        } else {
+          otpSecret_ = "";
+          otpCode_ = "";
+          lastOtpStep_ = 0;
+          drawOtpCode();
+          display_.partialRefresh(18, 145, 504, 250);
+        }
       }
       return;
     }
@@ -1641,20 +1711,25 @@ void UiManager::loop() {
           focusRunning_ = false;
           focusRemainingSec_ = 25UL * 60UL;
         }
-        showFocus();
+
+        drawFocusLiveArea();
+        M5.Display.fillRect(18, 515, 504, 112, TFT_WHITE);
+        UiTheme::card(18, 515, 246, 112, true);
+        UiTheme::value(focusRunning_ ? "PAUSE" : "START", 79, 553, false);
+        UiTheme::detail("Tap", 121, 592);
+        UiTheme::card(276, 515, 246, 112);
+        UiTheme::value("RESET", 345, 553, false);
+        UiTheme::detail("25:00", 379, 592);
+        display_.partialRefresh(18, 145, 504, 482);
       }
       return;
     }
 
     if (page_ == Page::Fun) {
       if (e.y >= 400 && e.y < 518) {
-        if (e.x < 178) {
-          funResult_ = String("D6: ") + String((esp_random() % 6U) + 1U);
-        } else if (e.x < 350) {
-          funResult_ = (esp_random() & 1U) ? "HEADS" : "TAILS";
-        } else {
-          funResult_ = String("Number: ") + String((esp_random() % 100U) + 1U);
-        }
+        if (e.x < 178) funResult_ = String("D6: ") + String((esp_random() % 6U) + 1U);
+        else if (e.x < 350) funResult_ = (esp_random() & 1U) ? "HEADS" : "TAILS";
+        else funResult_ = String("Number: ") + String((esp_random() % 100U) + 1U);
         drawFunResult();
         display_.partialRefresh(18, 145, 504, 230);
       }
@@ -1666,8 +1741,10 @@ void UiManager::loop() {
       else if (e.y >= 342 && e.y < 420) showBluetooth();
       else if (e.y >= 432 && e.y < 510) showComingSoon("GPIO Lab", 4);
       else if (e.y >= 522 && e.y < 600) showComingSoon("Serial Lab", 4);
-      else if (e.y >= 612 && e.y < 690) { display_.cleanRefresh(); showLabs(); }
-      else if (e.y >= 702 && e.y < 780) showSystem();
+      else if (e.y >= 612 && e.y < 690) {
+        display_.cleanRefresh();
+        showLabs();
+      } else if (e.y >= 702 && e.y < 780) showSystem();
       return;
     }
 
@@ -1714,32 +1791,40 @@ void UiManager::loop() {
     }
   }
 
-  // Complete asynchronous Wi-Fi scanning without blocking page entry.
   if (page_ == Page::WiFi) {
     int n = WiFi.scanComplete();
     if (n >= 0) {
-      int shown = min(n, 6);
-      M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
-      UiTheme::card(18, 306, 504, 470);
+      wifiScan_.clear();
+      int shown = min(n, 5);
+
+      M5.Display.fillRect(18, 310, 504, 466, TFT_WHITE);
+      UiTheme::card(18, 310, 504, 466);
 
       if (shown == 0) {
-        UiTheme::value("No networks found", 44, 350, false);
-        UiTheme::detail("Tap this page to scan again.", 44, 392);
+        UiTheme::value("No networks found", 44, 354, false);
+        UiTheme::detail("Tap CURRENT NETWORK to rescan.", 44, 396);
       } else {
         for (int i = 0; i < shown; ++i) {
-          String ssid = WiFi.SSID(i);
-          if (ssid.length() > 24) ssid = ssid.substring(0, 24);
-          settingsRow(307 + i * 78, "WF", ssid.length() ? ssid : String("<hidden>"), String(WiFi.RSSI(i)) + " dBm", false);
+          WiFiScanEntry entry;
+          entry.ssid = WiFi.SSID(i);
+          entry.rssi = WiFi.RSSI(i);
+          entry.channel = WiFi.channel(i);
+          entry.encrypted = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+          wifiScan_.push_back(entry);
+
+          String title = entry.ssid.length() ? entry.ssid : String("<hidden>");
+          if (title.length() > 24) title = title.substring(0, 24);
+          String detail = String(entry.rssi) + " dBm  /  CH " + String(entry.channel) + "  /  " +
+                          (entry.encrypted ? "SECURE" : "OPEN");
+          settingsRow(311 + i * 88, "WF", title, detail, true);
         }
       }
 
-      display_.partialRefresh(18, 306, 504, 470);
+      display_.partialRefresh(18, 310, 504, 466);
       WiFi.scanDelete();
     }
   }
 
-  // Battery screen is live, but e-paper is updated slowly enough to avoid
-  // pointless refresh churn. Voltage/trend samples are collected in PowerManager.
   if (page_ == Page::Battery && millis() - lastBatteryUiRefresh_ > 30000UL) {
     lastBatteryUiRefresh_ = millis();
     M5.Display.fillRect(18, 145, 504, 325, TFT_WHITE);
@@ -1757,6 +1842,17 @@ void UiManager::loop() {
     lastFocusUiRefresh_ = millis();
     drawFocusLiveArea();
     display_.partialRefresh(18, 145, 504, 350);
+  }
+
+  if (page_ == Page::Otp && otpSecret_.length()) {
+    time_t now = time(nullptr);
+    if (now >= 1700000000) {
+      uint64_t step = static_cast<uint64_t>(now) / 30ULL;
+      if (step != lastOtpStep_) {
+        drawOtpCode();
+        display_.partialRefresh(18, 145, 504, 250);
+      }
+    }
   }
 
   if (millis() - lastClock_ > 60000UL) {

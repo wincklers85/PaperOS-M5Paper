@@ -112,7 +112,8 @@ bool StorageManager::renamePath(const String& from, const String& to) {
 }
 
 bool StorageManager::copyFile(const String& from, const String& to) {
-  if (!mounted_ || !validPath(from) || !validPath(to)) return false;
+  if (!mounted_ || !validPath(from) || !validPath(to) || from == to) return false;
+  if (SD.exists(to)) return false;
   File src = SD.open(from, FILE_READ);
   if (!src || src.isDirectory()) { if (src) src.close(); return false; }
   File dst = SD.open(to, FILE_WRITE);

@@ -12,6 +12,7 @@
 #include "../services/NetworkToolsService.h"
 #include "../services/PhoneLinkService.h"
 #include "../services/NfcService.h"
+#include "../services/HidInputService.h"
 #include "../core/ConfigManager.h"
 
 namespace paperos {
@@ -59,11 +60,17 @@ class UiManager {
   void showPhoneLink();
   void showGpioLab();
   void showNfcLab();
+  void showClassicSplash();
+  void showClassicDesktop();
+  void showClassicTerminal();
+  void showClassicHid();
+  void showClassicSki();
+  void showClassicSolitaire();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, NfcLab, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -107,7 +114,8 @@ class UiManager {
     WolMac,
     BrowserSearch,
     ManualTime,
-    PhoneCommand
+    PhoneCommand,
+    ClassicTerminal
   };
 
   Page page_ = Page::Home;
@@ -119,6 +127,7 @@ class UiManager {
   ConfigManager& config_;
   PhoneLinkService& phoneLink_;
   NfcService nfcService_;
+  HidInputService hidInput_;
 
   uint32_t lastClock_ = 0;
   uint32_t lastDeepClean_ = 0;
@@ -216,7 +225,45 @@ class UiManager {
   String gpioStatus_;
   String nfcStatus_;
   NfcTagInfo lastNfcTag_;
+
   std::vector<String> gattRows_;
+
+  // Classic Desktop / Windows 3.11 mode
+  int classicMouseX_ = 270;
+  int classicMouseY_ = 470;
+  uint8_t classicMouseButtons_ = 0;
+  bool classicMouseDown_ = false;
+  uint32_t classicLastPointerRefresh_ = 0;
+  String classicTerminalInput_;
+  std::vector<String> classicTerminalLines_;
+  String classicCwd_ = "/PaperOS";
+  bool classicUnsafeGpio_ = false;
+  String classicHidStatus_;
+  uint32_t classicLastGameTick_ = 0;
+
+  struct SkiObstacle {
+    int x = 0;
+    int y = 0;
+    uint8_t type = 0;
+  };
+  SkiObstacle skiObstacles_[9];
+  int skiPlayerX_ = 270;
+  int skiScore_ = 0;
+  bool skiRunning_ = false;
+
+  struct ClassicCard {
+    uint8_t rank = 1;
+    uint8_t suit = 0;
+    bool faceUp = false;
+  };
+  std::vector<ClassicCard> solStock_;
+  std::vector<ClassicCard> solWaste_;
+  std::vector<ClassicCard> solTableau_[7];
+  std::vector<ClassicCard> solFoundation_[4];
+  int solSelectedType_ = -1; // 0 waste, 1 tableau
+  int solSelectedPile_ = -1;
+  int solScore_ = 0;
+
 
   void preparePage(bool forceClean = false);
   void renderPage(Page target);
@@ -260,7 +307,24 @@ class UiManager {
   String bleManufacturerName(const String& bytes) const;
   String bleManufacturerHex(const String& bytes) const;
   String bytesHex(const String& bytes, size_t maxBytes = 18) const;
+
   void readBleGatt(size_t index);
+
+  void classicDrawChrome(const String& title);
+  void classicDrawCursor();
+  void classicHandlePointer(int x, int y, bool click);
+  void classicProcessHidInput();
+  void classicHandleKey(const HidKeyEvent& key);
+  void classicTerminalExecute(const String& command);
+  void classicTerminalPrint(const String& text);
+  std::vector<String> classicTokenize(const String& command) const;
+  bool classicPinAllowed(int pin) const;
+  void classicInitSki();
+  void classicStepSki();
+  void classicInitSolitaire();
+  bool classicSolitaireMoveToTableau(int target);
+  bool classicSolitaireMoveToFoundation(int foundation);
+
 };
 
 }

@@ -191,14 +191,14 @@ void UiManager::showApps() {
     "Notes", "Files", "Calculator",
     "Wi-Fi", "Bluetooth", "Browser",
     "Battery", "Clock", "Focus",
-    "OTP", "Tools", "Settings",
+    "OTP", "Network", "Settings",
     "System", "Labs", "Fun"
   };
   const char* glyphs[15] = {
     "NT", "FL", "CAL",
     "WF", "BT", "WEB",
     "BAT", "CK", "25",
-    "OTP", "TL", "ST",
+    "OTP", "NET", "ST",
     "SYS", "LAB", "FUN"
   };
 
@@ -216,7 +216,7 @@ void UiManager::showApps() {
 
   UiTheme::card(18, 746, 504, 104);
   UiTheme::label("NETWORK + SECURITY", 34, 762);
-  UiTheme::detail("Native Wi-Fi join, BLE inspector, Browser Lite and TOTP.", 34, 797);
+  UiTheme::detail("Wi-Fi, BLE, Web Reader, TOTP and Network Toolkit.", 34, 797);
   UiTheme::detail("Termo / Solar remain accessible from the Home modules.", 34, 826);
 
   bottomNav(4);
@@ -811,7 +811,7 @@ void UiManager::fetchBrowserUrl(const String& url) {
     return;
   }
 
-  showAppLoading("Browser Lite", "Fetching page...", 55);
+  showAppLoading("Web Reader", "Fetching page...", 55);
   browserPage_ = browserService_.fetch(browserUrl_);
   if (browserPage_.finalUrl.length()) browserUrl_ = browserPage_.finalUrl;
   showBrowser();
@@ -822,7 +822,7 @@ void UiManager::showBrowser() {
   preparePage();
   statusBar();
 
-  UiTheme::title("Browser Lite", 18, 76);
+  UiTheme::title("Web Reader", 18, 76);
   UiTheme::detail("HTTP / HTTPS reader mode", 20, 116);
 
   UiTheme::card(18, 145, 504, 108, true);
@@ -1330,7 +1330,7 @@ void UiManager::showTools() {
 
   settingRow(150, "Wi-Fi Analyzer", "Networks / RSSI / channel / connect");
   settingRow(242, "BLE Inspector", "Nearby devices / UUID / manufacturer data");
-  settingRow(334, "Browser Lite", "HTTP / HTTPS reader mode");
+  settingRow(334, "Web Reader", "HTTP / HTTPS reader mode");
   settingRow(426, "OTP Authenticator", "RFC6238 TOTP / 6 digits / 30 sec");
   settingRow(518, "Clean Display", "Quality white anti-ghost wipe");
   settingRow(610, "System Monitor", "Memory / battery / network");
@@ -1461,7 +1461,7 @@ void UiManager::openAppIndex(int index) {
   else if (index == 7) showClock();
   else if (index == 8) showFocus();
   else if (index == 9) showOtp();
-  else if (index == 10) showTools();
+  else if (index == 10) showNetworkTools();
   else if (index == 11) showSettings();
   else if (index == 12) showSystem();
   else if (index == 13) showLabs();

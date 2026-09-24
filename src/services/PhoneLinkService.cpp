@@ -11,9 +11,10 @@ PhoneLinkService* PhoneLinkService::instance_ = nullptr;
 static void addAncsSolicitation(BLEAdvertisementData& data) {
   BLEUUID uuid(PhoneLinkService::ANCS_SERVICE_UUID);
   char hdr[2] = {17, ESP_BLE_AD_TYPE_128SOL_SRV_UUID};
-  data.addData(hdr, 2);
+  std::string payload(hdr, 2);
   esp_bt_uuid_t* native = uuid.getNative();
-  data.addData(reinterpret_cast<char*>(native->uuid.uuid128), 16);
+  payload.append(reinterpret_cast<char*>(native->uuid.uuid128), 16);
+  data.addData(payload);
 }
 
 class PhoneLinkService::SecurityCallbacks : public BLESecurityCallbacks {
@@ -321,7 +322,8 @@ bool PhoneLinkService::performNotificationAction(uint32_t uid, bool positive) {
     (uint8_t)((uid >> 16) & 0xFF), (uint8_t)((uid >> 24) & 0xFF),
     (uint8_t)(positive ? 0x00 : 0x01)
   };
-  return ancsControlPoint_->writeValue(req, sizeof(req), true);
+  ancsControlPoint_->writeValue(req, sizeof(req), true);
+  return true;
 }
 
 bool PhoneLinkService::sendCommand(const String& command) {

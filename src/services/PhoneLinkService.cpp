@@ -1,5 +1,6 @@
 #include "PhoneLinkService.h"
 #include <ArduinoJson.h>
+#include <BLE2902.h>
 
 namespace paperos {
 
@@ -50,6 +51,7 @@ bool PhoneLinkService::begin() {
 
   if (!notifyIn_ || !commandOut_) return false;
   notifyIn_->setCallbacks(new NotificationCallbacks(this));
+  commandOut_->addDescriptor(new BLE2902());
   commandOut_->setValue("ready");
 
   service_->start();

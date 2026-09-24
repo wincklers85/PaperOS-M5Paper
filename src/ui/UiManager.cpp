@@ -2201,12 +2201,16 @@ void UiManager::showFilePreview(const String& fullPath, const String& name, uint
     // M5GFX decodes files directly from the mounted microSD. The original
     // M5Paper framebuffer is monochrome, so color images are quantized by
     // the display path rather than pretending to preserve LCD color.
-    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
-      ok = M5.Display.drawJpgFile(SD, fullPath.c_str(), 42, 205, 454, 550);
-    } else if (lower.endsWith(".png")) {
-      ok = M5.Display.drawPngFile(SD, fullPath.c_str(), 42, 205, 454, 550);
-    } else if (lower.endsWith(".bmp")) {
-      ok = M5.Display.drawBmpFile(SD, fullPath.c_str(), 42, 205, 454, 550);
+    File imageFile = SD.open(fullPath, FILE_READ);
+    if (imageFile && !imageFile.isDirectory()) {
+      if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+        ok = M5.Display.drawJpg(&imageFile, 42, 205, 454, 550);
+      } else if (lower.endsWith(".png")) {
+        ok = M5.Display.drawPng(&imageFile, 42, 205, 454, 550);
+      } else if (lower.endsWith(".bmp")) {
+        ok = M5.Display.drawBmp(&imageFile, 42, 205, 454, 550);
+      }
+      imageFile.close();
     }
 
     UiTheme::detail(ok ? "Rendered from microSD / e-paper monochrome" : "Image decode failed or unsupported variant", 34, 786);

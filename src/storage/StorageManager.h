@@ -17,6 +17,11 @@ class StorageManager {
   bool removePath(const String& path);
   bool renamePath(const String& from, const String& to);
   bool copyFile(const String& from, const String& to);
+  bool copyPath(const String& from, const String& to);
+  bool movePath(const String& from, const String& to);
+  bool exists(const String& path) const;
+  bool isDirectory(const String& path) const;
+  String uniqueDestination(const String& directory, const String& name) const;
   bool formatCard(const String& type);
   String filesystemHint() const;
   bool validPath(const String& path) const;

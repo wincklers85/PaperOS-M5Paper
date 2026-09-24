@@ -2,6 +2,63 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.9-alpha] - 2026-09-24
+
+### Navigation / gestures
+- Added a real Back arrow with page history, plus left-edge swipe-right navigation.
+- Added pull-down Quick Settings; swipe down from the status area to open and swipe up to close.
+- Quick Settings provides Standby, Wi-Fi radio toggle, Bluetooth toggle, EPD quality profile, NTP time sync and Battery shortcut.
+- Added real swipe scrolling to Settings, Files, Wi-Fi results, BLE results, Phone Link notifications, Web Reader text/links and long text/PDF previews.
+
+### E-paper / battery
+- Added Fast / Balanced / Clean EPD quality profiles instead of pretending the e-paper has LCD-style analog contrast.
+- Battery Power Center now graphs real rolling battery-voltage samples.
+- Added a clearly labelled estimated subsystem-impact ranking for Wi-Fi, BLE, e-paper refresh and active UI.
+- Battery-current mA remains unavailable on original M5Paper hardware.
+
+### Wi-Fi / network
+- Saved networks are mirrored to editable `/PaperOS/Config/wifi_networks.txt` using SSID / Password / Priority blocks; PaperOS imports the file at boot.
+- The Wi-Fi text file explicitly warns that passwords are plaintext by user choice.
+- Added safe Wi-Fi Audit: security mode, open/legacy/modern counts, hidden SSIDs, signal levels and channel congestion.
+- LAN Discovery now covers the full local /24 in four bounded ranges, with common-service probing similar to a lightweight Fing workflow.
+- No deauth, password cracking, credential capture or access-bypass functions are included.
+
+### Bluetooth / Phone Link
+- BLE scan stores up to 40 devices and is scrollable.
+- Added Bluetooth SIG company-ID identification for common manufacturers plus numeric fallback.
+- BLE device test now performs a connection test, service discovery and read-only GATT characteristic reads.
+- Added Phone Link BLE companion bridge with notification input and command READ/NOTIFY characteristic.
+- Added companion commands for camera shutter, media control, phone ring, calls and messages; execution requires a permitted phone companion.
+- Added authenticated REST bridge endpoints for companion/test workflows.
+
+### Web Reader
+- Added non-JavaScript DuckDuckGo HTML search as the default text search.
+- Added relative/internal URL resolution so site navigation is more useful.
+- Added scrollable text and link windows while retaining the ESP32 reader-mode limits.
+
+### Files / microSD
+- File Manager now caches up to 160 directory entries and scrolls them.
+- Added scrollable readers for TXT, Markdown, JSON, LOG, CSV, INI, CFG, XML, HTML and YAML.
+- Added JPEG, PNG and BMP decoding from microSD through M5GFX.
+- Added PDF Reader Lite with basic extraction of uncompressed PDF text; complex/compressed PDFs are explicitly reported as unsupported for full rendering.
+- Added settings backup/restore to `/PaperOS/Backup/settings.json`.
+- Added confirmed destructive SD formatting using FAT or exFAT, plus auto format selection. Formatting creates one whole-card PaperOS volume.
+- Multi-partition editing remains disabled because the current firmware mount layer exposes one SD volume.
+
+### Date / time
+- Added dedicated Date & Time settings.
+- Added one-tap NTP resynchronization and manual RTC/system-time entry.
+- NTP synchronization continues to update the hardware RTC so TOTP can work offline afterward.
+
+### GPIO
+- Added GPIO Lab for original M5Paper Port A (G25/G32), Port B (G26/G33) and Port C (G18/G19).
+- All six signals initialize as INPUT; users explicitly cycle a pin to OUTPUT LOW/HIGH.
+- UI warns that signal pins are 3.3 V logic and the Grove red supply is 5 V.
+
+### Input
+- Keyboard keys now visibly invert when pressed.
+- Password fields have SHOW/HIDE control.
+
 ## [0.1.8-alpha] - 2026-09-24
 
 ### Display

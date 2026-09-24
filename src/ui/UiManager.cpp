@@ -17,6 +17,8 @@ void UiManager::preparePage(bool forceClean) {
   const bool pageChanged = hasRenderedPage_ && page_ != lastRenderedPage_;
 
   if (pageChanged) {
+    wheelFocusVisible_ = false;
+    wheelFocusIndex_ = 0;
     if (!navigatingBack_) {
       if (pageHistory_.empty() || pageHistory_.back() != lastRenderedPage_) {
         pageHistory_.push_back(lastRenderedPage_);
@@ -454,8 +456,10 @@ void UiManager::showNotificationCenter() {
     }
   }
 
-  UiTheme::detail(String(notificationScroll_+1) + "-" + String(min(total, notificationScroll_+visible)) +
-                  " / " + String(total), 396, 906);
+  String pageInfo = total
+    ? String(notificationScroll_+1) + "-" + String(min(total, notificationScroll_+visible)) + " / " + String(total)
+    : String("0 / 0");
+  UiTheme::detail(pageInfo, 396, 906);
   display_.partialRefresh(0, 190, UiTheme::ScreenW, UiTheme::ScreenH-190);
 }
 
@@ -506,6 +510,8 @@ int UiManager::wheelItemCount() const {
 
 void UiManager::drawWheelFocus() {
   if (!wheelFocusVisible_) return;
+  const int count=wheelItemCount();
+  if (count<=0 || wheelFocusIndex_<0 || wheelFocusIndex_>=count) return;
   int x=0,y=0,w=0,h=0;
   const int idx=wheelFocusIndex_;
 

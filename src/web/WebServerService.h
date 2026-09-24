@@ -7,17 +7,18 @@
 #include "../storage/StorageManager.h"
 #include "../services/NotesService.h"
 #include "../services/PowerManager.h"
+#include "../services/PhoneLinkService.h"
 #include "../ui/UiManager.h"
 
 namespace paperos {
 class WebServerService {
  public:
-  WebServerService(ConfigManager& c, WiFiManager& w, StorageManager& s, NotesService& n, PowerManager& p, UiManager& u)
-  : config_(c), wifi_(w), storage_(s), notes_(n), power_(p), ui_(u), server_(80) {}
+  WebServerService(ConfigManager& c, WiFiManager& w, StorageManager& s, NotesService& n, PowerManager& p, UiManager& u, PhoneLinkService& phone)
+  : config_(c), wifi_(w), storage_(s), notes_(n), power_(p), ui_(u), phoneLink_(phone), server_(80) {}
   void begin();
   void loop() { server_.handleClient(); }
  private:
-  ConfigManager& config_; WiFiManager& wifi_; StorageManager& storage_; NotesService& notes_; PowerManager& power_; UiManager& ui_;
+  ConfigManager& config_; WiFiManager& wifi_; StorageManager& storage_; NotesService& notes_; PowerManager& power_; UiManager& ui_; PhoneLinkService& phoneLink_;
   WebServer server_; String sessionToken_; File uploadFile_; bool otaOk_=false;
   bool authorized();
   void sendJson(int code,const String& json);

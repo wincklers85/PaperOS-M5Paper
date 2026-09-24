@@ -1425,6 +1425,10 @@ void UiManager::finishKeyboard() {
 
 void UiManager::fetchBrowserUrl(const String& url) {
   browserUrl_ = url;
+  browserTextScroll_ = 0;
+  browserLinkScroll_ = 0;
+  browserSearchMode_ = false;
+
   if (!wifi_.isConnected()) {
     browserPage_ = BrowserPage();
     browserPage_.error = "Connect Wi-Fi first";
@@ -1444,47 +1448,60 @@ void UiManager::showBrowser() {
   statusBar();
 
   UiTheme::title("Web Reader", 18, 76);
-  UiTheme::detail("HTTP / HTTPS reader mode", 20, 116);
+  UiTheme::detail("Search + HTTP/HTTPS text reader", 20, 116);
 
-  UiTheme::card(18, 145, 504, 108, true);
-  UiTheme::label("ADDRESS", 34, 161);
+  UiTheme::card(18, 145, 504, 88, true);
+  UiTheme::label("SEARCH", 34, 160);
+  String q = browserSearchQuery_.length() ? browserSearchQuery_ : String("Search the web");
+  if (q.length() > 45) q = q.substring(0, 42) + "...";
+  UiTheme::value(q, 34, 191, false);
+  UiTheme::pill("GO", 458, 158, true);
+
+  UiTheme::card(18, 246, 504, 92);
+  UiTheme::label("ADDRESS", 34, 261);
   String u = browserUrl_.length() ? browserUrl_ : String("https://");
-  if (u.length() > 52) u = "..." + u.substring(u.length() - 49);
-  UiTheme::value(u, 34, 197, false);
-  UiTheme::pill("EDIT", 438, 160, true);
-  UiTheme::detail(wifi_.isConnected() ? String("Tap to enter URL") : String("Wi-Fi required"), 34, 232);
+  if (u.length() > 50) u = "..." + u.substring(u.length() - 47);
+  UiTheme::value(u, 34, 292, false);
+  UiTheme::pill("EDIT", 438, 259, true);
+  UiTheme::detail(wifi_.isConnected() ? String("Direct URL / relative links supported") : String("Wi-Fi required"), 34, 320);
 
   if (!browserPage_.ok) {
-    UiTheme::card(18, 274, 504, 420);
-    UiTheme::value(browserPage_.error.length() ? browserPage_.error : String("Enter a URL"), 40, 326, false);
-    UiTheme::detail("Reader mode extracts page title, readable text and absolute links.", 40, 380);
-    UiTheme::detail("JavaScript, video, downloads and complex CSS are not executed.", 40, 416);
-    UiTheme::detail("HTTPS works in lightweight mode; certificate validation is not available.", 40, 452);
+    UiTheme::card(18, 354, 504, 360);
+    UiTheme::value(browserPage_.error.length() ? browserPage_.error : String("Search or enter a URL"), 40, 398, false);
+    UiTheme::detail("Default search: DuckDuckGo HTML (no JavaScript required).", 40, 452);
+    UiTheme::detail("Reader mode extracts title, readable text and internal links.", 40, 488);
+    UiTheme::detail("JavaScript, video and complex CSS are not rendered.", 40, 524);
+    UiTheme::detail("HTTPS uses lightweight transport without CA validation.", 40, 560);
   } else {
-    UiTheme::card(18, 274, 504, 88, true);
+    UiTheme::card(18, 354, 504, 76, true);
     String title = browserPage_.title;
-    if (title.length() > 54) title = title.substring(0, 51) + "...";
-    UiTheme::value(title, 34, 299, false);
-    UiTheme::detail(String("HTTP ") + browserPage_.status, 34, 335);
+    if (title.length() > 52) title = title.substring(0, 49) + "...";
+    UiTheme::value(title, 34, 374, false);
+    UiTheme::detail(String("HTTP ") + browserPage_.status, 34, 407);
 
-    UiTheme::card(18, 376, 504, 330);
+    UiTheme::card(18, 444, 504, 238);
     M5.Display.setFont(&fonts::FreeSans9pt7b);
     M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
     M5.Display.setTextWrap(true, true);
-    M5.Display.setCursor(34, 400);
-    String excerpt = browserPage_.text.substring(0, 1800);
+    M5.Display.setCursor(34, 466);
+    int start = constrain(browserTextScroll_, 0, max(0, static_cast<int>(browserPage_.text.length()) - 1));
+    String excerpt = browserPage_.text.substring(start, min(start + 1350, static_cast<int>(browserPage_.text.length())));
     M5.Display.print(excerpt);
     M5.Display.setTextWrap(false);
     UiTheme::resetFont();
 
-    UiTheme::label("LINKS", 20, 720);
-    for (size_t i = 0; i < browserPage_.links.size() && i < 2; ++i) {
-      int y = 744 + static_cast<int>(i) * 54;
-      UiTheme::card(18, y, 504, 48);
-      String link = browserPage_.links[i];
+    UiTheme::label("LINKS", 20, 697);
+    int linkCount = static_cast<int>(browserPage_.links.size());
+    browserLinkScroll_ = constrain(browserLinkScroll_, 0, max(0, linkCount - 2));
+    for (int i = 0; i < 2 && browserLinkScroll_ + i < linkCount; ++i) {
+      int y = 721 + i * 57;
+      UiTheme::card(18, y, 504, 50);
+      String link = browserPage_.links[browserLinkScroll_ + i];
       if (link.length() > 58) link = link.substring(0, 55) + "...";
-      UiTheme::detail(String(i + 1) + ". " + link, 30, y + 14);
+      UiTheme::detail(String(browserLinkScroll_ + i + 1) + ". " + link, 30, y + 15);
     }
+    UiTheme::detail(String("Text ") + (browserTextScroll_ + 1) + " / " + browserPage_.text.length() +
+                    "  - swipe up/down", 34, 834);
   }
 
   bottomNav(4);

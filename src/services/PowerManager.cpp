@@ -14,6 +14,7 @@ int PowerManager::batteryMillivolts() const {
 
 void PowerManager::markActivity() {
   lastActivity_ = millis();
+  autoLockIssued_ = false;
 }
 
 uint32_t PowerManager::inactivityMinutes() const {
@@ -102,8 +103,9 @@ void PowerManager::loop() {
   const uint32_t mins = cfg_.get().sleepMinutes;
   if (!mins) return;
 
-  if (millis() - lastActivity_ >= mins * 60000UL) {
-    sleepNow(0);
+  if (!autoLockIssued_ && millis() - lastActivity_ >= mins * 60000UL) {
+    lockRequested_ = true;
+    autoLockIssued_ = true;
   }
 }
 
@@ -157,31 +159,35 @@ void PowerManager::drawSleepScreen(uint32_t wakeSeconds) {
   delay(120);
 }
 
-void PowerManager::sleepNow(uint32_t wakeSeconds) {
+void PowerManager::sleepNow(uint32_t) {
+  lockRequested_ = true;
+  autoLockIssued_ = true;
+}
+
+bool PowerManager::consumeLockRequest() {
+  if (!lockRequested_) return false;
+  lockRequested_ = false;
+  return true;
+}
+
+void PowerManager::deepSleepNow(uint32_t wakeSeconds) {
   drawSleepScreen(wakeSeconds);
 
   bool touchWake = cfg_.get().touchWakeEnabled;
-
-  // Never create an indefinite deep sleep with no wake source. On original
-  // M5Paper the GT911 interrupt on GPIO36 is the supported M5Unified wake pin.
   if (wakeSeconds == 0 && !touchWake) touchWake = true;
 
-  // M5Unified contract:
-  //   0       = do not enter deep sleep
-  //   ~0ULL   = sleep without timer, wait for wake pin
-  //   >0      = timer wake in microseconds
   const uint64_t wakeUs = wakeSeconds
     ? static_cast<uint64_t>(wakeSeconds) * 1000000ULL
     : ~0ULL;
 
-  // Drain the current touch/button state before arming wake.
   M5.update();
   delay(40);
   M5.Power.deepSleep(wakeUs, touchWake);
 }
 
 void PowerManager::sleepForMinutes(uint32_t minutes) {
-  sleepNow(minutes ? minutes * 60UL : 0);
+  if (minutes) deepSleepNow(minutes * 60UL);
+  else sleepNow(0);
 }
 
 }

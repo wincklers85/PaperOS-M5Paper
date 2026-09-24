@@ -6,6 +6,7 @@ const pageTitle=$('#pageTitle');
 const pages=[
   {name:'Dashboard',icon:'DB'},
   {name:'Device',icon:'DV'},
+  {name:'Battery',icon:'PW'},
   {name:'Files',icon:'FL'},
   {name:'Notes',icon:'NT'},
   {name:'Calculator',icon:'CAL'},
@@ -141,6 +142,7 @@ async function openPage(name){
   active(name);
   if(name==='Dashboard')return dashboard();
   if(name==='Device')return device();
+  if(name==='Battery')return batteryPage();
   if(name==='Files')return files();
   if(name==='Notes')return notes();
   if(name==='Calculator')return coming('Calculator is native on the M5Paper');
@@ -454,6 +456,26 @@ async function saveSettings(){
     toast('Settings saved');
     refreshShell();
   }catch(e){toast('Save failed: '+e.message)}
+}
+
+async function batteryPage(){
+  const b=await api('/api/battery');
+  view.innerHTML=
+    '<div class="section-head"><div><h2>Power Center</h2><p>Battery and sleep diagnostics for the original M5Paper.</p></div><button id="batteryRefresh">Refresh</button></div>'+
+    '<div class="grid">'+
+      metricCard('Battery',b.percent+'%',b.millivolts+' mV','Live level')+
+      metricCard('Voltage trend',b.trend,(b.trendDeltaMv>=0?'+':'')+b.trendDeltaMv+' mV','Sample window')+
+      metricCard('Charge current',b.currentSupported?(b.currentMa+' mA'):'N/D','Hardware sensor')+
+      metricCard('Capacity',b.nominalCapacityMah+' mAh','3.7 V nominal','Battery')+
+      '<section class="card half"><h3>Charging status</h3><div class="metric" style="font-size:1.25rem">'+
+        (b.chargingLikely?'Probable charging':'Monitoring')+
+        '</div><div class="submetric">This is an estimate from battery-voltage trend, not a charger-current measurement.</div></section>'+
+      '<section class="card half"><h3>Sleep / wake</h3><div class="card-line"><span>Last wake</span><strong>'+esc(b.wakeReason)+'</strong></div>'+
+        '<div class="card-line"><span>Current sensor</span><strong>'+(b.currentSupported?'Available':'Not present')+'</strong></div>'+
+        '<div class="card-line"><span>USB input spec</span><strong>5 V / 500 mA max</strong></div></section>'+
+      '<section class="card full"><h3>Original M5Paper hardware limit</h3><div class="submetric">'+esc(b.hardwareNote)+'. For real charge/discharge current in mA, PaperOS needs an external current monitor such as INA219/INA226.</div></section>'+
+    '</div>';
+  $('#batteryRefresh').onclick=batteryPage;
 }
 
 async function systemPage(){

@@ -11,6 +11,7 @@
 #include "../services/OtpService.h"
 #include "../services/NetworkToolsService.h"
 #include "../services/PhoneLinkService.h"
+#include "../services/NfcService.h"
 #include "../core/ConfigManager.h"
 
 namespace paperos {
@@ -57,11 +58,12 @@ class UiManager {
   void showStorageFormat();
   void showPhoneLink();
   void showGpioLab();
+  void showNfcLab();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, NfcLab, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -116,6 +118,7 @@ class UiManager {
   PowerManager& power_;
   ConfigManager& config_;
   PhoneLinkService& phoneLink_;
+  NfcService nfcService_;
 
   uint32_t lastClock_ = 0;
   uint32_t lastDeepClean_ = 0;
@@ -203,6 +206,8 @@ class UiManager {
   uint8_t gpioModeState_[6] = {0,0,0,0,0,0};
   bool gpioOutputLevel_[6] = {false,false,false,false,false,false};
   String gpioStatus_;
+  String nfcStatus_;
+  NfcTagInfo lastNfcTag_;
   std::vector<String> gattRows_;
 
   void preparePage(bool forceClean = false);

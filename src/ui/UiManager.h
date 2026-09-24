@@ -137,6 +137,14 @@ class UiManager {
   bool wifiScanRunning_ = false;
   int bleScroll_ = 0;
   int fileScroll_ = 0;
+  bool fileSelectionMode_ = false;
+  String selectedFilePath_;
+  String selectedFileName_;
+  bool selectedFileDirectory_ = false;
+  String fileClipboardPath_;
+  String fileClipboardName_;
+  bool fileClipboardCut_ = false;
+  String fileStatus_;
   int textScroll_ = 0;
   int phoneScroll_ = 0;
   int browserTextScroll_ = 0;

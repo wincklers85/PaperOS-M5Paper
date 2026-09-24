@@ -17,12 +17,15 @@ class WiFiManager {
   bool isConnected() const { return WiFi.status() == WL_CONNECTED; }
   bool setupApActive() const { return apActive_; }
   IPAddress ip() const { return isConnected() ? WiFi.localIP() : WiFi.softAPIP(); }
+  bool timeSynced() const { return timeSynced_; }
  private:
   ConfigManager& cfg_;
   DNSServer dns_;
   bool apActive_ = false;
   uint32_t lastReconnect_ = 0;
+  bool timeSynced_ = false;
   void startMdns();
   bool connectKnown();
+  void syncClock();
 };
 }

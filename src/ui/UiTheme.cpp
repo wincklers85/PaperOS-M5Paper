@@ -184,7 +184,6 @@ void UiTheme::sdIcon(int x, int y, bool mounted) {
   if (!mounted) M5.Display.drawLine(x - 2, y, x + 18, y + 22, TFT_BLACK);
 }
 
-}
 
 void UiTheme::shadowCard(int x,int y,int w,int h,int depth) {
   const int radius = style_ == 2 ? 5 : 18;
@@ -213,4 +212,6 @@ void UiTheme::iconButton(int x,int y,int w,int h,const String& glyph,const Strin
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.drawString(labelText,x+w/2,y+h-20);
   resetFont();
+}
+
 }

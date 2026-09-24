@@ -1,23 +1,24 @@
 # PaperOS
 
-**PaperOS 0.1.6-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
+**PaperOS 0.1.7-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
 
 > Target: M5Stack M5Paper first generation only. M5Paper S3 is not the target of this repository.
 
-## What is real in 0.1.6-alpha
+## What is real in 0.1.7-alpha
 
 - M5Unified/M5GFX initialization for original M5Paper
 - boot splash and touch UI
 - pixel-precise 540×960 Home, Apps, Settings, System Monitor, native Notes, native Files and Tools screens
 - hardware buttons: Home / Apps / hold power for sleep
 - RTC display and battery telemetry
-- high-contrast bold e-paper typography with `epd_fastest` interactive navigation and partial regional updates
+- buffered one-pass 540×960 rendering: screens are composed off-screen, then committed with `epd_fastest`; only live regions use partial refresh
 - less frequent automatic anti-ghosting cleanup plus manual Clean Display
 - dedicated Solar and Termo UI shells marked Coming Soon, with no fake telemetry
 - corrected no-timer deep-sleep behavior with retained sleep screen, GT911 touch wake and optional timer wake
 - native Wi-Fi app with non-blocking asynchronous scan, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
 - native Bluetooth LE scanner with instant page entry, scan loading state and tap-to-scan behavior
 - native Calculator utility
+- native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)
 - native Battery / Power Center with voltage trend, wake diagnostics and charging-likely estimation
 - Web Power Center plus extended battery REST telemetry
 - WinLabs Solutions Labs area with beta tools and HID script library
@@ -34,6 +35,11 @@
 - timer/touch wake through M5Unified power management
 - firmware OTA upload from the Web UI
 
+
+
+## Buffered e-paper rendering
+
+M5GFX enables auto-display on framebuffer-backed panels. PaperOS explicitly disables that behavior on the original M5Paper so UI primitives are drawn into the framebuffer first and the physical e-paper panel is refreshed only when the complete screen is ready. This prevents the visible “one widget at a time” construction effect and makes navigation feel substantially more immediate.
 
 ## Battery current limitation on original M5Paper
 

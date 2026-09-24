@@ -580,8 +580,12 @@ void UiManager::handleWheelNavigate(int direction) {
     return;
   }
 
-  wheelFocusVisible_=true;
-  wheelFocusIndex_=constrain(wheelFocusIndex_+direction,0,count-1);
+  if (!wheelFocusVisible_) {
+    wheelFocusVisible_=true;
+    wheelFocusIndex_=direction>0 ? 0 : count-1;
+  } else {
+    wheelFocusIndex_=constrain(wheelFocusIndex_+direction,0,count-1);
+  }
 
   if (page_ == Page::Settings) {
     if (wheelFocusIndex_ < settingsScroll_) settingsScroll_=wheelFocusIndex_;

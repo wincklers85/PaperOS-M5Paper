@@ -3,7 +3,7 @@
 #include <Arduino.h>
 
 #ifndef PAPEROS_VERSION
-#define PAPEROS_VERSION "0.1.6-alpha"
+#define PAPEROS_VERSION "0.1.7-alpha"
 #endif
 
 namespace paperos {

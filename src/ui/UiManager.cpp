@@ -568,7 +568,7 @@ void UiManager::showWiFi() {
   bottomNav(4);
   commitPage();
 
-  if (wifi_.radioEnabled() && wifiScan_.empty() && !wifiScanRunning_) {
+  if (wifi_.radioEnabled() && wifiScan_.empty() && !wifiScanRunning_ && wifiStatusMessage_ != "No networks found") {
     WiFi.scanDelete();
     WiFi.scanNetworks(true, true);
     wifiScanRunning_ = true;
@@ -2238,7 +2238,7 @@ void UiManager::loop() {
 
     if (page_ == Page::Files) {
       if (e.y >= 150 && e.y < 150 + 8 * 82) {
-        size_t idx = (e.y - 150) / 82;
+        size_t idx = static_cast<size_t>(fileScroll_) + static_cast<size_t>((e.y - 150) / 82);
         if (idx < fileEntries_.size()) {
           const FileEntry& entry = fileEntries_[idx];
           if (entry.name == "..") {
@@ -2389,12 +2389,17 @@ void UiManager::loop() {
 
     if (page_ == Page::WiFi) {
       if (e.y >= 145 && e.y < 263) {
+        wifiScan_.clear();
+        wifiScroll_ = 0;
+        wifiScanRunning_ = false;
+        wifiStatusMessage_ = "";
         showWiFi();
         return;
       }
       if (e.y >= 310 && e.y < 776) {
-        int idx = (e.y - 310) / 88;
-        if (idx >= 0 && idx < static_cast<int>(wifiScan_.size())) {
+        int local = (e.y - 310) / 88;
+        int idx = wifiScroll_ + local;
+        if (local >= 0 && local < 5 && idx >= 0 && idx < static_cast<int>(wifiScan_.size())) {
           const WiFiScanEntry entry = wifiScan_[idx];
           if (!entry.ssid.length()) return;
           selectedWifiSsid_ = entry.ssid;
@@ -2414,77 +2419,66 @@ void UiManager::loop() {
     if (page_ == Page::Bluetooth) {
       if (e.y >= 145 && e.y < 257) {
         bleScan_.clear();
+        bleScroll_ = 0;
 
         M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
         UiTheme::card(18, 306, 504, 470);
         UiTheme::value("Scanning BLE...", 44, 350, false);
-        UiTheme::detail("Passive advertising scan in progress.", 44, 392);
+        UiTheme::detail("Collecting advertising data and company IDs.", 44, 392);
         M5.Display.drawRoundRect(44, 442, 438, 18, 9, TFT_BLACK);
         M5.Display.fillRoundRect(47, 445, 292, 12, 6, TFT_BLACK);
         display_.partialRefresh(18, 306, 504, 470);
 
         BLEScan* scanner = BLEDevice::getScan();
         scanner->setActiveScan(true);
-        BLEScanResults results = scanner->start(2, false);
-        int shown = min(results.getCount(), 5);
+        BLEScanResults results = scanner->start(3, false);
+        int total = min(results.getCount(), 40);
 
-        M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
-        UiTheme::card(18, 306, 504, 470);
+        for (int i = 0; i < total; ++i) {
+          BLEAdvertisedDevice d = results.getDevice(i);
+          BleScanEntry entry;
+          entry.address = String(d.getAddress().toString().c_str());
+          entry.name = d.haveName() ? String(d.getName().c_str()) : entry.address;
+          entry.rssi = d.getRSSI();
+          entry.hasTxPower = d.haveTXPower();
+          entry.txPower = entry.hasTxPower ? d.getTXPower() : 0;
+          entry.serviceUuid = d.haveServiceUUID() ? String(d.getServiceUUID().toString().c_str()) : String();
 
-        if (shown == 0) {
-          UiTheme::value("No BLE devices found", 44, 350, false);
-          UiTheme::detail("Tap SCAN to try again.", 44, 392);
-        } else {
-          for (int i = 0; i < shown; ++i) {
-            BLEAdvertisedDevice d = results.getDevice(i);
-            BleScanEntry entry;
-            entry.address = String(d.getAddress().toString().c_str());
-            entry.name = d.haveName() ? String(d.getName().c_str()) : entry.address;
-            entry.rssi = d.getRSSI();
-            entry.hasTxPower = d.haveTXPower();
-            entry.txPower = entry.hasTxPower ? d.getTXPower() : 0;
-            entry.serviceUuid = d.haveServiceUUID() ? String(d.getServiceUUID().toString().c_str()) : String();
+          if (d.haveManufacturerData()) {
+            std::string raw = d.getManufacturerData();
+            String rawArduino;
+            rawArduino.reserve(raw.length());
+            for (size_t b = 0; b < raw.length(); ++b) rawArduino += static_cast<char>(raw[b]);
+            entry.manufacturerHex = bleManufacturerHex(rawArduino);
+            entry.manufacturerName = bleManufacturerName(rawArduino);
 
-            if (d.haveManufacturerData()) {
-              std::string raw = d.getManufacturerData();
-              String rawArduino;
-              rawArduino.reserve(raw.length());
-              for (size_t b = 0; b < raw.length(); ++b) rawArduino += static_cast<char>(raw[b]);
-              entry.manufacturerHex = bleManufacturerHex(rawArduino);
-
-              if (raw.length() >= 4 &&
-                  static_cast<uint8_t>(raw[0]) == 0x4C &&
-                  static_cast<uint8_t>(raw[1]) == 0x00 &&
-                  static_cast<uint8_t>(raw[2]) == 0x02 &&
-                  static_cast<uint8_t>(raw[3]) == 0x15) {
-                entry.beaconType = "iBeacon";
-              }
+            if (raw.length() >= 4 &&
+                static_cast<uint8_t>(raw[0]) == 0x4C &&
+                static_cast<uint8_t>(raw[1]) == 0x00 &&
+                static_cast<uint8_t>(raw[2]) == 0x02 &&
+                static_cast<uint8_t>(raw[3]) == 0x15) {
+              entry.beaconType = "iBeacon";
             }
-
-            String uuidLower = entry.serviceUuid;
-            uuidLower.toLowerCase();
-            if (uuidLower.indexOf("feaa") >= 0) entry.beaconType = "Eddystone";
-            if (!entry.beaconType.length() && entry.manufacturerHex.length()) entry.beaconType = "Manufacturer beacon";
-
-            bleScan_.push_back(entry);
-
-            String title = entry.name;
-            if (title.length() > 24) title = title.substring(0, 24);
-            String detail = String(entry.rssi) + " dBm";
-            if (entry.beaconType.length()) detail += "  /  " + entry.beaconType;
-            else if (entry.serviceUuid.length()) detail += "  /  UUID";
-            settingsRow(307 + i * 88, "BT", title, detail, true);
           }
+
+          String uuidLower = entry.serviceUuid;
+          uuidLower.toLowerCase();
+          if (uuidLower.indexOf("feaa") >= 0) entry.beaconType = "Eddystone";
+          if (!entry.beaconType.length() && entry.manufacturerHex.length()) entry.beaconType = "Manufacturer beacon";
+          bleScan_.push_back(entry);
         }
 
         scanner->clearResults();
-        display_.partialRefresh(18, 306, 504, 470);
+        showBluetooth();
         return;
       }
 
       if (e.y >= 306 && e.y < 776) {
-        int idx = (e.y - 306) / 88;
-        if (idx >= 0 && idx < static_cast<int>(bleScan_.size())) showBleDetail(static_cast<size_t>(idx));
+        int local = (e.y - 306) / 88;
+        int idx = bleScroll_ + local;
+        if (local >= 0 && local < 5 && idx >= 0 && idx < static_cast<int>(bleScan_.size())) {
+          showBleDetail(static_cast<size_t>(idx));
+        }
       }
       return;
     }
@@ -2621,37 +2615,24 @@ void UiManager::loop() {
     }
   }
 
-  if (page_ == Page::WiFi) {
+  if (page_ == Page::WiFi && wifiScanRunning_) {
     int n = WiFi.scanComplete();
     if (n >= 0) {
       wifiScan_.clear();
-      int shown = min(n, 5);
-
-      M5.Display.fillRect(18, 310, 504, 466, TFT_WHITE);
-      UiTheme::card(18, 310, 504, 466);
-
-      if (shown == 0) {
-        UiTheme::value("No networks found", 44, 354, false);
-        UiTheme::detail("Tap CURRENT NETWORK to rescan.", 44, 396);
-      } else {
-        for (int i = 0; i < shown; ++i) {
-          WiFiScanEntry entry;
-          entry.ssid = WiFi.SSID(i);
-          entry.rssi = WiFi.RSSI(i);
-          entry.channel = WiFi.channel(i);
-          entry.encrypted = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
-          wifiScan_.push_back(entry);
-
-          String title = entry.ssid.length() ? entry.ssid : String("<hidden>");
-          if (title.length() > 24) title = title.substring(0, 24);
-          String detail = String(entry.rssi) + " dBm  /  CH " + String(entry.channel) + "  /  " +
-                          (entry.encrypted ? "SECURE" : "OPEN");
-          settingsRow(311 + i * 88, "WF", title, detail, true);
-        }
+      wifiScroll_ = 0;
+      int total = min(n, 40);
+      for (int i = 0; i < total; ++i) {
+        WiFiScanEntry entry;
+        entry.ssid = WiFi.SSID(i);
+        entry.rssi = WiFi.RSSI(i);
+        entry.channel = WiFi.channel(i);
+        entry.encrypted = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+        wifiScan_.push_back(entry);
       }
-
-      display_.partialRefresh(18, 310, 504, 466);
+      wifiScanRunning_ = false;
+      wifiStatusMessage_ = total ? String("Scan complete: ") + total + " networks" : String("No networks found");
       WiFi.scanDelete();
+      showWiFi();
     }
   }
 

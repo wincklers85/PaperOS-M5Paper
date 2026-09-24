@@ -34,11 +34,12 @@ class UiManager {
   void showLabs();
   void showHidLab();
   void showCalculator();
+  void showBattery();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, WiFi, Bluetooth, General, Labs, HidLab, Calculator, ComingSoon
+    Files, FileView, Tools, WiFi, Bluetooth, General, Labs, HidLab, Calculator, Battery, ComingSoon
   };
 
   struct FileEntry {
@@ -57,6 +58,7 @@ class UiManager {
 
   uint32_t lastClock_ = 0;
   uint32_t lastDeepClean_ = 0;
+  uint32_t lastBatteryUiRefresh_ = 0;
   int comingNav_ = 4;
   String comingTitle_;
 
@@ -86,6 +88,8 @@ class UiManager {
   bool isTextFile(const String& name) const;
   void settingsRow(int y, const String& glyph, const String& title, const String& detail, bool chevron = true);
   void calcKey(const String& key);
+  void showAppLoading(const String& title, const String& detail, int percent = 55);
+  void drawBatteryLiveArea();
 };
 
 }

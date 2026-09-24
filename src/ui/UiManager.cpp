@@ -1311,6 +1311,48 @@ void UiManager::finishKeyboard() {
     return;
   }
 
+  if (target == InputTarget::ManualTime) {
+    int yy=0, mo=0, dd=0, hh=0, mm=0;
+    String v = inputValue_;
+    v.replace("T", " ");
+    if (sscanf(v.c_str(), "%d-%d-%d %d:%d", &yy, &mo, &dd, &hh, &mm) == 5 &&
+        yy >= 2020 && yy <= 2099 && mo >= 1 && mo <= 12 && dd >= 1 && dd <= 31 &&
+        hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+
+      const char* tz = config_.get().timezone == "Europe/Rome"
+        ? "CET-1CEST,M3.5.0,M10.5.0/3"
+        : "UTC0";
+      setenv("TZ", tz, 1);
+      tzset();
+
+      struct tm local = {};
+      local.tm_year = yy - 1900;
+      local.tm_mon = mo - 1;
+      local.tm_mday = dd;
+      local.tm_hour = hh;
+      local.tm_min = mm;
+      local.tm_sec = 0;
+      local.tm_isdst = -1;
+      time_t epoch = mktime(&local);
+      if (epoch > 0) {
+        struct timeval tv = {epoch, 0};
+        settimeofday(&tv, nullptr);
+        M5.Rtc.setDateTime({{
+          static_cast<int16_t>(yy), static_cast<int8_t>(mo), static_cast<int8_t>(dd)
+        }, {
+          static_cast<int8_t>(hh), static_cast<int8_t>(mm), static_cast<int8_t>(0)
+        }});
+        timeStatus_ = "Manual time updated";
+      } else {
+        timeStatus_ = "Invalid date/time";
+      }
+    } else {
+      timeStatus_ = "Use YYYY-MM-DD HH:MM";
+    }
+    showDateTime();
+    return;
+  }
+
   showApps();
 }
 
@@ -2463,13 +2505,68 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Settings) {
-      if (e.y >= 145 && e.y < 241) showGeneral();
-      else if (e.y >= 260 && e.y < 338) showGeneral();
-      else if (e.y >= 342 && e.y < 420) showWiFi();
-      else if (e.y >= 424 && e.y < 502) showBluetooth();
-      else if (e.y >= 525 && e.y < 603) showBattery();
-      else if (e.y >= 607 && e.y < 685) showTools();
-      else if (e.y >= 689 && e.y < 767) showLabs();
+      if (e.y >= 260 && e.y < 752) {
+        int local = (e.y - 260) / 82;
+        int idx = settingsScroll_ + local;
+        if (idx == 0) showGeneral();
+        else if (idx == 1) showWiFi();
+        else if (idx == 2) showBluetooth();
+        else if (idx == 3) showDateTime();
+        else if (idx == 4) showBattery();
+        else if (idx == 5) {
+          uint8_t next = (display_.profile() + 1) % 3;
+          display_.setProfile(next);
+          config_.edit().displayProfile = static_cast<DisplayProfile>(next);
+          config_.save();
+          showSettings();
+        }
+        else if (idx == 6 || idx == 7) showStorageTools();
+        else if (idx == 8) showLabs();
+      }
+      return;
+    }
+
+    if (page_ == Page::DateTime) {
+      if (e.y >= 316 && e.y < 428) {
+        if (e.x < 270) {
+          timeStatus_ = wifi_.syncClockNow() ? "NTP synchronization completed" : "Connect Wi-Fi first";
+          showDateTime();
+        } else {
+          auto dt = M5.Rtc.getDateTime();
+          char b[24];
+          snprintf(b, sizeof(b), "%04d-%02d-%02d %02d:%02d",
+                   dt.date.year, dt.date.month, dt.date.date, dt.time.hours, dt.time.minutes);
+          showKeyboard(InputTarget::ManualTime, "YYYY-MM-DD HH:MM", String(b), false);
+        }
+      }
+      return;
+    }
+
+    if (page_ == Page::StorageTools) {
+      if (e.y >= 266 && e.y < 344) {
+        storageStatus_ = config_.exportBackupToSd() ? "Settings backup written to SD" : "Backup failed";
+        showStorageTools();
+      } else if (e.y >= 348 && e.y < 426) {
+        bool ok = config_.restoreBackupFromSd();
+        if (ok) display_.setProfile(static_cast<uint8_t>(config_.get().displayProfile));
+        storageStatus_ = ok ? "Settings restored from SD" : "Restore failed / invalid backup";
+        showStorageTools();
+      } else if (e.y >= 430 && e.y < 508) {
+        storageStatus_ = config_.exportWifiTextToSd() ? "Wi-Fi text file exported" : "Wi-Fi export failed";
+        showStorageTools();
+      } else if (e.y >= 512 && e.y < 590) {
+        storageStatus_ = config_.importWifiTextFromSd() ? "Wi-Fi networks imported" : "Wi-Fi import failed";
+        showStorageTools();
+      } else if (e.y >= 594 && e.y < 672) {
+        storageStatus_ = "Format manager: FAT/exFAT controls are in Labs > Storage in this alpha";
+        showStorageTools();
+      } else if (e.y >= 676 && e.y < 754) {
+        storageStatus_ = storage_.available()
+          ? String("Card ") + String((uint32_t)(storage_.totalBytes()/1048576ULL)) + " MB / used " +
+            String((uint32_t)(storage_.usedBytes()/1048576ULL)) + " MB"
+          : String("No microSD mounted");
+        showStorageTools();
+      }
       return;
     }
 

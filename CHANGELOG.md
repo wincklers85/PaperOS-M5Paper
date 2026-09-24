@@ -2,6 +2,24 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.7-alpha] - 2026-09-24
+
+### Buffered one-pass UI
+- Disabled M5GFX framebuffer auto-display on the original M5Paper.
+- PaperOS now composes complete screens off-screen before the explicit e-paper refresh, so cards, text and icons appear together instead of drawing visibly one element at a time.
+- Existing loading screens now also render as complete frames before background work starts.
+- Partial refresh remains enabled only for genuinely dynamic regions such as calculator results, battery data, clock, focus timer, Wi-Fi results and random-tool results.
+
+### Added
+- Clock: large desk-clock screen with date, battery and one-minute regional refresh.
+- Focus: lightweight 25-minute concentration timer that keeps running while other PaperOS apps are open.
+- Fun: D6 dice, coin toss and random number 1–100 using the ESP32 hardware random source.
+
+### Performance
+- Kept `epd_fastest` for interactive page commits.
+- Full-screen construction no longer triggers automatic e-paper updates for every draw operation.
+- New utility apps are designed around infrequent or regional e-paper refreshes.
+
 ## [0.1.6-alpha] - 2026-09-24
 
 ### Performance and UI

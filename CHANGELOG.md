@@ -2,6 +2,29 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.6-alpha] - 2026-09-24
+
+### Performance and UI
+- Normal interactive page changes now use M5GFX `epd_fastest` for the original M5Paper.
+- Notes and Files open their complete app shell immediately, show a loading/progress state, then replace only the content region after microSD enumeration.
+- Wi-Fi keeps the full page responsive while asynchronous scanning runs and shows a visible loading bar.
+- Bluetooth shows a dedicated scan/loading state and updates the device list with a regional refresh.
+- Battery status in the top bar is now a direct shortcut to the Power Center.
+
+### Battery / Power Center
+- Added a native professional Battery / Power Center app.
+- Added battery percentage, voltage, nominal 1150 mAh capacity, voltage trend, wake reason and sleep configuration.
+- Added a clearly-labelled `chargingLikely` estimate based on sustained voltage rise.
+- Added a Web UI Power Center and richer `/api/battery` telemetry.
+- Current in mA is deliberately shown as unavailable because original M5Paper hardware has no battery-current or charger-state monitor.
+- Added the official 5 V / 500 mA input specification as a hardware reference, not as a measured charge current.
+
+### Sleep / Wake
+- Fixed indefinite deep sleep: PaperOS previously passed `0` to M5Unified, which means "do not enter deep sleep".
+- Indefinite sleep now passes the no-timer sentinel and uses the original M5Paper GT911 wake pin through M5Unified.
+- Prevented an indefinite sleep configuration with no wake source by forcing touch wake when no timer is configured.
+- Sleep screen now reports battery voltage and gives explicit touch-wake instructions.
+
 ## [0.1.5-alpha] - 2026-09-23
 
 ### Changed

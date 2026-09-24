@@ -20,9 +20,9 @@ All notable changes follow Semantic Versioning.
 ### Bluetooth
 - BLE Inspector now keeps scan results and opens a detailed advertising-data view.
 - Device detail includes address, RSSI, advertised TX power, service UUID and manufacturer bytes when available.
-- Inspector remains passive and does not pair, connect or write to nearby devices.
+- Advertising scan remains passive; GATT connection occurs only when the user explicitly taps READ GATT, and the reader performs no writes.
 
-### Browser Lite
+### Web Reader
 - Added a native HTTP/HTTPS text browser designed for ESP32/e-paper constraints.
 - Supports URL entry, redirects, title/text extraction and a small list of absolute links.
 - JavaScript, video, downloads and complex CSS are intentionally unsupported.

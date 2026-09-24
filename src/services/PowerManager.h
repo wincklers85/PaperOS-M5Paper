@@ -36,8 +36,13 @@ class PowerManager {
   void markActivity();
   void loop();
 
-  // Deep sleep indefinitely (touch wake) unless wakeSeconds > 0.
+  // User-facing standby now requests a soft lock. BLE/Wi-Fi remain alive so
+  // mouse-wheel click and phone notifications can still wake/interact.
   void sleepNow(uint32_t wakeSeconds = 0);
+  bool consumeLockRequest();
+
+  // Explicit real ESP32 deep sleep for advanced/diagnostic use only.
+  void deepSleepNow(uint32_t wakeSeconds = 0);
 
   // Convenience timed sleep with touch wake still enabled.
   void sleepForMinutes(uint32_t minutes);
@@ -48,6 +53,8 @@ class PowerManager {
  private:
   ConfigManager& cfg_;
   uint32_t lastActivity_ = 0;
+  bool lockRequested_ = false;
+  bool autoLockIssued_ = false;
 
   static constexpr uint8_t kBatterySamples = 5;
   int batterySamples_[kBatterySamples] = {0};

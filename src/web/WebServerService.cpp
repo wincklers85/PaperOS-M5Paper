@@ -92,6 +92,10 @@ void WebServerService::routes() {
   server_.on("/api/device/sleep",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}sendJson(200,"{\"ok\":true}");delay(250);power_.sleepNow(); });
   server_.on("/api/device/home",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}ui_.showHome();sendJson(200,"{\"ok\":true}"); });
   server_.on("/api/device/apps",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}ui_.showApps();sendJson(200,"{\"ok\":true}"); });
+  server_.on("/api/device/battery",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}ui_.showBattery();sendJson(200,"{\"ok\":true}"); });
+  server_.on("/api/device/clock",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}ui_.showClock();sendJson(200,"{\"ok\":true}"); });
+  server_.on("/api/device/focus",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}ui_.showFocus();sendJson(200,"{\"ok\":true}"); });
+  server_.on("/api/device/fun",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}ui_.showFun();sendJson(200,"{\"ok\":true}"); });
   server_.on("/api/device/refresh",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}ui_.showHome(true);sendJson(200,"{\"ok\":true}"); });
 
   server_.on("/api/ota",HTTP_POST,[this](){ if(!authorized()){server_.send(401);return;} bool ok=!Update.hasError()&&otaOk_; sendJson(ok?200:500,ok?"{\"ok\":true,\"rebooting\":true}":"{\"ok\":false}"); if(ok){delay(300);ESP.restart();} },[this](){

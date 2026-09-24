@@ -220,6 +220,9 @@ class UiManager {
   String parentPath(const String& path) const;
   String joinPath(const String& base, const String& name) const;
   bool isTextFile(const String& name) const;
+  bool isImageFile(const String& name) const;
+  bool isPdfFile(const String& name) const;
+  String extractPdfText(const String& path, size_t offset = 0) const;
   void settingsRow(int y, const String& glyph, const String& title, const String& detail, bool chevron = true);
   void calcKey(const String& key);
   void showAppLoading(const String& title, const String& detail, int percent = 55);

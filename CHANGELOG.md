@@ -36,6 +36,21 @@ All notable changes follow Semantic Versioning.
 ### Input
 - Added a reusable on-screen touch keyboard with lower/upper case, numeric keys and common symbols for Wi-Fi passwords, URLs and OTP secrets.
 
+### Network Toolkit
+- Added real ICMP Ping with average latency.
+- Added DNS hostname lookup using the active Wi-Fi resolver.
+- Added Quick LAN Service Scan for addresses .1-.64 and common TCP ports 22, 80, 443, 1883 and 8080 with short timeouts.
+- Added HTTP/API Tester with GET, POST and PUT plus response status/body.
+- Added a persistent local MQTT client with broker connection, subscribe, publish and last-message display.
+- Added Wake-on-LAN magic packet sender using local subnet broadcast.
+- Added PlatformIO dependencies PubSubClient 2.8 and ESP32Ping 1.7.
+
+### BLE tools
+- BLE Inspector now classifies iBeacon and Eddystone advertisements when their standard markers are present.
+- Added generic beacon/manufacturer advertising identification.
+- Added GATT Reader: explicitly connects to the selected device and reads characteristics that advertise the READ property.
+- GATT Reader is read-only in this alpha; no characteristic writes are performed.
+
 ## [0.1.7-alpha] - 2026-09-24
 
 ### Buffered one-pass UI

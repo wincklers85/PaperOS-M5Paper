@@ -9,6 +9,7 @@
 #include "../services/PowerManager.h"
 #include "../services/SimpleBrowser.h"
 #include "../services/OtpService.h"
+#include "../services/NetworkToolsService.h"
 #include "../core/ConfigManager.h"
 
 namespace paperos {
@@ -42,11 +43,18 @@ class UiManager {
   void showFun();
   void showBrowser();
   void showOtp();
+  void showNetworkTools();
+  void showPingTool();
+  void showDnsTool();
+  void showLanScan();
+  void showApiTester();
+  void showMqtt();
+  void showWakeOnLan();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, WiFi, Bluetooth, BleDetail, General, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, Bluetooth, BleDetail, BleGatt, General, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -76,7 +84,15 @@ class UiManager {
     None = 0,
     WiFiPassword,
     BrowserUrl,
-    OtpSecret
+    OtpSecret,
+    PingHost,
+    DnsHost,
+    ApiUrl,
+    ApiBody,
+    MqttHost,
+    MqttTopic,
+    MqttPayload,
+    WolMac
   };
 
   Page page_ = Page::Home;
@@ -121,10 +137,27 @@ class UiManager {
   bool keyboardShift_ = false;
   bool keyboardSymbols_ = false;
   SimpleBrowser browserService_;
+  NetworkToolsService networkTools_;
   BrowserPage browserPage_;
   String browserUrl_ = "https://";
   String otpSecret_;
   String otpCode_;
+  String pingHost_ = "8.8.8.8";
+  String pingResultText_;
+  String dnsHost_ = "example.com";
+  String dnsResultText_;
+  std::vector<LanServiceHost> lanHosts_;
+  String apiUrl_ = "http://";
+  String apiMethod_ = "GET";
+  String apiBody_;
+  ApiResult apiResult_;
+  String mqttHost_;
+  String mqttTopic_ = "paperos/test";
+  String mqttPayload_ = "hello from PaperOS";
+  String mqttStatus_;
+  String wolMac_;
+  String wolStatus_;
+  std::vector<String> gattRows_;
 
   void preparePage(bool forceClean = false);
   void commitPage();
@@ -155,6 +188,8 @@ class UiManager {
   void drawOtpCode();
   void showBleDetail(size_t index);
   String bleManufacturerHex(const String& bytes) const;
+  String bytesHex(const String& bytes, size_t maxBytes = 18) const;
+  void readBleGatt(size_t index);
 };
 
 }

@@ -202,6 +202,12 @@ void UiManager::renderPage(Page target) {
     case Page::NfcLab: showNfcLab(); break;
     case Page::Labs: showLabs(); break;
     case Page::HidLab: showHidLab(); break;
+    case Page::ClassicSplash: showClassicSplash(); break;
+    case Page::ClassicDesktop: showClassicDesktop(); break;
+    case Page::ClassicTerminal: showClassicTerminal(); break;
+    case Page::ClassicHid: showClassicHid(); break;
+    case Page::ClassicSki: showClassicSki(); break;
+    case Page::ClassicSolitaire: showClassicSolitaire(); break;
     case Page::Calculator: showCalculator(); break;
     case Page::Battery: showBattery(); break;
     case Page::Clock: showClock(); break;
@@ -417,10 +423,11 @@ void UiManager::showApps() {
     UiTheme::appTile(x, y, tileW, tileH, glyphs[i], names[i], false);
   }
 
-  UiTheme::card(18, 746, 504, 104);
-  UiTheme::label("NETWORK + SECURITY", 34, 762);
-  UiTheme::detail("Wi-Fi, BLE, Web Reader, TOTP and Network Toolkit.", 34, 797);
-  UiTheme::detail("Termo / Solar remain accessible from the Home modules.", 34, 826);
+  UiTheme::shadowCard(18, 746, 504, 104, 4);
+  UiTheme::label("CLASSIC DESKTOP", 34, 762);
+  UiTheme::value("Windows 3.11 Mode", 34, 792, false);
+  UiTheme::detail("Program Manager / Terminal / Bluetooth HID / Games", 34, 826);
+  UiTheme::pill("OPEN", 438, 765, true);
 
   bottomNav(4);
   commitPage();
@@ -1987,6 +1994,192 @@ void UiManager::showHidLab() {
   commitPage();
 }
 
+
+void UiManager::classicDrawChrome(const String& titleText) {
+  M5.Display.fillScreen(TFT_WHITE);
+
+  // Windows 3.x-style monochrome desktop texture.
+  for (int y = 0; y < UiTheme::ScreenH; y += 6) {
+    for (int x = ((y / 6) & 1) ? 3 : 0; x < UiTheme::ScreenW; x += 6) {
+      M5.Display.drawPixel(x, y, TFT_BLACK);
+    }
+  }
+
+  M5.Display.fillRect(8, 8, 524, 902, TFT_WHITE);
+  M5.Display.drawRect(8, 8, 524, 902, TFT_BLACK);
+  M5.Display.drawRect(10, 10, 520, 898, TFT_BLACK);
+
+  M5.Display.fillRect(14, 14, 512, 42, TFT_BLACK);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.drawString(titleText, 26, 35);
+
+  M5.Display.fillRect(486, 20, 30, 28, TFT_WHITE);
+  M5.Display.drawRect(486, 20, 30, 28, TFT_BLACK);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString("X", 501, 34);
+
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.drawString("File", 24, 76);
+  M5.Display.drawString("Options", 78, 76);
+  M5.Display.drawString("Window", 160, 76);
+  M5.Display.drawString("Help", 250, 76);
+  M5.Display.drawFastHLine(14, 95, 512, TFT_BLACK);
+  UiTheme::resetFont();
+}
+
+void UiManager::classicDrawCursor() {
+  int x = constrain(classicMouseX_, 2, UiTheme::ScreenW - 18);
+  int y = constrain(classicMouseY_, 2, UiTheme::ScreenH - 24);
+  M5.Display.drawLine(x, y, x, y + 20, TFT_BLACK);
+  M5.Display.drawLine(x, y, x + 13, y + 13, TFT_BLACK);
+  M5.Display.drawLine(x + 1, y + 1, x + 1, y + 17, TFT_WHITE);
+  M5.Display.drawLine(x + 2, y + 2, x + 11, y + 11, TFT_WHITE);
+  M5.Display.drawLine(x + 4, y + 13, x + 9, y + 20, TFT_BLACK);
+}
+
+void UiManager::showClassicSplash() {
+  page_ = Page::ClassicSplash;
+  preparePage(true);
+  M5.Display.fillScreen(TFT_WHITE);
+
+  M5.Display.drawRect(25, 90, 490, 690, TFT_BLACK);
+  M5.Display.drawRect(29, 94, 482, 682, TFT_BLACK);
+
+  // Period-correct geometric flag/splash, rendered from vectors.
+  const int ox = 78, oy = 190, cell = 62;
+  M5.Display.fillRect(ox, oy, cell, cell, TFT_BLACK);
+  for (int y = 0; y < cell; y += 6)
+    for (int x = 0; x < cell; x += 6)
+      M5.Display.drawPixel(ox + x, oy + y, TFT_WHITE);
+  M5.Display.drawRect(ox + 76, oy, cell, cell, TFT_BLACK);
+  M5.Display.fillRect(ox, oy + 76, cell, cell, TFT_BLACK);
+  M5.Display.drawRect(ox + 76, oy + 76, cell, cell, TFT_BLACK);
+
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.drawString("Microsoft Windows", 270, 410);
+  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
+  M5.Display.drawString("Version 3.11", 270, 472);
+
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString("Classic Desktop for PaperOS", 270, 550);
+  M5.Display.drawString("WinLabs Solutions", 270, 585);
+  M5.Display.drawString("Starting Program Manager...", 270, 690);
+  UiTheme::resetFont();
+
+  display_.pageRefresh();
+  delay(1300);
+  navigatingBack_ = true;
+  showClassicDesktop();
+}
+
+void UiManager::showClassicDesktop() {
+  page_ = Page::ClassicDesktop;
+  preparePage();
+  classicDrawChrome("Program Manager - Windows 3.11");
+
+  M5.Display.fillRect(28, 112, 484, 620, TFT_WHITE);
+  M5.Display.drawRect(28, 112, 484, 620, TFT_BLACK);
+  M5.Display.fillRect(32, 116, 476, 34, TFT_BLACK);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.drawString("Main", 44, 133);
+  UiTheme::resetFont();
+
+  struct Icon { int x; int y; const char* name; const char* glyph; };
+  const Icon icons[] = {
+    {54, 178, "Terminal", "C:\\>"},
+    {208, 178, "File Manager", "FILE"},
+    {362, 178, "Control Panel", "CTRL"},
+    {54, 330, "Bluetooth Input", "HID"},
+    {208, 330, "Ski", "SKI"},
+    {362, 330, "Solitaire", "SOL"},
+    {54, 482, "Network", "NET"},
+    {208, 482, "NFC / GPIO", "I/O"},
+    {362, 482, "Exit to PaperOS", "EXIT"}
+  };
+
+  for (const auto& icon : icons) {
+    M5.Display.fillRect(icon.x, icon.y, 100, 82, TFT_WHITE);
+    M5.Display.drawRect(icon.x + 20, icon.y, 60, 50, TFT_BLACK);
+    M5.Display.fillRect(icon.x + 24, icon.y + 4, 52, 42, TFT_BLACK);
+    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.drawString(icon.glyph, icon.x + 50, icon.y + 25);
+    M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+    M5.Display.setFont(&fonts::Font2);
+    M5.Display.drawString(icon.name, icon.x + 50, icon.y + 66);
+  }
+
+  M5.Display.drawRect(28, 750, 484, 120, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.setTextDatum(top_left);
+  M5.Display.drawString("PaperOS Classic Desktop", 44, 766);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString(hidInput_.statusText(), 44, 802);
+  M5.Display.drawString("Touch, BLE mouse and BLE keyboard supported", 44, 836);
+  UiTheme::resetFont();
+
+  classicDrawCursor();
+  commitPage();
+}
+
+void UiManager::showClassicHid() {
+  page_ = Page::ClassicHid;
+  preparePage();
+  classicDrawChrome("Bluetooth Input Devices");
+
+  M5.Display.drawRect(28, 118, 484, 108, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString("BLE HID Host", 44, 136);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString(hidInput_.statusText(), 44, 170);
+  M5.Display.drawString("Mouse / Keyboard service 0x1812", 44, 200);
+
+  M5.Display.fillRect(392, 140, 96, 54, TFT_WHITE);
+  M5.Display.drawRect(392, 140, 96, 54, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString("SCAN", 440, 167);
+
+  const auto& devices = hidInput_.devices();
+  int shown = min(7, static_cast<int>(devices.size()));
+  for (int i = 0; i < shown; ++i) {
+    int y = 248 + i * 76;
+    M5.Display.drawRect(28, y, 484, 66, TFT_BLACK);
+    String n = devices[i].name;
+    if (n.length() > 31) n = n.substring(0, 28) + "...";
+    M5.Display.setTextDatum(top_left);
+    M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+    M5.Display.drawString(n, 44, y + 9);
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    String kind = devices[i].likelyKeyboard ? "Keyboard" : (devices[i].likelyMouse ? "Mouse" : "HID");
+    M5.Display.drawString(kind + " / " + String(devices[i].rssi) + " dBm / " + devices[i].address, 44, y + 37);
+    M5.Display.drawRect(430, y + 12, 64, 38, TFT_BLACK);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.drawString("LINK", 462, y + 31);
+  }
+
+  if (!shown) {
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.drawString("Press SCAN with your mouse/keyboard in pairing mode.", 270, 360);
+  }
+
+  UiTheme::resetFont();
+  classicDrawCursor();
+  commitPage();
+}
+
 void UiManager::showCalculator() {
   page_ = Page::Calculator;
   preparePage();
@@ -2918,6 +3111,8 @@ void UiManager::loop() {
         int localX = (e.x - 18) % 172;
         int localY = (e.y - startY) % pitchY;
         if (col >= 0 && col < 3 && localX < 160 && localY < 108) openAppIndex(row * 3 + col);
+      } else if (e.y >= 746 && e.y < 850) {
+        showClassicSplash();
       }
       return;
     }

@@ -57,12 +57,22 @@ PaperOS includes a native network toolbox intended for diagnostics and local dev
 
 - **Ping** — real ICMP ping with average latency.
 - **DNS Lookup** — resolves hostnames through the active Wi-Fi DNS server.
-- **Quick LAN Service Scan** — probes `.1` through `.64` of the current IPv4 `/24` for common TCP services on ports 22, 80, 443, 1883 and 8080. It is intentionally bounded to keep the M5Paper responsive; it is a service scan, not a guaranteed inventory of every host.
+- **LAN Discovery** — scans the current IPv4 `/24` in four bounded ranges (`.1-.64`, `.65-.128`, `.129-.192`, `.193-.254`) for common TCP services on ports 22, 80, 443, 1883 and 8080. It is a lightweight Fing-style service discovery tool, not a guaranteed inventory of hosts that expose no tested service.
 - **HTTP/API Tester** — GET, POST and PUT with response code/body.
 - **MQTT Client** — connect, subscribe, publish and show the latest message on a topic. The alpha client targets plain local MQTT on port 1883; TLS/authentication are not yet implemented.
 - **Wake-on-LAN** — sends a standard magic packet to the current subnet broadcast address.
 
 BLE Inspector also recognises common iBeacon/Eddystone advertising markers and offers a **read-only GATT Reader** for connectable BLE devices. Only characteristics advertising the READ property are read; PaperOS does not write characteristics from this tool.
+
+## GPIO Port map
+
+Original M5Paper expansion signals used by GPIO Lab:
+
+- Port A: GPIO25 / GPIO32
+- Port B: GPIO26 / GPIO33
+- Port C: GPIO18 / GPIO19
+
+PaperOS initializes all six as INPUT. Signal I/O is 3.3 V logic; the Grove/HY2.0 red supply wire is 5 V.
 
 ## Web Reader and OTP
 

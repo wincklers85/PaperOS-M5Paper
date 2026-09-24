@@ -6,6 +6,7 @@
 namespace paperos {
 
 enum class PowerMode : uint8_t { Performance = 0, Balanced = 1, Eco = 2 };
+enum class DisplayProfile : uint8_t { Fast = 0, Balanced = 1, Clean = 2 };
 
 struct WiFiCredential {
   String ssid;
@@ -21,6 +22,7 @@ struct AppConfig {
   String adminSalt;
   String adminHash;
   PowerMode powerMode = PowerMode::Balanced;
+  DisplayProfile displayProfile = DisplayProfile::Balanced;
 
   // Minutes of inactivity before deep sleep. 0 disables automatic sleep.
   uint32_t sleepMinutes = 15;

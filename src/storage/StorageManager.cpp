@@ -1,5 +1,6 @@
 #include "StorageManager.h"
 #include "PaperOS.h"
+#include <SdFat.h>
 
 namespace paperos {
 static constexpr int PIN_SD_CS = 4;
@@ -72,4 +73,46 @@ bool StorageManager::copyFile(const String& from, const String& to) {
   while (src.available()) { size_t n = src.read(buf, sizeof(buf)); if (dst.write(buf,n) != n) { src.close(); dst.close(); return false; } }
   src.close(); dst.close(); return true;
 }
+bool StorageManager::formatCard(const String& typeRaw) {
+  String type = typeRaw;
+  type.toLowerCase();
+
+  SD.end();
+  mounted_ = false;
+  delay(80);
+
+  SdCardFactory factory;
+  SdCard* card = factory.newCard(SdSpiConfig(PIN_SD_CS, SHARED_SPI, SD_SCK_MHZ(16), &SPI));
+  if (!card || card->errorCode()) {
+    mounted_ = SD.begin(PIN_SD_CS, SPI, 25000000);
+    return false;
+  }
+
+  alignas(4) uint8_t sectorBuffer[512];
+  bool ok = false;
+
+  if (type == "fat" || type == "fat32") {
+    FatFormatter formatter;
+    ok = formatter.format(card, sectorBuffer, nullptr);
+  } else if (type == "exfat") {
+    ExFatFormatter formatter;
+    ok = formatter.format(card, sectorBuffer, nullptr);
+  } else {
+    FsFormatter formatter;
+    ok = formatter.format(card, sectorBuffer, nullptr);
+  }
+
+  delay(120);
+  mounted_ = SD.begin(PIN_SD_CS, SPI, 25000000);
+  if (mounted_) ensureLayout();
+  return ok && mounted_;
+}
+
+String StorageManager::filesystemHint() const {
+  if (!mounted_) return "Not mounted";
+  uint64_t mb = totalBytes() / 1048576ULL;
+  if (mb > 32768ULL) return "Likely exFAT / large SDXC";
+  return "FAT-compatible volume";
+}
+
 }

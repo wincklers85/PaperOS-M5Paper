@@ -50,11 +50,15 @@ class UiManager {
   void showApiTester();
   void showMqtt();
   void showWakeOnLan();
+  void showDateTime();
+  void showStorageTools();
+  void showPhoneLink();
+  void showGpioLab();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, Bluetooth, BleDetail, BleGatt, General, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, PhoneLink, GpioLab, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -93,7 +97,9 @@ class UiManager {
     MqttHost,
     MqttTopic,
     MqttPayload,
-    WolMac
+    WolMac,
+    BrowserSearch,
+    ManualTime
   };
 
   Page page_ = Page::Home;
@@ -112,6 +118,15 @@ class UiManager {
   uint64_t lastOtpStep_ = 0;
   bool hasRenderedPage_ = false;
   Page lastRenderedPage_ = Page::Home;
+  std::vector<Page> pageHistory_;
+  bool navigatingBack_ = false;
+  bool quickPanelOpen_ = false;
+  bool keyboardShowSecret_ = false;
+  int settingsScroll_ = 0;
+  int wifiScroll_ = 0;
+  int bleScroll_ = 0;
+  int fileScroll_ = 0;
+  int textScroll_ = 0;
   int comingNav_ = 4;
   String comingTitle_;
 
@@ -127,6 +142,10 @@ class UiManager {
   std::vector<WiFiScanEntry> wifiScan_;
   std::vector<BleScanEntry> bleScan_;
   size_t selectedBleIndex_ = 0;
+  String currentPreviewPath_;
+  String currentPreviewName_;
+  uint64_t currentPreviewSize_ = 0;
+  size_t selectedNoteIndex_ = 0;
   bool focusRunning_ = false;
   uint32_t focusEndMs_ = 0;
   uint32_t focusRemainingSec_ = 25UL * 60UL;
@@ -143,6 +162,8 @@ class UiManager {
   NetworkToolsService networkTools_;
   BrowserPage browserPage_;
   String browserUrl_ = "https://";
+  String browserSearchQuery_;
+  bool browserSearchMode_ = true;
   String otpSecret_;
   String otpCode_;
   String pingHost_ = "8.8.8.8";
@@ -160,9 +181,19 @@ class UiManager {
   String mqttStatus_;
   String wolMac_;
   String wolStatus_;
+  String timeStatus_;
+  String storageStatus_;
+  String phoneLinkStatus_ = "Bridge not connected";
+  String gpioStatus_;
   std::vector<String> gattRows_;
 
   void preparePage(bool forceClean = false);
+  void renderPage(Page target);
+  void navigateBack();
+  void showQuickPanel();
+  void closeQuickPanel();
+  void handleQuickPanelTap(int x, int y);
+  void handleScrollGesture(TouchGesture gesture);
   void commitPage();
   void statusBar();
   void bottomNav(int active);
@@ -180,6 +211,8 @@ class UiManager {
   void calcKey(const String& key);
   void showAppLoading(const String& title, const String& detail, int percent = 55);
   void drawBatteryLiveArea();
+  void drawBatteryGraph();
+  void drawBatteryImpactEstimate();
   void drawClockLiveArea();
   void drawFocusLiveArea();
   void drawFunResult();
@@ -190,6 +223,7 @@ class UiManager {
   void fetchBrowserUrl(const String& url);
   void drawOtpCode();
   void showBleDetail(size_t index);
+  String bleManufacturerName(const String& bytes) const;
   String bleManufacturerHex(const String& bytes) const;
   String bytesHex(const String& bytes, size_t maxBytes = 18) const;
   void readBleGatt(size_t index);

@@ -27,5 +27,6 @@ class WiFiManager {
   void startMdns();
   bool connectKnown();
   void syncClock();
+  void restoreClockFromRtc();
 };
 }

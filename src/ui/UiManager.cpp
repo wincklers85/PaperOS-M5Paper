@@ -39,6 +39,9 @@ void UiManager::preparePage(bool forceClean) {
 }
 
 void UiManager::commitPage() {
+  if (wheelFocusVisible_ && !quickPanelOpen_ && !notificationPanelOpen_ && !locked_) {
+    drawWheelFocus();
+  }
   display_.pageRefresh();
 }
 
@@ -174,6 +177,7 @@ void UiManager::renderPage(Page target) {
       else showNotes();
       break;
     case Page::Files: showFiles(currentFilePath_); break;
+    case Page::LockScreen: showLockScreen(); break;
     case Page::FileView:
       if (currentPreviewPath_.length()) showFilePreview(currentPreviewPath_, currentPreviewName_, currentPreviewSize_);
       else showFiles(currentFilePath_);
@@ -255,7 +259,7 @@ void UiManager::showQuickPanel() {
   UiTheme::iconButton(280, 226, 238, 106, "NTP", wifi_.timeSynced() ? "Time synced" : "Sync time", false);
 
   UiTheme::iconButton(22, 348, 238, 106, String(power_.batteryPercent()) + "%", "Battery statistics", false);
-  UiTheme::iconButton(280, 348, 238, 106, "Zz", "Standby", true);
+  UiTheme::iconButton(280, 348, 238, 106, "LOCK", "Blocca", true);
 
   UiTheme::card(22, 470, 496, 100);
   UiTheme::label("ACTIVE PAGE BELOW", 40, 487);
@@ -314,6 +318,166 @@ void UiManager::handleQuickPanelTap(int x, int y) {
     } else {
       quickPanelOpen_ = false;
       power_.sleepNow();
+    }
+  }
+}
+
+
+void UiManager::showLockScreen() {
+  if (!locked_) pageBeforeLock_ = page_;
+  locked_ = true;
+  quickPanelOpen_ = false;
+  notificationPanelOpen_ = false;
+  wheelFocusVisible_ = false;
+  page_ = Page::LockScreen;
+
+  display_.cleanRefresh();
+  UiTheme::beginFrame();
+
+  auto dt = M5.Rtc.getDateTime();
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+
+  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
+  M5.Display.drawString("PaperOS", 270, 96);
+
+  char clockText[8];
+  snprintf(clockText, sizeof(clockText), "%02d:%02d", dt.time.hours, dt.time.minutes);
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.drawString(clockText, 270, 202);
+
+  char dateText[28];
+  snprintf(dateText, sizeof(dateText), "%02d/%02d/%04d", dt.date.date, dt.date.month, dt.date.year);
+  M5.Display.setFont(&fonts::FreeSans12pt7b);
+  M5.Display.drawString(dateText, 270, 254);
+
+  UiTheme::shadowCard(54, 330, 432, 146, 5);
+  UiTheme::label("DEVICE", 78, 350);
+  UiTheme::value(String("PaperOS  ") + power_.batteryPercent() + "%", 78, 386, false);
+  String phoneState = phoneLink_.ancsReady() ? "iPhone ANCS connected" :
+                      (phoneLink_.connected() ? "iPhone Bluetooth connected" : "Phone disconnected");
+  UiTheme::detail(phoneState, 78, 430);
+
+  UiTheme::shadowCard(54, 510, 432, 206, 5);
+  if (!lockWakeArmed_) {
+    UiTheme::label("STANDBY / LOCKED", 78, 532);
+    UiTheme::value("Premi OK", 78, 578, true);
+    UiTheme::detail("Premi la rotella del mouse verso l'interno.", 78, 638);
+    UiTheme::detail("Fallback: premi il tasto centrale del M5Paper.", 78, 672);
+  } else {
+    UiTheme::label("READY TO UNLOCK", 78, 532);
+    UiTheme::value("Swipe to unlock", 78, 578, true);
+    M5.Display.drawLine(118, 660, 400, 660, TFT_BLACK);
+    M5.Display.drawLine(400, 660, 378, 646, TFT_BLACK);
+    M5.Display.drawLine(400, 660, 378, 674, TFT_BLACK);
+    UiTheme::detail("Scorri verso destra sul touchscreen.", 78, 696);
+  }
+
+  UiTheme::detail("Wi-Fi, Bluetooth e Phone Link restano attivi in soft lock.", 270, 802);
+  UiTheme::resetFont();
+  display_.pageRefresh();
+}
+
+void UiManager::armUnlock() {
+  if (!locked_) return;
+  lockWakeArmed_ = true;
+  power_.markActivity();
+  showLockScreen();
+}
+
+void UiManager::unlockToMenu() {
+  if (!locked_ || !lockWakeArmed_) return;
+  locked_ = false;
+  lockWakeArmed_ = false;
+  pageHistory_.clear();
+  hasRenderedPage_ = false;
+  power_.markActivity();
+  display_.cleanRefresh();
+  showApps();
+}
+
+void UiManager::showNotificationCenter() {
+  if (locked_) return;
+  notificationPanelOpen_ = true;
+  quickPanelOpen_ = false;
+
+  UiTheme::ditherOverlay(0, 190, UiTheme::ScreenW, UiTheme::ScreenH - 190);
+  UiTheme::shadowCard(10, 210, 520, 732, 7);
+  M5.Display.fillRoundRect(218, 224, 104, 6, 3, TFT_BLACK);
+
+  UiTheme::title("Notification Center", 28, 252);
+  UiTheme::detail("Swipe down to close / wheel to browse", 30, 292);
+
+  UiTheme::shadowCard(26, 322, 488, 118, 4);
+  UiTheme::label("PHONE", 44, 338);
+  String state = phoneLink_.ancsReady() ? "ANCS CONNECTED" :
+                 (phoneLink_.connected() ? "BLUETOOTH CONNECTED" : "DISCONNECTED");
+  UiTheme::value(phoneLink_.phoneName() + "  /  " + state, 44, 370, false);
+
+  String battery = "Batteria telefono: N/D";
+  if (phoneLink_.phoneBatteryKnown()) {
+    battery = String("Batteria telefono: ") + phoneLink_.phoneBatteryPercent() + "%";
+    if (phoneLink_.phoneChargingKnown()) battery += phoneLink_.phoneCharging() ? " / in carica" : " / non in carica";
+  } else {
+    battery += "  (serve companion/Shortcut)";
+  }
+  UiTheme::detail(battery, 44, 408);
+
+  const int total = static_cast<int>(phoneLink_.notificationCount());
+  const int visible = 5;
+  notificationScroll_ = constrain(notificationScroll_, 0, max(0, total - visible));
+
+  UiTheme::label("NOTIFICHE", 28, 462);
+  if (!total) {
+    UiTheme::shadowCard(26, 490, 488, 122, 3);
+    UiTheme::value("Nessuna notifica", 44, 524, false);
+    UiTheme::detail(phoneLink_.ancsReady() ? "Phone Link e attivo." : "Collega iPhone Link per ricevere ANCS.", 44, 566);
+  } else {
+    for (int row=0; row<visible && notificationScroll_+row<total; ++row) {
+      const PhoneNotification* n=phoneLink_.notification(static_cast<size_t>(notificationScroll_+row));
+      if (!n) continue;
+      const int y=488+row*82;
+      UiTheme::card(26,y,488,72);
+      String category;
+      switch(n->category){
+        case 1: category="CALL"; break; case 2: category="MISSED CALL"; break;
+        case 4: category="SOCIAL"; break; case 5: category="CALENDAR"; break;
+        case 6: category="MAIL"; break; case 7: category="NEWS"; break;
+        default: category=n->app.length()?n->app:"PHONE"; break;
+      }
+      String title=category+" / "+n->title;
+      if(title.length()>45) title=title.substring(0,42)+"...";
+      String body=n->body;
+      if(body.length()>58) body=body.substring(0,55)+"...";
+      UiTheme::value(title,42,y+9,false);
+      UiTheme::detail(body,42,y+42);
+    }
+  }
+
+  UiTheme::detail(String(notificationScroll_+1) + "-" + String(min(total, notificationScroll_+visible)) +
+                  " / " + String(total), 396, 906);
+  display_.partialRefresh(0, 190, UiTheme::ScreenW, UiTheme::ScreenH-190);
+}
+
+void UiManager::closeNotificationCenter() {
+  if (!notificationPanelOpen_) return;
+  notificationPanelOpen_ = false;
+  renderPage(page_);
+}
+
+void UiManager::handleNotificationPanelTap(int x, int y) {
+  if (y >= 322 && y < 440) {
+    notificationPanelOpen_ = false;
+    showPhoneLink();
+    return;
+  }
+  if (y >= 488 && y < 898) {
+    int row=(y-488)/82;
+    int idx=notificationScroll_+row;
+    if (idx >= 0 && idx < static_cast<int>(phoneLink_.notificationCount())) {
+      phoneScroll_=idx;
+      notificationPanelOpen_=false;
+      showPhoneLink();
     }
   }
 }

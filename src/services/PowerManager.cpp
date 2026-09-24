@@ -42,6 +42,10 @@ void PowerManager::sampleBattery() {
   batterySampleIndex_ = (batterySampleIndex_ + 1) % kBatterySamples;
   if (batterySampleCount_ < kBatterySamples) ++batterySampleCount_;
 
+  voltageHistory_[voltageHistoryIndex_] = mv;
+  voltageHistoryIndex_ = (voltageHistoryIndex_ + 1) % kVoltageHistorySamples;
+  if (voltageHistoryCount_ < kVoltageHistorySamples) ++voltageHistoryCount_;
+
   if (batterySampleCount_ >= 3) {
     const uint8_t newestIndex = (batterySampleIndex_ + kBatterySamples - 1) % kBatterySamples;
     const uint8_t oldestIndex = batterySampleCount_ < kBatterySamples ? 0 : batterySampleIndex_;
@@ -70,6 +74,13 @@ bool PowerManager::chargingLikely() const {
   // real USB/charger state or battery current. A sustained voltage rise can
   // suggest charging but is not presented as a hardware measurement.
   return batteryPercent() < 100 && batteryTrend() == BatteryTrend::Rising;
+}
+
+int PowerManager::voltageHistoryMv(uint8_t chronologicalIndex) const {
+  if (chronologicalIndex >= voltageHistoryCount_) return 0;
+  uint8_t oldest = voltageHistoryCount_ < kVoltageHistorySamples ? 0 : voltageHistoryIndex_;
+  uint8_t idx = (oldest + chronologicalIndex) % kVoltageHistorySamples;
+  return voltageHistory_[idx];
 }
 
 String PowerManager::wakeReason() const {

@@ -35,11 +35,14 @@ class UiManager {
   void showHidLab();
   void showCalculator();
   void showBattery();
+  void showClock();
+  void showFocus();
+  void showFun();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, WiFi, Bluetooth, General, Labs, HidLab, Calculator, Battery, ComingSoon
+    Files, FileView, Tools, WiFi, Bluetooth, General, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, ComingSoon
   };
 
   struct FileEntry {
@@ -59,6 +62,8 @@ class UiManager {
   uint32_t lastClock_ = 0;
   uint32_t lastDeepClean_ = 0;
   uint32_t lastBatteryUiRefresh_ = 0;
+  uint32_t lastClockPageRefresh_ = 0;
+  uint32_t lastFocusUiRefresh_ = 0;
   int comingNav_ = 4;
   String comingTitle_;
 
@@ -71,6 +76,10 @@ class UiManager {
   bool calcResetInput_ = true;
   std::vector<String> noteIds_;
   std::vector<String> noteTitles_;
+  bool focusRunning_ = false;
+  uint32_t focusEndMs_ = 0;
+  uint32_t focusRemainingSec_ = 25UL * 60UL;
+  String funResult_ = "Tap a game";
 
   void preparePage(bool forceClean = false);
   void commitPage();
@@ -90,6 +99,9 @@ class UiManager {
   void calcKey(const String& key);
   void showAppLoading(const String& title, const String& detail, int percent = 55);
   void drawBatteryLiveArea();
+  void drawClockLiveArea();
+  void drawFocusLiveArea();
+  void drawFunResult();
 };
 
 }

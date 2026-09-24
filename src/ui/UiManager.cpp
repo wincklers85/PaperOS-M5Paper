@@ -1311,6 +1311,14 @@ void UiManager::finishKeyboard() {
     return;
   }
 
+  if (target == InputTarget::PhoneCommand) {
+    phoneCommandDraft_ = inputValue_;
+    bool ok = phoneLink_.sendCommand(phoneCommandDraft_);
+    phoneLinkStatus_ = ok ? String("Command sent: ") + phoneCommandDraft_ : String("Start Phone Link bridge first");
+    showPhoneLink();
+    return;
+  }
+
   if (target == InputTarget::ManualTime) {
     int yy=0, mo=0, dd=0, hh=0, mm=0;
     String v = inputValue_;
@@ -1484,6 +1492,112 @@ void UiManager::showOtp() {
   UiTheme::label("STATUS", 34, 746);
   UiTheme::detail(wifi_.timeSynced() ? "System clock synchronized" : "NTP not synchronized in this boot", 34, 783);
   UiTheme::detail(otpSecret_.length() ? "Secret loaded in volatile memory" : "No secret loaded", 34, 816);
+
+  bottomNav(4);
+  commitPage();
+}
+
+
+void UiManager::showPhoneLink() {
+  page_ = Page::PhoneLink;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Phone Link", 18, 76);
+  UiTheme::detail("BLE companion bridge", 20, 116);
+
+  UiTheme::card(18, 145, 504, 112, true);
+  UiTheme::label("BRIDGE", 34, 161);
+  UiTheme::value(phoneLink_.statusText(), 34, 198, false);
+  UiTheme::pill(phoneLink_.active() ? "STOP" : "START", 430, 160, true);
+  UiTheme::detail("Service UUID: 6f0c1000... / companion required", 34, 232);
+
+  UiTheme::label("NOTIFICATIONS", 20, 282);
+  UiTheme::card(18, 306, 504, 244);
+  if (phoneLink_.notificationCount() == 0) {
+    UiTheme::value("No notifications", 44, 350, false);
+    UiTheme::detail("Android/iPhone companion can forward app alerts here.", 44, 394);
+  } else {
+    int visible = 3;
+    int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - visible);
+    phoneScroll_ = constrain(phoneScroll_, 0, maxOffset);
+    int shown = min(visible, static_cast<int>(phoneLink_.notificationCount()) - phoneScroll_);
+    for (int row = 0; row < shown; ++row) {
+      const PhoneNotification* n = phoneLink_.notification(static_cast<size_t>(phoneScroll_ + row));
+      if (!n) continue;
+      String title = n->app + ": " + n->title;
+      if (title.length() > 43) title = title.substring(0, 40) + "...";
+      String body = n->body;
+      if (body.length() > 55) body = body.substring(0, 52) + "...";
+      UiTheme::value(title, 34, 326 + row * 72, false);
+      UiTheme::detail(body, 34, 360 + row * 72);
+      if (row < shown - 1) M5.Display.drawFastHLine(34, 378 + row * 72, 454, TFT_BLACK);
+    }
+  }
+
+  UiTheme::card(18, 570, 160, 104, true);
+  UiTheme::value("CAMERA", 58, 605, false);
+  UiTheme::detail("Shutter", 71, 644);
+
+  UiTheme::card(190, 570, 160, 104);
+  UiTheme::value("MEDIA", 242, 605, false);
+  UiTheme::detail("Play/pause", 222, 644);
+
+  UiTheme::card(362, 570, 160, 104);
+  UiTheme::value("COMMAND", 393, 605, false);
+  UiTheme::detail("Call/message/etc", 379, 644);
+
+  UiTheme::card(18, 694, 504, 148);
+  UiTheme::label("PHONE CAPABILITIES", 34, 712);
+  UiTheme::detail("Notifications, calls, SMS/messages and camera require a companion", 34, 748);
+  UiTheme::detail("with the phone permissions. PaperOS sends real BLE commands;", 34, 780);
+  UiTheme::detail("the phone companion decides what it is allowed to execute.", 34, 812);
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showGpioLab() {
+  page_ = Page::GpioLab;
+
+  static const int pins[6] = {25, 32, 26, 33, 18, 19};
+  static const char* labels[6] = {
+    "Port A Yellow / G25", "Port A White / G32",
+    "Port B Yellow / G26", "Port B White / G33",
+    "Port C Yellow / G18", "Port C White / G19"
+  };
+
+  if (!gpioInitialized_) {
+    for (int i = 0; i < 6; ++i) {
+      pinMode(pins[i], INPUT);
+      gpioModeState_[i] = 0;
+      gpioOutputLevel_[i] = false;
+    }
+    gpioInitialized_ = true;
+  }
+
+  preparePage();
+  statusBar();
+
+  UiTheme::title("GPIO Lab", 18, 76);
+  UiTheme::detail("M5Paper Port A / B / C", 20, 116);
+
+  for (int i = 0; i < 6; ++i) {
+    int y = 145 + i * 94;
+    UiTheme::card(18, y, 504, 82);
+    String mode;
+    if (gpioModeState_[i] == 0) mode = String("INPUT / ") + (digitalRead(pins[i]) ? "HIGH" : "LOW");
+    else mode = String("OUTPUT / ") + (gpioOutputLevel_[i] ? "HIGH" : "LOW");
+    UiTheme::value(labels[i], 34, y + 14, false);
+    UiTheme::detail(mode + "  - tap to cycle INPUT -> LOW -> HIGH", 34, y + 49);
+    UiTheme::chevron(491, y + 28);
+  }
+
+  UiTheme::card(18, 720, 504, 122);
+  UiTheme::label("PIN MAP / SAFETY", 34, 738);
+  UiTheme::detail("A: G25/G32  B: G26/G33  C: G18/G19", 34, 774);
+  UiTheme::detail("Signal pins are 3.3 V logic. Grove red wire is 5 V.", 34, 806);
+  UiTheme::detail("Default is INPUT; do not drive unknown external hardware.", 34, 833);
 
   bottomNav(4);
   commitPage();

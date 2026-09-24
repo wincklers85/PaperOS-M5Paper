@@ -346,6 +346,10 @@ void UiManager::handleScrollGesture(TouchGesture gesture) {
     int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - 3);
     phoneScroll_ = constrain(phoneScroll_ + delta * 3, 0, maxOffset);
     showPhoneLink();
+  } else if (page_ == Page::Browser && browserPage_.ok) {
+    browserTextScroll_ = max(0, browserTextScroll_ + delta * 850);
+    browserLinkScroll_ = max(0, browserLinkScroll_ + delta * 2);
+    showBrowser();
   }
 }
 
@@ -1310,6 +1314,23 @@ void UiManager::finishKeyboard() {
     return;
   }
 
+  if (target == InputTarget::BrowserSearch) {
+    browserSearchQuery_ = inputValue_;
+    browserSearchMode_ = true;
+    browserTextScroll_ = 0;
+    browserLinkScroll_ = 0;
+    if (!wifi_.isConnected()) {
+      browserPage_ = BrowserPage();
+      browserPage_.error = "Connect Wi-Fi first";
+    } else {
+      showAppLoading("Web Search", "Searching DuckDuckGo HTML...", 55);
+      browserPage_ = browserService_.search(browserSearchQuery_);
+      if (browserPage_.finalUrl.length()) browserUrl_ = browserPage_.finalUrl;
+    }
+    showBrowser();
+    return;
+  }
+
   if (target == InputTarget::BrowserUrl) {
     browserUrl_ = inputValue_;
     fetchBrowserUrl(browserUrl_);
@@ -2168,18 +2189,23 @@ void UiManager::showLanScan() {
   page_ = Page::LanScan;
   preparePage();
   statusBar();
-  UiTheme::title("Quick LAN Scan", 18, 76);
-  UiTheme::detail("Common services on local /24", 20, 116);
+  UiTheme::title("LAN Discovery", 18, 76);
+  UiTheme::detail("Fing-style local service discovery", 20, 116);
 
-  UiTheme::card(18, 145, 504, 92, true);
-  UiTheme::value("SCAN .1 - .64", 176, 176, false);
-  UiTheme::detail("Ports 22 / 80 / 443 / 1883 / 8080", 126, 211);
+  int segStart = lanScanSegment_ == 0 ? 1 : (lanScanSegment_ * 64 + 1);
+  int segEnd = lanScanSegment_ == 3 ? 254 : min(254, segStart + 63);
+  UiTheme::card(18, 145, 246, 92, true);
+  UiTheme::value(String("SCAN .") + segStart + "-." + segEnd, 44, 176, false);
+  UiTheme::detail("Probe selected range", 58, 211);
+  UiTheme::card(276, 145, 246, 92);
+  UiTheme::value("NEXT RANGE", 326, 176, false);
+  UiTheme::detail("Cycle /24 segment", 330, 211);
 
   UiTheme::label("DISCOVERED SERVICES", 20, 260);
   if (lanHosts_.empty()) {
     UiTheme::card(18, 288, 504, 350);
     UiTheme::value("No scan results yet", 120, 342, false);
-    UiTheme::detail("Tap SCAN to probe the first 64 IPv4 addresses.", 52, 396);
+    UiTheme::detail("Scan the current /24 in four short segments.", 52, 396);
     UiTheme::detail("This detects hosts exposing common TCP services.", 52, 432);
   } else {
     size_t shown = lanHosts_.size() > 6 ? 6 : lanHosts_.size();
@@ -2622,9 +2648,17 @@ void UiManager::loop() {
 
     if (page_ == Page::LanScan) {
       if (e.y >= 145 && e.y < 237) {
-        showAppLoading("LAN Scan", "Checking common services on .1 - .64", 45);
-        lanHosts_ = networkTools_.quickLanScan(1, 64);
-        showLanScan();
+        if (e.x < 270) {
+          uint8_t startHost = lanScanSegment_ == 0 ? 1 : static_cast<uint8_t>(lanScanSegment_ * 64 + 1);
+          uint8_t endHost = lanScanSegment_ == 3 ? 254 : static_cast<uint8_t>(min(254, static_cast<int>(startHost) + 63));
+          showAppLoading("LAN Discovery", String("Scanning .") + startHost + "-." + endHost, 45);
+          lanHosts_ = networkTools_.quickLanScan(startHost, endHost);
+          showLanScan();
+        } else {
+          lanScanSegment_ = (lanScanSegment_ + 1) % 4;
+          lanHosts_.clear();
+          showLanScan();
+        }
       }
       return;
     }
@@ -2911,14 +2945,19 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Browser) {
-      if (e.y >= 145 && e.y < 253) {
+      if (e.y >= 145 && e.y < 233) {
+        showKeyboard(InputTarget::BrowserSearch, "Search the web", browserSearchQuery_, false);
+        return;
+      }
+      if (e.y >= 246 && e.y < 338) {
         showKeyboard(InputTarget::BrowserUrl, "Web address", browserUrl_.length() ? browserUrl_ : String("https://"), false);
         return;
       }
-      if (browserPage_.ok && e.y >= 744 && e.y < 852) {
-        int idx = (e.y - 744) / 54;
-        int ly = (e.y - 744) % 54;
-        if (idx >= 0 && idx < static_cast<int>(browserPage_.links.size()) && idx < 2 && ly < 48) {
+      if (browserPage_.ok && e.y >= 721 && e.y < 835) {
+        int local = (e.y - 721) / 57;
+        int ly = (e.y - 721) % 57;
+        int idx = browserLinkScroll_ + local;
+        if (local >= 0 && local < 2 && idx >= 0 && idx < static_cast<int>(browserPage_.links.size()) && ly < 50) {
           fetchBrowserUrl(browserPage_.links[idx]);
         }
       }

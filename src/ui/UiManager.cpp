@@ -199,6 +199,7 @@ void UiManager::renderPage(Page target) {
     case Page::StorageFormat: showStorageFormat(); break;
     case Page::PhoneLink: showPhoneLink(); break;
     case Page::GpioLab: showGpioLab(); break;
+    case Page::NfcLab: showNfcLab(); break;
     case Page::Labs: showLabs(); break;
     case Page::HidLab: showHidLab(); break;
     case Page::Calculator: showCalculator(); break;
@@ -329,8 +330,8 @@ void UiManager::handleScrollGesture(TouchGesture gesture) {
     textScroll_ = max(0, textScroll_ + delta * 900);
     showFilePreview(currentPreviewPath_, currentPreviewName_, currentPreviewSize_);
   } else if (page_ == Page::PhoneLink) {
-    int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - 3);
-    phoneScroll_ = constrain(phoneScroll_ + delta * 3, 0, maxOffset);
+    int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - 2);
+    phoneScroll_ = constrain(phoneScroll_ + delta * 2, 0, maxOffset);
     showPhoneLink();
   } else if (page_ == Page::Browser && browserPage_.ok) {
     browserTextScroll_ = max(0, browserTextScroll_ + delta * 850);
@@ -1761,61 +1762,79 @@ void UiManager::showPhoneLink() {
   preparePage();
   statusBar();
 
-  UiTheme::title("Phone Link", 18, 76);
-  UiTheme::detail("BLE companion bridge", 20, 116);
+  UiTheme::title("iPhone Link", 18, 76);
+  UiTheme::detail("Native Apple ANCS + optional companion bridge", 20, 116);
 
-  UiTheme::card(18, 145, 504, 112, true);
-  UiTheme::label("BRIDGE", 34, 161);
-  UiTheme::value(phoneLink_.statusText(), 34, 198, false);
-  UiTheme::pill(phoneLink_.active() ? "STOP" : "START", 430, 160, true);
-  UiTheme::detail("Service UUID: 6f0c1000... / companion required", 34, 232);
+  UiTheme::shadowCard(18, 145, 504, 112, 4);
+  UiTheme::label("IPHONE ACCESSORY", 34, 161);
+  UiTheme::value(phoneLink_.statusText(), 34, 196, false);
+  UiTheme::pill(phoneLink_.active() ? "STOP" : "PAIR", 430, 160, true);
+  String peer = phoneLink_.peerAddress();
+  if (peer.length() > 20) peer = peer.substring(0, 20);
+  UiTheme::detail(phoneLink_.ancsReady() ? String("ANCS READY / ") + peer :
+                  (phoneLink_.bonded() ? "Bond saved / waiting for ANCS" : "Secure BLE bonding / ANCS solicitation"), 34, 232);
 
-  UiTheme::label("NOTIFICATIONS", 20, 282);
-  UiTheme::card(18, 306, 504, 244);
-  if (phoneLink_.notificationCount() == 0) {
-    UiTheme::value("No notifications", 44, 350, false);
-    UiTheme::detail("Android/iPhone companion can forward app alerts here.", 44, 394);
+  UiTheme::shadowCard(18, 274, 504, 176, 4);
+  UiTheme::label(phoneLink_.ancsReady() ? "IOS CONNECTION" : "FIRST PAIRING", 34, 291);
+  if (phoneLink_.ancsReady()) {
+    UiTheme::value("Notifications from iPhone are live", 34, 326, false);
+    UiTheme::detail("Incoming/missed calls, messages, mail and app notifications", 34, 365);
+    UiTheme::detail("arrive through Apple's ANCS service. Full Contacts / message", 34, 396);
+    UiTheme::detail("history databases are not exposed by ANCS.", 34, 426);
   } else {
-    int visible = 3;
+    UiTheme::detail("1. Tap PAIR above.", 34, 323);
+    UiTheme::detail("2. On iPhone open nRF Connect > Scan > PaperOS > Connect.", 34, 352);
+    UiTheme::detail("3. Accept the iOS Bluetooth pairing request.", 34, 381);
+    UiTheme::detail("4. Allow notifications for PaperOS when iOS asks.", 34, 410);
+    UiTheme::detail("Direct visibility in Settings > Bluetooth can vary on DIY BLE.", 34, 436);
+  }
+
+  UiTheme::label("IPHONE NOTIFICATIONS", 20, 470);
+  UiTheme::shadowCard(18, 494, 504, 170, 4);
+  if (phoneLink_.notificationCount() == 0) {
+    UiTheme::value(phoneLink_.ancsReady() ? "No current notifications" : "Waiting for iPhone", 38, 530, false);
+    UiTheme::detail("ANCS events will appear here automatically after pairing.", 38, 568);
+    UiTheme::detail("Swipe this page to browse more notifications.", 38, 600);
+  } else {
+    const int visible = 2;
     int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - visible);
     phoneScroll_ = constrain(phoneScroll_, 0, maxOffset);
     int shown = min(visible, static_cast<int>(phoneLink_.notificationCount()) - phoneScroll_);
     for (int row = 0; row < shown; ++row) {
       const PhoneNotification* n = phoneLink_.notification(static_cast<size_t>(phoneScroll_ + row));
       if (!n) continue;
-      String title = n->app + ": " + n->title;
-      if (title.length() > 43) title = title.substring(0, 40) + "...";
+      String cat;
+      switch (n->category) {
+        case 1: cat="CALL"; break; case 2: cat="MISSED"; break; case 3: cat="VOICEMAIL"; break;
+        case 4: cat="SOCIAL"; break; case 5: cat="CALENDAR"; break; case 6: cat="MAIL"; break;
+        case 7: cat="NEWS"; break; case 8: cat="HEALTH"; break; case 9: cat="BUSINESS"; break;
+        default: cat="IOS"; break;
+      }
+      String title = cat + " / " + (n->title.length() ? n->title : n->app);
+      if (title.length() > 45) title = title.substring(0, 42) + "...";
       String body = n->body;
-      if (body.length() > 55) body = body.substring(0, 52) + "...";
-      UiTheme::value(title, 34, 326 + row * 72, false);
-      UiTheme::detail(body, 34, 360 + row * 72);
-      if (row < shown - 1) M5.Display.drawFastHLine(34, 378 + row * 72, 454, TFT_BLACK);
+      if (body.length() > 62) body = body.substring(0, 59) + "...";
+      UiTheme::value(title, 34, 511 + row * 74, false);
+      UiTheme::detail(body, 34, 546 + row * 74);
+      if (row == 0 && shown > 1) M5.Display.drawFastHLine(34, 574, 454, TFT_BLACK);
     }
   }
 
-  UiTheme::card(18, 570, 160, 104, true);
-  UiTheme::value("CAMERA", 58, 605, false);
-  UiTheme::detail("Shutter", 71, 644);
+  const PhoneNotification* first = phoneLink_.notification(static_cast<size_t>(phoneScroll_));
+  UiTheme::iconButton(18, 680, 160, 76, "+", "ANCS action +", first && first->positiveAction);
+  UiTheme::iconButton(190, 680, 160, 76, "-", "ANCS action -", first && first->negativeAction);
+  UiTheme::iconButton(362, 680, 160, 76, "CLR", "Clear list", false);
 
-  UiTheme::card(190, 570, 160, 104);
-  UiTheme::value("MEDIA", 242, 605, false);
-  UiTheme::detail("Play/pause", 222, 644);
-
-  UiTheme::card(362, 570, 160, 104);
-  UiTheme::value("COMMAND", 393, 605, false);
-  UiTheme::detail("Call/message/etc", 379, 644);
-
-  UiTheme::card(18, 694, 504, 148);
-  UiTheme::label("PHONE CAPABILITIES", 34, 712);
-  UiTheme::detail("Commands: call:+39... / message:+39...|text / phone:ring", 34, 748);
-  UiTheme::detail("camera:shutter / media:playpause. Companion permissions required.", 34, 780);
-  UiTheme::detail("Notifications arrive through BLE GATT or authenticated REST bridge.", 34, 812);
+  UiTheme::iconButton(18, 772, 160, 70, "CAM", "Companion camera", false);
+  UiTheme::iconButton(190, 772, 160, 70, "PLAY", "Media control", false);
+  UiTheme::iconButton(362, 772, 160, 70, "...", "Custom command", false);
 
   bottomNav(4);
   commitPage();
 }
 
 void UiManager::showGpioLab() {
+  nfcService_.stop();
   page_ = Page::GpioLab;
 
   static const int pins[6] = {25, 32, 26, 33, 18, 19};
@@ -1861,24 +1880,65 @@ void UiManager::showGpioLab() {
   commitPage();
 }
 
+
+void UiManager::showNfcLab() {
+  page_ = Page::NfcLab;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("NFC Lab", 18, 76);
+  UiTheme::detail("PN532 / Port C UART / ISO14443A", 20, 116);
+
+  UiTheme::shadowCard(18, 145, 504, 128, 4);
+  UiTheme::label("PN532 MODULE", 34, 162);
+  UiTheme::value(nfcService_.ready() ? nfcService_.firmwareText() : String("Not initialized"), 34, 198, false);
+  UiTheme::pill(nfcService_.ready() ? "READY" : "TEST", 420, 160, true);
+  UiTheme::detail("Port C: G18 RX <- PN532 TX / G19 TX -> PN532 RX", 34, 235);
+
+  UiTheme::iconButton(18, 294, 246, 106, "NFC", "Test module", false);
+  UiTheme::iconButton(276, 294, 246, 106, "TAG", "Scan tag", true);
+
+  UiTheme::shadowCard(18, 420, 504, 190, 4);
+  UiTheme::label("LAST TAG", 34, 438);
+  if (lastNfcTag_.found) {
+    UiTheme::value(lastNfcTag_.uid, 34, 477, false);
+    UiTheme::detail(lastNfcTag_.type, 34, 520);
+    UiTheme::detail(String("UID length: ") + lastNfcTag_.uidLength + " bytes", 34, 554);
+  } else {
+    UiTheme::value(nfcStatus_.length() ? nfcStatus_ : String("No tag scanned"), 34, 477, false);
+    UiTheme::detail("Place an ISO14443A / MIFARE / NTAG-compatible tag near PN532.", 34, 520);
+  }
+
+  UiTheme::shadowCard(18, 630, 504, 190, 4);
+  UiTheme::label("WIRING / SAFETY", 34, 648);
+  UiTheme::detail("Set the PN532 board switches/jumpers to HSU / UART mode.", 34, 684);
+  UiTheme::detail("PN532 TX -> Port C G18 (RX)", 34, 718);
+  UiTheme::detail("PN532 RX -> Port C G19 (TX) / GND -> GND", 34, 750);
+  UiTheme::detail("Port C red wire is 5 V: power only if your PN532 board accepts it.", 34, 782);
+  UiTheme::detail("This Lab reads tags only; no write/emulation is performed.", 34, 810);
+
+  bottomNav(4);
+  commitPage();
+}
+
 void UiManager::showLabs() {
   page_ = Page::Labs;
   preparePage();
   statusBar();
 
   UiTheme::title("Labs", 18, 78);
-  UiTheme::detail("WinLabs Solutions beta features", 20, 119);
+  UiTheme::detail("WinLabs Solutions / hardware & beta features", 20, 119);
 
-  UiTheme::card(18, 150, 504, 84, true);
+  UiTheme::shadowCard(18, 150, 504, 84, 4);
   UiTheme::pill("LABS", 34, 172, true);
-  UiTheme::detail("Funzioni sperimentali. Possono cambiare tra versioni.", 130, 180);
+  UiTheme::detail("Experimental tools with explicit hardware limits.", 130, 180);
 
-  settingsRow(252, "USB", "USB HID / BadUSB Lab", "Script library / external HID required");
-  settingsRow(342, "BLE", "BLE Explorer", "Scan advertising / diagnostics");
-  settingsRow(432, "IO", "GPIO Lab", "Pin tools - beta");
-  settingsRow(522, "SER", "Serial Lab", "UART console - beta");
+  settingsRow(252, "USB", "USB HID Lab", "Script library / external HID adapter");
+  settingsRow(342, "BT", "BLE Explorer", "Advertising / GATT diagnostics");
+  settingsRow(432, "NFC", "NFC / PN532", "Port C UART / tag UID reader");
+  settingsRow(522, "IO", "GPIO Lab", "Port A / B / C pin controls");
   settingsRow(612, "EPD", "Display Test", "Refresh / ghosting diagnostics");
-  settingsRow(702, "DEV", "Developer", "Logs / heap / experimental tools");
+  settingsRow(702, "DEV", "Developer", "System / logs / experimental tools");
 
   bottomNav(4);
   commitPage();
@@ -2999,19 +3059,26 @@ void UiManager::loop() {
         int local = (e.y - 260) / 82;
         int idx = settingsScroll_ + local;
         if (idx == 0) showGeneral();
-        else if (idx == 1) showWiFi();
-        else if (idx == 2) showBluetooth();
-        else if (idx == 3) showDateTime();
-        else if (idx == 4) showBattery();
-        else if (idx == 5) {
+        else if (idx == 1) {
+          uint8_t next = (static_cast<uint8_t>(config_.get().uiStyle) + 1) % 4;
+          config_.edit().uiStyle = static_cast<UiStyle>(next);
+          config_.save();
+          UiTheme::setStyle(next);
+          showSettings();
+        }
+        else if (idx == 2) showWiFi();
+        else if (idx == 3) showBluetooth();
+        else if (idx == 4) showDateTime();
+        else if (idx == 5) showBattery();
+        else if (idx == 6) {
           uint8_t next = (display_.profile() + 1) % 3;
           display_.setProfile(next);
           config_.edit().displayProfile = static_cast<DisplayProfile>(next);
           config_.save();
           showSettings();
         }
-        else if (idx == 6 || idx == 7) showStorageTools();
-        else if (idx == 8) showLabs();
+        else if (idx == 7 || idx == 8) showStorageTools();
+        else if (idx == 9) showLabs();
       }
       return;
     }
@@ -3038,7 +3105,10 @@ void UiManager::loop() {
         showStorageTools();
       } else if (e.y >= 348 && e.y < 426) {
         bool ok = config_.restoreBackupFromSd();
-        if (ok) display_.setProfile(static_cast<uint8_t>(config_.get().displayProfile));
+        if (ok) {
+          display_.setProfile(static_cast<uint8_t>(config_.get().displayProfile));
+          UiTheme::setStyle(static_cast<uint8_t>(config_.get().uiStyle));
+        }
         storageStatus_ = ok ? "Settings restored from SD" : "Restore failed / invalid backup";
         showStorageTools();
       } else if (e.y >= 430 && e.y < 508) {
@@ -3197,23 +3267,56 @@ void UiManager::loop() {
       if (e.y >= 145 && e.y < 257) {
         if (phoneLink_.active()) {
           phoneLink_.stop();
-          phoneLinkStatus_ = "Bridge stopped";
+          phoneLinkStatus_ = "Phone Link stopped";
         } else {
           bool ok = phoneLink_.begin();
           bluetoothActive_ = bluetoothActive_ || ok;
-          phoneLinkStatus_ = ok ? "Bridge advertising" : "Bridge start failed";
+          phoneLinkStatus_ = ok ? "Pairing mode started" : "Bluetooth/ANCS start failed";
         }
         showPhoneLink();
-      } else if (e.y >= 570 && e.y < 674) {
+      } else if (e.y >= 680 && e.y < 756) {
+        const PhoneNotification* n = phoneLink_.notification(static_cast<size_t>(phoneScroll_));
         if (e.x < 178) {
-          phoneLinkStatus_ = phoneLink_.sendCommand("camera:shutter") ? "Camera shutter command sent" : "Start bridge first";
+          phoneLinkStatus_ = (n && n->positiveAction && phoneLink_.performNotificationAction(n->uid, true))
+            ? "Positive ANCS action sent" : "Positive action unavailable";
+        } else if (e.x < 350) {
+          phoneLinkStatus_ = (n && n->negativeAction && phoneLink_.performNotificationAction(n->uid, false))
+            ? "Negative ANCS action sent" : "Negative action unavailable";
+        } else {
+          phoneLink_.clearNotifications();
+          phoneScroll_ = 0;
+          phoneLinkStatus_ = "Notification list cleared";
+        }
+        showPhoneLink();
+      } else if (e.y >= 772 && e.y < 842) {
+        if (e.x < 178) {
+          phoneLinkStatus_ = phoneLink_.sendCommand("camera:shutter") ? "Companion camera command sent" : "Companion bridge inactive";
           showPhoneLink();
         } else if (e.x < 350) {
-          phoneLinkStatus_ = phoneLink_.sendCommand("media:playpause") ? "Media command sent" : "Start bridge first";
+          phoneLinkStatus_ = phoneLink_.sendCommand("media:playpause") ? "Companion media command sent" : "Companion bridge inactive";
           showPhoneLink();
         } else {
           showKeyboard(InputTarget::PhoneCommand, "Companion command", phoneCommandDraft_, false);
         }
+      }
+      return;
+    }
+
+    if (page_ == Page::NfcLab) {
+      if (e.y >= 145 && e.y < 273) {
+        bool ok = nfcService_.begin();
+        nfcStatus_ = ok ? nfcService_.firmwareText() : "PN532 not detected - check HSU wiring/mode";
+        showNfcLab();
+      } else if (e.y >= 294 && e.y < 400) {
+        if (e.x < 270) {
+          bool ok = nfcService_.begin();
+          nfcStatus_ = ok ? nfcService_.firmwareText() : "PN532 not detected";
+        } else {
+          showAppLoading("NFC", "Waiting for ISO14443A tag...", 55);
+          lastNfcTag_ = nfcService_.scan(1800);
+          nfcStatus_ = lastNfcTag_.found ? String("Tag detected: ") + lastNfcTag_.uid : "No tag detected";
+        }
+        showNfcLab();
       }
       return;
     }
@@ -3318,9 +3421,12 @@ void UiManager::loop() {
     if (page_ == Page::Labs) {
       if (e.y >= 252 && e.y < 330) showHidLab();
       else if (e.y >= 342 && e.y < 420) showBluetooth();
-      else if (e.y >= 432 && e.y < 510) showGpioLab();
-      else if (e.y >= 522 && e.y < 600) showComingSoon("Serial Lab", 4);
-      else if (e.y >= 612 && e.y < 690) showLabs();
+      else if (e.y >= 432 && e.y < 510) showNfcLab();
+      else if (e.y >= 522 && e.y < 600) showGpioLab();
+      else if (e.y >= 612 && e.y < 690) {
+        display_.cleanRefresh();
+        showLabs();
+      }
       else if (e.y >= 702 && e.y < 780) showSystem();
       return;
     }

@@ -11,7 +11,7 @@ PhoneLinkService* PhoneLinkService::instance_ = nullptr;
 static void addAncsSolicitation(BLEAdvertisementData& data) {
   BLEUUID uuid(PhoneLinkService::ANCS_SERVICE_UUID);
   char hdr[2] = {17, ESP_BLE_AD_TYPE_128SOL_SRV_UUID};
-  data.addData(String(hdr, 2));
+  data.addData(hdr, 2);
   esp_bt_uuid_t* native = uuid.getNative();
   data.addData(reinterpret_cast<char*>(native->uuid.uuid128), 16);
 }

@@ -1,10 +1,10 @@
 # PaperOS
 
-**PaperOS 0.1.8-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
+**PaperOS 0.1.9-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
 
 > Target: M5Stack M5Paper first generation only. M5Paper S3 is not the target of this repository.
 
-## What is real in 0.1.8-alpha
+## What is real in 0.1.9-alpha
 
 - M5Unified/M5GFX initialization for original M5Paper
 - boot splash and touch UI
@@ -12,21 +12,24 @@
 - hardware buttons: Home / Apps / hold power for sleep
 - RTC display and battery telemetry
 - buffered one-pass 540×960 rendering: screens are composed off-screen, then committed with `epd_fastest`; only live regions use partial refresh
-- less frequent automatic anti-ghosting cleanup plus manual Clean Display
+- clean anti-ghost transition when navigating to another page, with buffered one-pass redraw and fast regional updates inside the same app
 - dedicated Solar and Termo UI shells marked Coming Soon, with no fake telemetry
 - corrected no-timer deep-sleep behavior with retained sleep screen, GT911 touch wake and optional timer wake
 - native Wi-Fi Analyzer with asynchronous scan, RSSI/channel/security details, touch network selection, on-device password entry, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
-- native BLE Inspector with passive scanning, device detail, RSSI, address, TX power, service UUID and manufacturer advertising data
+- native BLE Inspector with scrollable scans, manufacturer/company identification, beacon classification, connection testing and read-only GATT service/characteristic inspection
 - native Calculator utility
-- native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)\n- native Web Reader for HTTP/HTTPS reader-mode browsing\n- native RFC6238 TOTP calculator with volatile-only Base32 secret storage\n- reusable on-screen touch keyboard for Wi-Fi, browser URLs and OTP input
-- native Battery / Power Center with voltage trend, wake diagnostics and charging-likely estimation
+- native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)
+- native Web Reader with DuckDuckGo non-JavaScript text search, HTTP/HTTPS reader mode, relative-link navigation and scrolling
+- native RFC6238 TOTP calculator with volatile-only Base32 secret storage
+- reusable on-screen touch keyboard with pressed-key feedback and SHOW/HIDE for passwords
+- native Battery / Power Center with real rolling voltage graph, wake diagnostics, charging-likely estimation and clearly-labelled subsystem impact estimate
 - Web Power Center plus extended battery REST telemetry
 - WinLabs Solutions Labs area with beta tools and HID script library
 - captive DNS redirect to `192.168.4.1`
 - mDNS hostname `paperos.local`
 - password-protected responsive Web UI
 - first-boot browser-assisted wizard
-- microSD layout and file manager: list, upload, download, create folder, rename, copy and delete
+- microSD layout and scrollable file manager: list, upload, download, create folder, rename, copy and delete; native text, JPEG/PNG/BMP and PDF-Lite readers
 - Notes on microSD with browser editing, categories, favorite and autosave
 - settings persistence in LittleFS with atomic `.tmp` / `.bak` recovery
 - system status REST API
@@ -38,6 +41,15 @@
 
 
 
+
+
+## 0.1.9 interaction model
+
+- **Back:** tap the arrow in the top-left status bar or swipe right from the left edge.
+- **Quick Settings:** swipe down from the top; swipe up to close. It contains Standby, Wi-Fi, Bluetooth, EPD quality, NTP sync and Battery.
+- **Scrolling:** swipe up/down in long Settings, Files, Wi-Fi, Bluetooth, Web Reader and Phone Link lists.
+- **Editable Wi-Fi networks:** `/PaperOS/Config/wifi_networks.txt` is imported at boot. It intentionally stores passwords in plaintext because this workflow was explicitly requested; protect the SD accordingly.
+- **Backups:** Settings can export/restore `/PaperOS/Backup/settings.json`.
 
 ## Network Toolkit
 
@@ -70,9 +82,16 @@ The original M5Paper can report battery level and battery voltage, but its hardw
 
 The original M5Paper USB-C connector is wired through a CP2104/CH9102 USB-to-serial bridge, not a native USB HID controller. PaperOS therefore provides a **USB HID / BadUSB Lab** for script storage and future external-adapter workflows, but it does not pretend that the built-in USB-C port can execute HID scripts. Scripts are stored under `/PaperOS/Labs/HID`.
 
-## Explicitly not implemented yet
+## Current limits
 
-The Web UI displays these modules as **Coming Soon** rather than simulating them: Tasks, Calendar, BLE Console, MQTT, Smart Home, GPIO Manager, Serial Terminal, Automations, Notifications, PDF Reader and Ebook Reader. Solar and Termo have finished UI shells but their telemetry backends remain Coming Soon. The on-device note editor and reorderable Home widgets are also deferred.
+- **Solar and Termo telemetry** remain Coming Soon until real data sources are connected.
+- **Phone Link** is a real BLE/REST bridge, but phone notifications, SMS/messages, calls and camera actions require a companion with Android/iOS permissions. See [PHONE_LINK.md](docs/PHONE_LINK.md).
+- **PDF Reader Lite** extracts readable text from compatible/uncompressed PDF content; it is not a full graphical PDF engine.
+- **Web Reader** does not execute JavaScript, video or complex CSS; HTTPS currently uses lightweight transport without CA validation.
+- **SD formatting** supports one whole-card FAT/exFAT PaperOS volume. Multi-partition mounting/editing is intentionally not exposed yet.
+- **Battery current in mA** is unavailable without an external current monitor.
+- **Wi-Fi Audit** is diagnostic only: no deauth, credential capture, password cracking or access bypass.
+- Solar/Termo controls, an on-device notes editor, reorderable Home widgets and a packaged phone companion app remain deferred.
 
 See [ROADMAP.md](ROADMAP.md).
 
@@ -158,7 +177,7 @@ All Web File Manager paths are sandboxed below `/PaperOS`.
 
 ## Release
 
-Current semantic version: **0.1.4-alpha**. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
+Current semantic version: **0.1.9-alpha**.. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
 
 ## License
 

@@ -181,28 +181,28 @@ void UiManager::showApps() {
   statusBar();
 
   UiTheme::title("Apps", 18, 76);
-  UiTheme::detail("Native launcher  /  fastest e-paper mode", 20, 116);
+  UiTheme::detail("Buffered launcher  /  one-pass e-paper render", 20, 116);
 
   const char* names[15] = {
     "Home", "Notes", "Files",
     "Calculator", "Wi-Fi", "Bluetooth",
     "Termo", "Solar", "Battery",
-    "Calendar", "MQTT", "Settings",
-    "System", "Labs", "Reader"
+    "Clock", "Focus", "Settings",
+    "System", "Labs", "Fun"
   };
   const char* glyphs[15] = {
     "HM", "NT", "FL",
     "CAL", "WF", "BT",
     "TH", "SL", "BAT",
-    "CL", "MQ", "ST",
-    "SYS", "LAB", "RD"
+    "CK", "25", "ST",
+    "SYS", "LAB", "FUN"
   };
   const bool ready[15] = {
     true, true, true,
     true, true, true,
     false, false, true,
-    false, false, true,
-    true, true, false
+    true, true, true,
+    true, true, true
   };
 
   const int tileW = 160;
@@ -218,9 +218,9 @@ void UiManager::showApps() {
   }
 
   UiTheme::card(18, 746, 504, 104);
-  UiTheme::label("PAPEROS NATIVE", 34, 762);
-  UiTheme::detail("Apps open as full screens; slow operations show loading state.", 34, 797);
-  UiTheme::detail("Fastest waveform is used for interactive navigation.", 34, 826);
+  UiTheme::label("BUFFERED UI", 34, 762);
+  UiTheme::detail("The complete page is composed off-screen before one refresh.", 34, 797);
+  UiTheme::detail("Clock / Focus / Fun are lightweight native e-paper apps.", 34, 826);
 
   bottomNav(4);
   commitPage();
@@ -409,6 +409,155 @@ void UiManager::showBattery() {
   bottomNav(3);
   commitPage();
   lastBatteryUiRefresh_ = millis();
+}
+
+
+void UiManager::drawClockLiveArea() {
+  auto dt = M5.Rtc.getDateTime();
+  M5.Display.fillRect(18, 145, 504, 410, TFT_WHITE);
+  UiTheme::card(18, 145, 504, 410, true);
+
+  char timeText[8];
+  char dateText[32];
+  if (dt.date.year >= 2020 && dt.date.year <= 2099) {
+    snprintf(timeText, sizeof(timeText), "%02d:%02d", dt.time.hours, dt.time.minutes);
+    snprintf(dateText, sizeof(dateText), "%02d/%02d/%04d", dt.date.date, dt.date.month, dt.date.year);
+  } else {
+    snprintf(timeText, sizeof(timeText), "--:--");
+    snprintf(dateText, sizeof(dateText), "RTC not set");
+  }
+
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString(timeText, 270, 285);
+  UiTheme::resetFont();
+
+  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString(dateText, 270, 365);
+  UiTheme::resetFont();
+
+  UiTheme::detail(String("Battery ") + power_.batteryPercent() + "%  /  " + power_.batteryMillivolts() + " mV", 168, 440);
+  UiTheme::pill(wifi_.isConnected() ? "ONLINE" : "OFFLINE", 205, 480, wifi_.isConnected());
+}
+
+void UiManager::showClock() {
+  page_ = Page::Clock;
+  preparePage();
+  statusBar();
+  UiTheme::title("Clock", 18, 76);
+  UiTheme::detail("Desk clock  /  minute refresh", 20, 116);
+  drawClockLiveArea();
+
+  UiTheme::card(18, 575, 504, 160);
+  UiTheme::label("E-PAPER MODE", 34, 593);
+  UiTheme::value("Quiet clock", 34, 630, false);
+  UiTheme::detail("Only the clock panel refreshes once per minute.", 34, 675);
+  UiTheme::detail("Ideal as a desk display without constant screen activity.", 34, 708);
+
+  bottomNav(4);
+  commitPage();
+  lastClockPageRefresh_ = millis();
+}
+
+void UiManager::drawFocusLiveArea() {
+  uint32_t remaining = focusRemainingSec_;
+  if (focusRunning_) {
+    int32_t diff = static_cast<int32_t>(focusEndMs_ - millis());
+    remaining = diff > 0 ? static_cast<uint32_t>(diff) / 1000UL : 0;
+  }
+
+  const uint32_t mins = remaining / 60UL;
+  const uint32_t secs = remaining % 60UL;
+  char timerText[12];
+  snprintf(timerText, sizeof(timerText), "%02lu:%02lu",
+           static_cast<unsigned long>(mins),
+           static_cast<unsigned long>(secs));
+
+  M5.Display.fillRect(18, 145, 504, 350, TFT_WHITE);
+  UiTheme::card(18, 145, 504, 350, true);
+  UiTheme::label("FOCUS SESSION", 34, 164);
+  UiTheme::pill(focusRunning_ ? "RUNNING" : (remaining == 0 ? "DONE" : "READY"), 382, 158, focusRunning_);
+
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString(timerText, 270, 292);
+  UiTheme::resetFont();
+
+  UiTheme::detail("25 minute focus timer designed for low-refresh e-paper.", 73, 385);
+  UiTheme::detail(focusRunning_ ? "PaperOS updates this timer roughly once per minute." : "Tap START to begin.", 79, 425);
+}
+
+void UiManager::showFocus() {
+  page_ = Page::Focus;
+  preparePage();
+  statusBar();
+  UiTheme::title("Focus", 18, 76);
+  UiTheme::detail("25 minute concentration timer", 20, 116);
+
+  drawFocusLiveArea();
+
+  UiTheme::card(18, 515, 246, 112, true);
+  UiTheme::value(focusRunning_ ? "PAUSE" : "START", 79, 553, false);
+  UiTheme::detail("Tap", 121, 592);
+
+  UiTheme::card(276, 515, 246, 112);
+  UiTheme::value("RESET", 345, 553, false);
+  UiTheme::detail("25:00", 379, 592);
+
+  UiTheme::card(18, 646, 504, 118);
+  UiTheme::label("TIP", 34, 664);
+  UiTheme::detail("Use the full 25 minutes on one task, then take a short break.", 34, 703);
+  UiTheme::detail("The timer keeps running while you open other PaperOS apps.", 34, 735);
+
+  bottomNav(4);
+  commitPage();
+  lastFocusUiRefresh_ = millis();
+}
+
+void UiManager::drawFunResult() {
+  M5.Display.fillRect(18, 145, 504, 230, TFT_WHITE);
+  UiTheme::card(18, 145, 504, 230, true);
+  UiTheme::label("RESULT", 34, 164);
+
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString(funResult_, 270, 270);
+  UiTheme::resetFont();
+}
+
+void UiManager::showFun() {
+  page_ = Page::Fun;
+  preparePage();
+  statusBar();
+  UiTheme::title("Fun", 18, 76);
+  UiTheme::detail("Tiny random tools", 20, 116);
+
+  drawFunResult();
+
+  UiTheme::card(18, 400, 160, 118, true);
+  UiTheme::value("D6", 74, 438, false);
+  UiTheme::detail("Roll dice", 54, 480);
+
+  UiTheme::card(190, 400, 160, 118, true);
+  UiTheme::value("COIN", 232, 438, false);
+  UiTheme::detail("Heads / tails", 214, 480);
+
+  UiTheme::card(362, 400, 160, 118, true);
+  UiTheme::value("1-100", 397, 438, false);
+  UiTheme::detail("Random", 408, 480);
+
+  UiTheme::card(18, 545, 504, 150);
+  UiTheme::label("QUICK DECIDER", 34, 564);
+  UiTheme::detail("Useful when nobody wants to choose.", 34, 606);
+  UiTheme::detail("Uses the ESP32 hardware random source.", 34, 641);
+  UiTheme::detail("Only the result card refreshes after a tap.", 34, 675);
+
+  bottomNav(4);
+  commitPage();
 }
 
 void UiManager::showLabs() {
@@ -952,12 +1101,12 @@ void UiManager::openAppIndex(int index) {
   else if (index == 6) showThermo();
   else if (index == 7) showSolar();
   else if (index == 8) showBattery();
-  else if (index == 9) showComingSoon("Calendar", 4);
-  else if (index == 10) showComingSoon("MQTT", 4);
+  else if (index == 9) showClock();
+  else if (index == 10) showFocus();
   else if (index == 11) showSettings();
   else if (index == 12) showSystem();
   else if (index == 13) showLabs();
-  else if (index == 14) showComingSoon("Reader", 4);
+  else if (index == 14) showFun();
 }
 
 void UiManager::loop() {

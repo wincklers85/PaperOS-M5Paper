@@ -12,15 +12,27 @@
 namespace paperos {
 
 void UiManager::preparePage(bool forceClean) {
-  // Clean only when navigating to a different page. Re-rendering the same
-  // app after an action must stay fast and should not flash the whole panel.
   const bool pageChanged = hasRenderedPage_ && page_ != lastRenderedPage_;
+
+  if (pageChanged) {
+    if (!navigatingBack_) {
+      if (pageHistory_.empty() || pageHistory_.back() != lastRenderedPage_) {
+        pageHistory_.push_back(lastRenderedPage_);
+        if (pageHistory_.size() > 24) pageHistory_.erase(pageHistory_.begin());
+      }
+    } else {
+      navigatingBack_ = false;
+    }
+  }
+
   if (forceClean || pageChanged) {
     display_.cleanRefresh();
     lastDeepClean_ = millis();
   }
+
   lastRenderedPage_ = page_;
   hasRenderedPage_ = true;
+  quickPanelOpen_ = false;
   UiTheme::beginFrame();
 }
 
@@ -84,8 +96,7 @@ void UiManager::drawBatteryLiveArea() {
 }
 
 void UiManager::begin() {
-  // The boot splash already refreshed the complete panel; avoid a second
-  // quality wipe during startup.
+  display_.setProfile(static_cast<uint8_t>(config_.get().displayProfile));
   showHome(false);
 }
 
@@ -96,11 +107,18 @@ void UiManager::statusBar() {
   M5.Display.fillRect(0, 0, w, UiTheme::StatusH, TFT_WHITE);
   M5.Display.drawFastHLine(0, UiTheme::StatusH - 1, w, TFT_BLACK);
 
+  const bool canBack = page_ != Page::Home && !pageHistory_.empty();
+  if (canBack) {
+    M5.Display.drawLine(24, 18, 12, 28, TFT_BLACK);
+    M5.Display.drawLine(12, 28, 24, 38, TFT_BLACK);
+    M5.Display.drawFastHLine(12, 28, 18, TFT_BLACK);
+  }
+
   char clockText[8];
   snprintf(clockText, sizeof(clockText), "%02d:%02d", dt.time.hours, dt.time.minutes);
   M5.Display.setFont(&fonts::FreeSansBold12pt7b);
   M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
-  M5.Display.drawString(clockText, 14, 15);
+  M5.Display.drawString(clockText, canBack ? 42 : 14, 15);
 
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   String dateText;
@@ -111,10 +129,10 @@ void UiManager::statusBar() {
   } else {
     dateText = "RTC SET";
   }
-  M5.Display.drawString(dateText, 92, 20);
+  M5.Display.drawString(dateText, canBack ? 120 : 92, 20);
 
   const int iconY = 19;
-  UiTheme::wifiIcon(350, iconY, wifi_.isConnected());
+  UiTheme::wifiIcon(350, iconY, wifi_.radioEnabled() && wifi_.isConnected());
   UiTheme::bluetoothIcon(382, iconY - 1, bluetoothActive_);
   UiTheme::sdIcon(416, iconY - 3, storage_.available());
   UiTheme::batteryIcon(493, iconY + 1, power_.batteryPercent());
@@ -138,6 +156,191 @@ void UiManager::homeCard(int x, int y, int w, int h, const String& titleText, co
   if (withChevron) UiTheme::chevron(x + w - 28, y + 18);
   UiTheme::value(mainValue, x + 16, y + 47, false);
   UiTheme::detail(detailText, x + 16, y + h - 32);
+}
+
+
+void UiManager::renderPage(Page target) {
+  switch (target) {
+    case Page::Home: showHome(); break;
+    case Page::Apps: showApps(); break;
+    case Page::System: showSystem(); break;
+    case Page::Settings: showSettings(); break;
+    case Page::Notes: showNotes(); break;
+    case Page::NoteView:
+      if (selectedNoteIndex_ < noteIds_.size()) showNote(selectedNoteIndex_);
+      else showNotes();
+      break;
+    case Page::Files: showFiles(currentFilePath_); break;
+    case Page::FileView:
+      if (currentPreviewPath_.length()) showFilePreview(currentPreviewPath_, currentPreviewName_, currentPreviewSize_);
+      else showFiles(currentFilePath_);
+      break;
+    case Page::Tools: showTools(); break;
+    case Page::NetworkTools: showNetworkTools(); break;
+    case Page::PingTool: showPingTool(); break;
+    case Page::DnsTool: showDnsTool(); break;
+    case Page::LanScan: showLanScan(); break;
+    case Page::ApiTester: showApiTester(); break;
+    case Page::Mqtt: showMqtt(); break;
+    case Page::WakeOnLan: showWakeOnLan(); break;
+    case Page::WiFi: showWiFi(); break;
+    case Page::Bluetooth: showBluetooth(); break;
+    case Page::BleDetail:
+      if (selectedBleIndex_ < bleScan_.size()) showBleDetail(selectedBleIndex_);
+      else showBluetooth();
+      break;
+    case Page::General: showGeneral(); break;
+    case Page::DateTime: showDateTime(); break;
+    case Page::StorageTools: showStorageTools(); break;
+    case Page::PhoneLink: showPhoneLink(); break;
+    case Page::GpioLab: showGpioLab(); break;
+    case Page::Labs: showLabs(); break;
+    case Page::HidLab: showHidLab(); break;
+    case Page::Calculator: showCalculator(); break;
+    case Page::Battery: showBattery(); break;
+    case Page::Clock: showClock(); break;
+    case Page::Focus: showFocus(); break;
+    case Page::Fun: showFun(); break;
+    case Page::Browser: showBrowser(); break;
+    case Page::Otp: showOtp(); break;
+    case Page::ComingSoon: showComingSoon(comingTitle_, comingNav_); break;
+    default: showHome(); break;
+  }
+}
+
+void UiManager::navigateBack() {
+  if (quickPanelOpen_) {
+    closeQuickPanel();
+    return;
+  }
+  if (pageHistory_.empty()) {
+    showHome();
+    return;
+  }
+
+  Page target = pageHistory_.back();
+  pageHistory_.pop_back();
+  navigatingBack_ = true;
+  renderPage(target);
+}
+
+void UiManager::showQuickPanel() {
+  quickPanelOpen_ = true;
+
+  M5.Display.fillRect(0, 0, UiTheme::ScreenW, 620, TFT_WHITE);
+  M5.Display.drawRoundRect(6, 6, UiTheme::ScreenW - 12, 604, 18, TFT_BLACK);
+
+  UiTheme::title("Quick Settings", 24, 24);
+  UiTheme::detail("Swipe up to close", 26, 65);
+
+  UiTheme::card(18, 96, 246, 112, wifi_.radioEnabled());
+  UiTheme::label("WI-FI", 34, 112);
+  UiTheme::value(wifi_.radioEnabled() ? "ON" : "OFF", 34, 148, false);
+  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Radio / network"), 34, 183);
+
+  UiTheme::card(276, 96, 246, 112, bluetoothActive_);
+  UiTheme::label("BLUETOOTH", 292, 112);
+  UiTheme::value(bluetoothActive_ ? "ON" : "OFF", 292, 148, false);
+  UiTheme::detail("BLE radio", 292, 183);
+
+  UiTheme::card(18, 222, 246, 112);
+  UiTheme::label("EPD QUALITY", 34, 238);
+  UiTheme::value(display_.profileLabel(), 34, 274, false);
+  UiTheme::detail("Tap to cycle", 34, 309);
+
+  UiTheme::card(276, 222, 246, 112);
+  UiTheme::label("TIME", 292, 238);
+  UiTheme::value(wifi_.timeSynced() ? "SYNCED" : "RTC", 292, 274, false);
+  UiTheme::detail("Tap for NTP sync", 292, 309);
+
+  UiTheme::card(18, 348, 246, 112, true);
+  UiTheme::label("BATTERY", 34, 364);
+  UiTheme::value(String(power_.batteryPercent()) + "%", 34, 400, false);
+  UiTheme::detail(String(power_.batteryMillivolts()) + " mV / statistics", 34, 435);
+
+  UiTheme::card(276, 348, 246, 112, true);
+  UiTheme::label("STANDBY", 292, 364);
+  UiTheme::value("SLEEP", 292, 400, false);
+  UiTheme::detail("Deep sleep / touch wake", 292, 435);
+
+  UiTheme::card(18, 476, 504, 106);
+  UiTheme::label("GESTURES", 34, 492);
+  UiTheme::detail("Top -> down: open  /  Bottom -> up: close", 34, 528);
+  UiTheme::detail("Lists: swipe up/down to scroll  /  status arrow: Back", 34, 557);
+
+  display_.partialRefresh(0, 0, UiTheme::ScreenW, 620);
+}
+
+void UiManager::closeQuickPanel() {
+  if (!quickPanelOpen_) return;
+  quickPanelOpen_ = false;
+  Page keep = page_;
+  renderPage(keep);
+}
+
+void UiManager::handleQuickPanelTap(int x, int y) {
+  if (y >= 96 && y < 208) {
+    if (x < 270) {
+      wifi_.setRadioEnabled(!wifi_.radioEnabled());
+      showQuickPanel();
+    } else {
+      if (bluetoothActive_) {
+        BLEDevice::deinit(true);
+        bluetoothActive_ = false;
+        bleScan_.clear();
+      } else {
+        BLEDevice::init("PaperOS");
+        bluetoothActive_ = true;
+      }
+      showQuickPanel();
+    }
+    return;
+  }
+
+  if (y >= 222 && y < 334) {
+    if (x < 270) {
+      uint8_t next = (display_.profile() + 1) % 3;
+      display_.setProfile(next);
+      config_.edit().displayProfile = static_cast<DisplayProfile>(next);
+      config_.save();
+      showQuickPanel();
+    } else {
+      timeStatus_ = wifi_.syncClockNow() ? "NTP synchronization completed" : "Connect Wi-Fi to synchronize";
+      showQuickPanel();
+    }
+    return;
+  }
+
+  if (y >= 348 && y < 460) {
+    if (x < 270) {
+      quickPanelOpen_ = false;
+      showBattery();
+    } else {
+      quickPanelOpen_ = false;
+      power_.sleepNow();
+    }
+  }
+}
+
+void UiManager::handleScrollGesture(TouchGesture gesture) {
+  const int delta = gesture == TouchGesture::SwipeUp ? 1 : -1;
+
+  if (page_ == Page::Files) {
+    fileScroll_ = max(0, fileScroll_ + delta * 5);
+    showFiles(currentFilePath_);
+  } else if (page_ == Page::WiFi) {
+    wifiScroll_ = max(0, wifiScroll_ + delta * 4);
+    renderPage(Page::WiFi);
+  } else if (page_ == Page::Bluetooth) {
+    bleScroll_ = max(0, bleScroll_ + delta * 4);
+    renderPage(Page::Bluetooth);
+  } else if (page_ == Page::Settings) {
+    settingsScroll_ = max(0, settingsScroll_ + delta * 3);
+    showSettings();
+  } else if (page_ == Page::FileView) {
+    textScroll_ = max(0, textScroll_ + delta * 900);
+    showFilePreview(currentPreviewPath_, currentPreviewName_, currentPreviewSize_);
+  }
 }
 
 void UiManager::showHome(bool forceClean) {

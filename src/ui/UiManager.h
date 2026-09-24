@@ -70,7 +70,7 @@ class UiManager {
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, LockScreen, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -140,6 +140,13 @@ class UiManager {
   std::vector<Page> pageHistory_;
   bool navigatingBack_ = false;
   bool quickPanelOpen_ = false;
+  bool notificationPanelOpen_ = false;
+  bool locked_ = false;
+  bool lockWakeArmed_ = false;
+  Page pageBeforeLock_ = Page::Home;
+  int notificationScroll_ = 0;
+  int wheelFocusIndex_ = 0;
+  bool wheelFocusVisible_ = false;
   bool keyboardShowSecret_ = false;
   int settingsScroll_ = 0;
   int wifiScroll_ = 0;
@@ -269,8 +276,18 @@ class UiManager {
   void renderPage(Page target);
   void navigateBack();
   void showQuickPanel();
+  void showNotificationCenter();
+  void closeNotificationCenter();
+  void showLockScreen();
+  void armUnlock();
+  void unlockToMenu();
   void closeQuickPanel();
   void handleQuickPanelTap(int x, int y);
+  void handleNotificationPanelTap(int x, int y);
+  void handleWheelNavigate(int direction);
+  void activateWheelFocus();
+  void drawWheelFocus();
+  int wheelItemCount() const;
   void handleScrollGesture(TouchGesture gesture);
   void commitPage();
   void statusBar();
@@ -314,6 +331,7 @@ class UiManager {
   void classicDrawCursor();
   void classicHandlePointer(int x, int y, bool click);
   void classicProcessHidInput();
+  bool isClassicPage() const;
   void classicHandleKey(const HidKeyEvent& key);
   void classicTerminalExecute(const String& command);
   void classicTerminalPrint(const String& text);

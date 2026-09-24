@@ -18,7 +18,7 @@ String SimpleBrowser::decodeEntities(String text) const {
   text.replace("&amp;", "&");
   text.replace("&lt;", "<");
   text.replace("&gt;", ">");
-  text.replace("&quot;", """);
+  text.replace("&quot;", String((char)34));
   text.replace("&#39;", "'");
   return text;
 }
@@ -45,7 +45,7 @@ String SimpleBrowser::stripTags(String html) const {
   }
 
   String out;
-  out.reserve(min<size_t>(html.length(), 12000));
+  size_t reserveLen = html.length() < 12000 ? html.length() : 12000;\n  out.reserve(reserveLen);
   bool inTag = false;
   bool lastSpace = false;
   for (size_t i = 0; i < html.length() && out.length() < 12000; ++i) {

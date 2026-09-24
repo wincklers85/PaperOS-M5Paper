@@ -19,6 +19,9 @@ class DisplayManager {
 
   // Small-region update for clock/status.
   void partialRefresh(int32_t x, int32_t y, int32_t w, int32_t h);
+  void setProfile(uint8_t profile) { profile_ = profile > 2 ? 2 : profile; }
+  uint8_t profile() const { return profile_; }
+  String profileLabel() const;
 
   void notePageChange();
   uint32_t pageChangesSinceClean() const { return pageChangesSinceClean_; }
@@ -28,5 +31,6 @@ class DisplayManager {
 
  private:
   uint32_t pageChangesSinceClean_ = 0;
+  uint8_t profile_ = 1;
 };
 }

@@ -2538,6 +2538,270 @@ void UiManager::showClassicTerminal() {
   commitPage();
 }
 
+
+void UiManager::classicInitSki() {
+  skiPlayerX_ = 270;
+  skiScore_ = 0;
+  skiRunning_ = true;
+  classicLastGameTick_ = millis();
+  for (int i = 0; i < 9; ++i) {
+    skiObstacles_[i].x = 35 + (esp_random() % 470);
+    skiObstacles_[i].y = 120 + (esp_random() % 620);
+    skiObstacles_[i].type = esp_random() & 1U;
+  }
+}
+
+void UiManager::classicStepSki() {
+  if (!skiRunning_) return;
+  for (int i = 0; i < 9; ++i) {
+    skiObstacles_[i].y += 52;
+    if (skiObstacles_[i].y > 830) {
+      skiObstacles_[i].y = 120 - (esp_random() % 220);
+      skiObstacles_[i].x = 35 + (esp_random() % 470);
+      skiObstacles_[i].type = esp_random() & 1U;
+      ++skiScore_;
+    }
+
+    if (abs(skiObstacles_[i].x - skiPlayerX_) < 28 &&
+        skiObstacles_[i].y > 720 && skiObstacles_[i].y < 800) {
+      skiRunning_ = false;
+    }
+  }
+}
+
+void UiManager::showClassicSki() {
+  page_ = Page::ClassicSki;
+  if (!skiRunning_ && skiScore_ == 0) classicInitSki();
+  preparePage();
+  classicDrawChrome("Ski - Windows Entertainment Pack");
+
+  M5.Display.fillRect(24, 108, 492, 748, TFT_WHITE);
+  M5.Display.drawRect(24, 108, 492, 748, TFT_BLACK);
+
+  // Mountain/snow field.
+  for (int y=125; y<830; y+=34) {
+    int x = 35 + ((y * 17) % 450);
+    M5.Display.drawPixel(x, y, TFT_BLACK);
+  }
+
+  for (int i=0; i<9; ++i) {
+    int x=skiObstacles_[i].x, y=skiObstacles_[i].y;
+    if (y < 120 || y > 825) continue;
+    if (skiObstacles_[i].type == 0) {
+      M5.Display.drawLine(x, y-16, x-13, y+10, TFT_BLACK);
+      M5.Display.drawLine(x, y-16, x+13, y+10, TFT_BLACK);
+      M5.Display.drawFastHLine(x-13, y+10, 26, TFT_BLACK);
+      M5.Display.drawFastVLine(x, y+10, 10, TFT_BLACK);
+    } else {
+      M5.Display.drawCircle(x, y, 10, TFT_BLACK);
+      M5.Display.drawLine(x-7,y+6,x+7,y-6,TFT_BLACK);
+    }
+  }
+
+  const int sx=skiPlayerX_, sy=770;
+  M5.Display.drawCircle(sx, sy-18, 5, TFT_BLACK);
+  M5.Display.drawLine(sx, sy-13, sx, sy+5, TFT_BLACK);
+  M5.Display.drawLine(sx, sy-7, sx-12, sy, TFT_BLACK);
+  M5.Display.drawLine(sx, sy-7, sx+12, sy, TFT_BLACK);
+  M5.Display.drawLine(sx, sy+5, sx-14, sy+18, TFT_BLACK);
+  M5.Display.drawLine(sx, sy+5, sx+14, sy+18, TFT_BLACK);
+  M5.Display.drawLine(sx-20, sy+21, sx-4, sy+17, TFT_BLACK);
+  M5.Display.drawLine(sx+4, sy+17, sx+20, sy+21, TFT_BLACK);
+
+  M5.Display.fillRect(34, 120, 180, 54, TFT_WHITE);
+  M5.Display.drawRect(34, 120, 180, 54, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextColor(TFT_BLACK,TFT_WHITE);
+  M5.Display.drawString(String("Score: ") + skiScore_, 48, 138);
+
+  M5.Display.fillRect(332, 120, 160, 54, TFT_WHITE);
+  M5.Display.drawRect(332, 120, 160, 54, TFT_BLACK);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString(skiRunning_ ? "SKIING" : "CRASH - TAP", 412, 147);
+
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString("Touch left/right or use keyboard arrows / A-D", 270, 838);
+  UiTheme::resetFont();
+
+  classicDrawCursor();
+  commitPage();
+}
+
+void UiManager::classicInitSolitaire() {
+  solStock_.clear(); solWaste_.clear();
+  for (auto& p : solTableau_) p.clear();
+  for (auto& f : solFoundation_) f.clear();
+  solSelectedType_ = -1; solSelectedPile_ = -1; solScore_ = 0;
+
+  std::vector<ClassicCard> deck;
+  for (uint8_t suit=0; suit<4; ++suit)
+    for (uint8_t rank=1; rank<=13; ++rank)
+      deck.push_back({rank,suit,false});
+
+  for (int i=(int)deck.size()-1; i>0; --i) {
+    int j = esp_random() % (i+1);
+    ClassicCard t=deck[i]; deck[i]=deck[j]; deck[j]=t;
+  }
+
+  size_t at=0;
+  for (int col=0; col<7; ++col) {
+    for (int row=0; row<=col; ++row) {
+      ClassicCard c=deck[at++];
+      c.faceUp = row == col;
+      solTableau_[col].push_back(c);
+    }
+  }
+  while (at<deck.size()) {
+    ClassicCard c=deck[at++];
+    c.faceUp=false;
+    solStock_.push_back(c);
+  }
+}
+
+bool UiManager::classicSolitaireMoveToTableau(int target) {
+  if (target < 0 || target > 6 || solSelectedType_ < 0) return false;
+  ClassicCard card;
+  if (solSelectedType_ == 0) {
+    if (solWaste_.empty()) return false;
+    card=solWaste_.back();
+  } else {
+    if (solSelectedPile_ < 0 || solSelectedPile_ > 6 || solTableau_[solSelectedPile_].empty()) return false;
+    card=solTableau_[solSelectedPile_].back();
+    if (!card.faceUp) return false;
+  }
+
+  bool valid=false;
+  if (solTableau_[target].empty()) valid=card.rank==13;
+  else {
+    ClassicCard top=solTableau_[target].back();
+    bool redCard = card.suit==1 || card.suit==2;
+    bool redTop = top.suit==1 || top.suit==2;
+    valid = top.faceUp && top.rank == card.rank + 1 && redCard != redTop;
+  }
+  if (!valid) return false;
+
+  if (solSelectedType_ == 0) solWaste_.pop_back();
+  else {
+    solTableau_[solSelectedPile_].pop_back();
+    if (!solTableau_[solSelectedPile_].empty()) solTableau_[solSelectedPile_].back().faceUp=true;
+  }
+  card.faceUp=true;
+  solTableau_[target].push_back(card);
+  solSelectedType_=-1; solSelectedPile_=-1;
+  return true;
+}
+
+bool UiManager::classicSolitaireMoveToFoundation(int foundation) {
+  if (foundation < 0 || foundation > 3 || solSelectedType_ < 0) return false;
+  ClassicCard card;
+  if (solSelectedType_ == 0) {
+    if (solWaste_.empty()) return false;
+    card=solWaste_.back();
+  } else {
+    if (solSelectedPile_ < 0 || solTableau_[solSelectedPile_].empty()) return false;
+    card=solTableau_[solSelectedPile_].back();
+  }
+
+  if (card.suit != foundation) return false;
+  uint8_t needed = solFoundation_[foundation].empty() ? 1 : solFoundation_[foundation].back().rank + 1;
+  if (card.rank != needed) return false;
+
+  if (solSelectedType_ == 0) solWaste_.pop_back();
+  else {
+    solTableau_[solSelectedPile_].pop_back();
+    if (!solTableau_[solSelectedPile_].empty()) solTableau_[solSelectedPile_].back().faceUp=true;
+  }
+  card.faceUp=true;
+  solFoundation_[foundation].push_back(card);
+  solSelectedType_=-1; solSelectedPile_=-1;
+  solScore_ += 5;
+  return true;
+}
+
+void UiManager::showClassicSolitaire() {
+  page_ = Page::ClassicSolitaire;
+  if (solStock_.empty() && solWaste_.empty() && solTableau_[0].empty()) classicInitSolitaire();
+  preparePage();
+  classicDrawChrome("Solitaire");
+
+  auto drawCard=[this](int x,int y,const ClassicCard& c,bool selected) {
+    const int w=58,h=78;
+    M5.Display.fillRect(x,y,w,h,TFT_WHITE);
+    M5.Display.drawRect(x,y,w,h,TFT_BLACK);
+    if (selected) M5.Display.drawRect(x+2,y+2,w-4,h-4,TFT_BLACK);
+    if (!c.faceUp) {
+      for(int yy=y+6;yy<y+h-5;yy+=7)
+        for(int xx=x+6;xx<x+w-5;xx+=7)
+          M5.Display.drawPixel(xx,yy,TFT_BLACK);
+      return;
+    }
+    String rank;
+    if(c.rank==1) rank="A"; else if(c.rank==11) rank="J"; else if(c.rank==12) rank="Q"; else if(c.rank==13) rank="K"; else rank=String(c.rank);
+    const char* suitNames[4]={"C","D","H","S"};
+    M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+    M5.Display.setTextColor(TFT_BLACK,TFT_WHITE);
+    M5.Display.setTextDatum(top_left);
+    M5.Display.drawString(rank+String(suitNames[c.suit]),x+5,y+5);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+    M5.Display.drawString(suitNames[c.suit],x+w/2,y+h/2+5);
+    UiTheme::resetFont();
+  };
+
+  // Stock and waste.
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextColor(TFT_BLACK,TFT_WHITE);
+  M5.Display.drawString("Stock",24,112);
+  M5.Display.drawString("Waste",94,112);
+  if (!solStock_.empty()) {
+    ClassicCard back=solStock_.back(); back.faceUp=false; drawCard(22,142,back,false);
+  } else {
+    M5.Display.drawRect(22,142,58,78,TFT_BLACK);
+    M5.Display.drawString("RESET",26,170);
+  }
+  if (!solWaste_.empty()) drawCard(92,142,solWaste_.back(),solSelectedType_==0);
+  else M5.Display.drawRect(92,142,58,78,TFT_BLACK);
+
+  // Foundations C/D/H/S.
+  for(int f=0;f<4;++f){
+    int x=230+72*f;
+    M5.Display.drawRect(x,142,58,78,TFT_BLACK);
+    const char* sn[4]={"C","D","H","S"};
+    if(solFoundation_[f].empty()) {
+      M5.Display.setTextDatum(middle_center);
+      M5.Display.drawString(sn[f],x+29,181);
+    } else drawCard(x,142,solFoundation_[f].back(),false);
+  }
+
+  // Tableau.
+  for(int col=0;col<7;++col){
+    int x=15+75*col;
+    int y=260;
+    if(solTableau_[col].empty()) {
+      M5.Display.drawRect(x,y,58,78,TFT_BLACK);
+      M5.Display.setTextDatum(middle_center);
+      M5.Display.drawString("K",x+29,y+39);
+      continue;
+    }
+    for(size_t i=0;i<solTableau_[col].size();++i){
+      int cy=y+(int)i*31;
+      bool selected=solSelectedType_==1 && solSelectedPile_==col && i==solTableau_[col].size()-1;
+      drawCard(x,cy,solTableau_[col][i],selected);
+    }
+  }
+
+  M5.Display.fillRect(24,820,492,42,TFT_WHITE);
+  M5.Display.drawRect(24,820,492,42,TFT_BLACK);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString(String("Score: ")+solScore_+"   Tap stock/waste/card then destination   N = new game",36,841);
+  UiTheme::resetFont();
+
+  classicDrawCursor();
+  commitPage();
+}
+
 void UiManager::showCalculator() {
   page_ = Page::Calculator;
   preparePage();

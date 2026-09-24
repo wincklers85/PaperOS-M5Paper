@@ -53,13 +53,14 @@ class UiManager {
   void showWakeOnLan();
   void showDateTime();
   void showStorageTools();
+  void showStorageFormat();
   void showPhoneLink();
   void showGpioLab();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, PhoneLink, GpioLab, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -192,6 +193,8 @@ class UiManager {
   String wolStatus_;
   String timeStatus_;
   String storageStatus_;
+  String pendingFormatType_;
+  bool formatConfirmArmed_ = false;
   String phoneLinkStatus_ = "Bridge not connected";
   String phoneCommandDraft_ = "camera:shutter";
   bool gpioInitialized_ = false;

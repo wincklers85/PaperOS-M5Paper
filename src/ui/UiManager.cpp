@@ -12,14 +12,15 @@
 namespace paperos {
 
 void UiManager::preparePage(bool forceClean) {
-  // The user explicitly prefers a clean anti-ghost transition on every
-  // full page change. Auto-display remains disabled, so after this white
-  // cleanup the next page is still composed off-screen and appears at once.
-  if (!firstPageFrame_ || forceClean) {
+  // Clean only when navigating to a different page. Re-rendering the same
+  // app after an action must stay fast and should not flash the whole panel.
+  const bool pageChanged = hasRenderedPage_ && page_ != lastRenderedPage_;
+  if (forceClean || pageChanged) {
     display_.cleanRefresh();
     lastDeepClean_ = millis();
   }
-  firstPageFrame_ = false;
+  lastRenderedPage_ = page_;
+  hasRenderedPage_ = true;
   UiTheme::beginFrame();
 }
 

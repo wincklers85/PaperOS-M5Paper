@@ -603,6 +603,338 @@ void UiManager::showFun() {
   commitPage();
 }
 
+
+void UiManager::showKeyboard(InputTarget target, const String& prompt, const String& initial, bool masked) {
+  inputTarget_ = target;
+  inputPrompt_ = prompt;
+  inputValue_ = initial;
+  inputMasked_ = masked;
+  keyboardShift_ = false;
+  keyboardSymbols_ = false;
+  page_ = Page::Keyboard;
+  preparePage();
+  drawKeyboard();
+  commitPage();
+}
+
+void UiManager::drawKeyboard() {
+  statusBar();
+  UiTheme::title("Keyboard", 18, 76);
+  UiTheme::detail(inputPrompt_, 20, 116);
+
+  UiTheme::card(18, 145, 504, 95, true);
+  String shown = inputValue_;
+  if (inputMasked_) {
+    shown = "";
+    int n = min<int>(inputValue_.length(), 28);
+    for (int i = 0; i < n; ++i) shown += '*';
+  } else if (shown.length() > 44) {
+    shown = "..." + shown.substring(shown.length() - 41);
+  }
+  UiTheme::value(shown.length() ? shown : String("_"), 34, 178, false);
+  UiTheme::detail(String(inputValue_.length()) + " chars", 420, 213);
+
+  const int x0 = 15, keyW = 47, gap = 4, keyH = 58;
+  const int ys[4] = {260, 330, 400, 470};
+  String rows[4];
+  rows[0] = "1234567890";
+  if (!keyboardSymbols_) {
+    rows[1] = "qwertyuiop";
+    rows[2] = "asdfghjkl-";
+    rows[3] = "zxcvbnm./_";
+  } else {
+    rows[1] = "!@#$%^&*()";
+    rows[2] = "[]{}<>+=?;";
+    rows[3] = "_-./:;,'\"?";
+  }
+
+  for (int row = 0; row < 4; ++row) {
+    for (int col = 0; col < 10; ++col) {
+      int x = x0 + col * (keyW + gap);
+      UiTheme::card(x, ys[row], keyW, keyH, false);
+      String key = String(rows[row][col]);
+      if (!keyboardSymbols_ && keyboardShift_ && row > 0 && key[0] >= 'a' && key[0] <= 'z') {
+        key[0] = static_cast<char>(key[0] - 'a' + 'A');
+      }
+      M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+      M5.Display.setTextDatum(middle_center);
+      M5.Display.drawString(key, x + keyW / 2, ys[row] + keyH / 2);
+      UiTheme::resetFont();
+    }
+  }
+
+  const int ay = 550, ah = 70;
+  UiTheme::card(18, ay, 90, ah, keyboardShift_);
+  UiTheme::value("SHIFT", 34, ay + 22, false);
+  UiTheme::card(116, ay, 88, ah, keyboardSymbols_);
+  UiTheme::value("SYM", 137, ay + 22, false);
+  UiTheme::card(212, ay, 124, ah);
+  UiTheme::value("SPACE", 235, ay + 22, false);
+  UiTheme::card(344, ay, 80, ah);
+  UiTheme::value("BS", 366, ay + 22, false);
+  UiTheme::card(432, ay, 90, ah, true);
+  UiTheme::value("OK", 455, ay + 22, false);
+
+  UiTheme::card(18, 642, 504, 72);
+  UiTheme::value("CANCEL", 210, 664, false);
+
+  UiTheme::card(18, 730, 504, 112);
+  UiTheme::label("INPUT", 34, 747);
+  UiTheme::detail("SHIFT changes letter case. SYM opens common password/URL symbols.", 34, 782);
+  UiTheme::detail("Hardware Home/App buttons can also leave this screen.", 34, 816);
+}
+
+void UiManager::handleKeyboardTap(int x, int y) {
+  const int x0 = 15, keyW = 47, gap = 4, keyH = 58;
+  const int ys[4] = {260, 330, 400, 470};
+  String rows[4];
+  rows[0] = "1234567890";
+  if (!keyboardSymbols_) {
+    rows[1] = "qwertyuiop";
+    rows[2] = "asdfghjkl-";
+    rows[3] = "zxcvbnm./_";
+  } else {
+    rows[1] = "!@#$%^&*()";
+    rows[2] = "[]{}<>+=?;";
+    rows[3] = "_-./:;,'\"?";
+  }
+
+  bool changed = false;
+  for (int row = 0; row < 4 && !changed; ++row) {
+    if (y < ys[row] || y >= ys[row] + keyH) continue;
+    int col = (x - x0) / (keyW + gap);
+    int lx = (x - x0) % (keyW + gap);
+    if (col >= 0 && col < 10 && lx >= 0 && lx < keyW) {
+      char c = rows[row][col];
+      if (!keyboardSymbols_ && keyboardShift_ && row > 0 && c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
+      if (inputValue_.length() < 96) inputValue_ += c;
+      changed = true;
+    }
+  }
+
+  if (y >= 550 && y < 620) {
+    if (x >= 18 && x < 108) {
+      keyboardShift_ = !keyboardShift_;
+      UiTheme::beginFrame();
+      drawKeyboard();
+      display_.pageRefresh();
+      return;
+    }
+    if (x >= 116 && x < 204) {
+      keyboardSymbols_ = !keyboardSymbols_;
+      UiTheme::beginFrame();
+      drawKeyboard();
+      display_.pageRefresh();
+      return;
+    }
+    if (x >= 212 && x < 336) {
+      if (inputValue_.length() < 96) inputValue_ += ' ';
+      changed = true;
+    } else if (x >= 344 && x < 424) {
+      if (inputValue_.length()) inputValue_.remove(inputValue_.length() - 1);
+      changed = true;
+    } else if (x >= 432 && x < 522) {
+      finishKeyboard();
+      return;
+    }
+  }
+
+  if (y >= 642 && y < 714) {
+    InputTarget previous = inputTarget_;
+    inputTarget_ = InputTarget::None;
+    if (previous == InputTarget::WiFiPassword) showWiFi();
+    else if (previous == InputTarget::BrowserUrl) showBrowser();
+    else if (previous == InputTarget::OtpSecret) showOtp();
+    else showApps();
+    return;
+  }
+
+  if (changed) {
+    M5.Display.fillRect(18, 145, 504, 95, TFT_WHITE);
+    UiTheme::card(18, 145, 504, 95, true);
+    String shown = inputValue_;
+    if (inputMasked_) {
+      shown = "";
+      int n = min<int>(inputValue_.length(), 28);
+      for (int i = 0; i < n; ++i) shown += '*';
+    } else if (shown.length() > 44) {
+      shown = "..." + shown.substring(shown.length() - 41);
+    }
+    UiTheme::value(shown.length() ? shown : String("_"), 34, 178, false);
+    UiTheme::detail(String(inputValue_.length()) + " chars", 420, 213);
+    display_.partialRefresh(18, 145, 504, 95);
+  }
+}
+
+void UiManager::finishKeyboard() {
+  InputTarget target = inputTarget_;
+  inputTarget_ = InputTarget::None;
+
+  if (target == InputTarget::WiFiPassword) {
+    String ssid = selectedWifiSsid_;
+    String password = inputValue_;
+    showAppLoading("Wi-Fi", "Connecting to " + ssid, 65);
+    bool ok = wifi_.connect(ssid, password, true);
+    wifiStatusMessage_ = ok ? String("Connected to ") + ssid : String("Connection failed: ") + ssid;
+    showWiFi();
+    return;
+  }
+
+  if (target == InputTarget::BrowserUrl) {
+    browserUrl_ = inputValue_;
+    fetchBrowserUrl(browserUrl_);
+    return;
+  }
+
+  if (target == InputTarget::OtpSecret) {
+    String normalized = OtpService::normalizeSecret(inputValue_);
+    if (OtpService::validSecret(normalized)) {
+      otpSecret_ = normalized;
+      otpCode_ = "";
+    } else {
+      otpSecret_ = "";
+      otpCode_ = "INVALID";
+    }
+    showOtp();
+    return;
+  }
+
+  showApps();
+}
+
+void UiManager::fetchBrowserUrl(const String& url) {
+  browserUrl_ = url;
+  if (!wifi_.isConnected()) {
+    browserPage_ = BrowserPage();
+    browserPage_.error = "Connect Wi-Fi first";
+    showBrowser();
+    return;
+  }
+
+  showAppLoading("Browser Lite", "Fetching page...", 55);
+  browserPage_ = browserService_.fetch(browserUrl_);
+  if (browserPage_.finalUrl.length()) browserUrl_ = browserPage_.finalUrl;
+  showBrowser();
+}
+
+void UiManager::showBrowser() {
+  page_ = Page::Browser;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Browser Lite", 18, 76);
+  UiTheme::detail("HTTP / HTTPS reader mode", 20, 116);
+
+  UiTheme::card(18, 145, 504, 108, true);
+  UiTheme::label("ADDRESS", 34, 161);
+  String u = browserUrl_.length() ? browserUrl_ : String("https://");
+  if (u.length() > 52) u = "..." + u.substring(u.length() - 49);
+  UiTheme::value(u, 34, 197, false);
+  UiTheme::pill("EDIT", 438, 160, true);
+  UiTheme::detail(wifi_.isConnected() ? String("Tap to enter URL") : String("Wi-Fi required"), 34, 232);
+
+  if (!browserPage_.ok) {
+    UiTheme::card(18, 274, 504, 420);
+    UiTheme::value(browserPage_.error.length() ? browserPage_.error : String("Enter a URL"), 40, 326, false);
+    UiTheme::detail("Reader mode extracts page title, readable text and absolute links.", 40, 380);
+    UiTheme::detail("JavaScript, video, downloads and complex CSS are not executed.", 40, 416);
+    UiTheme::detail("HTTPS works in lightweight mode; certificate validation is not available.", 40, 452);
+  } else {
+    UiTheme::card(18, 274, 504, 88, true);
+    String title = browserPage_.title;
+    if (title.length() > 54) title = title.substring(0, 51) + "...";
+    UiTheme::value(title, 34, 299, false);
+    UiTheme::detail(String("HTTP ") + browserPage_.status, 34, 335);
+
+    UiTheme::card(18, 376, 504, 330);
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+    M5.Display.setTextWrap(true, true);
+    M5.Display.setCursor(34, 400);
+    String excerpt = browserPage_.text.substring(0, 1800);
+    M5.Display.print(excerpt);
+    M5.Display.setTextWrap(false);
+    UiTheme::resetFont();
+
+    UiTheme::label("LINKS", 20, 720);
+    for (size_t i = 0; i < browserPage_.links.size() && i < 2; ++i) {
+      int y = 744 + static_cast<int>(i) * 54;
+      UiTheme::card(18, y, 504, 48);
+      String link = browserPage_.links[i];
+      if (link.length() > 58) link = link.substring(0, 55) + "...";
+      UiTheme::detail(String(i + 1) + ". " + link, 30, y + 14);
+    }
+  }
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::drawOtpCode() {
+  M5.Display.fillRect(18, 145, 504, 250, TFT_WHITE);
+  UiTheme::card(18, 145, 504, 250, true);
+  UiTheme::label("TOTP", 34, 163);
+
+  time_t now = time(nullptr);
+  String value;
+  String detail;
+
+  if (!otpSecret_.length()) {
+    value = otpCode_ == "INVALID" ? "INVALID" : "SET SECRET";
+    detail = "Base32 secret is kept only in RAM.";
+  } else if (now < 1700000000) {
+    value = "SYNC TIME";
+    detail = "Connect Wi-Fi once after boot to synchronize NTP.";
+  } else {
+    value = OtpService::generate(otpSecret_, static_cast<uint64_t>(now), 6, 30);
+    uint32_t remaining = 30U - static_cast<uint32_t>(now % 30);
+    detail = String("RFC6238 / SHA1 / 6 digits / valid ~") + remaining + " sec";
+    otpCode_ = value;
+    lastOtpStep_ = static_cast<uint64_t>(now) / 30ULL;
+  }
+
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString(value, 270, 255);
+  UiTheme::resetFont();
+
+  UiTheme::detail(detail, 64, 332);
+}
+
+void UiManager::showOtp() {
+  page_ = Page::Otp;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("OTP Authenticator", 18, 76);
+  UiTheme::detail("TOTP calculator / RFC6238", 20, 116);
+
+  drawOtpCode();
+
+  UiTheme::card(18, 414, 246, 112, true);
+  UiTheme::value("SET SECRET", 58, 452, false);
+  UiTheme::detail("Base32 key", 82, 491);
+
+  UiTheme::card(276, 414, 246, 112);
+  UiTheme::value("CLEAR", 347, 452, false);
+  UiTheme::detail("Forget from RAM", 330, 491);
+
+  UiTheme::card(18, 546, 504, 166);
+  UiTheme::label("SECURITY", 34, 564);
+  UiTheme::detail("The OTP secret is not written to LittleFS or microSD.", 34, 604);
+  UiTheme::detail("It disappears on reboot/deep power loss.", 34, 638);
+  UiTheme::detail("Time is synchronized from NTP after a Wi-Fi connection.", 34, 672);
+
+  UiTheme::card(18, 728, 504, 114);
+  UiTheme::label("STATUS", 34, 746);
+  UiTheme::detail(wifi_.timeSynced() ? "System clock synchronized" : "NTP not synchronized in this boot", 34, 783);
+  UiTheme::detail(otpSecret_.length() ? "Secret loaded in volatile memory" : "No secret loaded", 34, 816);
+
+  bottomNav(4);
+  commitPage();
+}
+
 void UiManager::showLabs() {
   page_ = Page::Labs;
   preparePage();

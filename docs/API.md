@@ -31,3 +31,19 @@ Implemented endpoints:
 - `POST /api/device/sleep`
 - `POST /api/device/reboot`
 - `POST /api/ota`
+
+
+## Battery / Power Center
+
+`GET /api/battery` returns the original M5Paper battery telemetry used by the native and Web Power Center:
+
+- `percent` — M5Unified battery-level estimate.
+- `millivolts` — measured battery voltage.
+- `nominalCapacityMah` — 1150 mAh nominal pack capacity.
+- `trend` / `trendDeltaMv` — sampled battery-voltage direction.
+- `chargingLikely` — heuristic only; true when a sustained voltage rise suggests charging.
+- `currentSupported` — false on original M5Paper.
+- `currentMa` — null because the board has no battery-current monitor.
+- `wakeReason` — ESP32 wake source reported after boot.
+
+The original M5Paper cannot report real charger state or battery current. PaperOS deliberately keeps current unavailable instead of fabricating a value.

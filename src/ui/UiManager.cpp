@@ -193,6 +193,7 @@ void UiManager::renderPage(Page target) {
     case Page::General: showGeneral(); break;
     case Page::DateTime: showDateTime(); break;
     case Page::StorageTools: showStorageTools(); break;
+    case Page::StorageFormat: showStorageFormat(); break;
     case Page::PhoneLink: showPhoneLink(); break;
     case Page::GpioLab: showGpioLab(); break;
     case Page::Labs: showLabs(); break;
@@ -1595,6 +1596,53 @@ void UiManager::showOtp() {
 }
 
 
+
+void UiManager::showStorageFormat() {
+  page_ = Page::StorageFormat;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Format microSD", 18, 76);
+  UiTheme::detail("DESTRUCTIVE / single PaperOS volume", 20, 116);
+
+  UiTheme::card(18, 145, 504, 132, true);
+  UiTheme::label("WARNING", 34, 162);
+  UiTheme::value("All files on the card will be erased", 34, 199, false);
+  UiTheme::detail("Backup anything important before formatting.", 34, 239);
+
+  UiTheme::card(18, 300, 160, 116);
+  UiTheme::value("AUTO", 65, 336, false);
+  UiTheme::detail("FAT/exFAT by size", 37, 378);
+
+  UiTheme::card(190, 300, 160, 116);
+  UiTheme::value("FAT", 248, 336, false);
+  UiTheme::detail("FAT16/32", 233, 378);
+
+  UiTheme::card(362, 300, 160, 116);
+  UiTheme::value("exFAT", 404, 336, false);
+  UiTheme::detail("SDXC / large", 391, 378);
+
+  UiTheme::card(18, 442, 504, 150);
+  UiTheme::label("CONFIRMATION", 34, 459);
+  if (formatConfirmArmed_) {
+    UiTheme::value(String("Tap ") + pendingFormatType_ + " again to ERASE", 34, 499, false);
+    UiTheme::detail("A different button cancels the previous choice and arms that format.", 34, 542);
+  } else {
+    UiTheme::value("Choose a format", 34, 499, false);
+    UiTheme::detail("First tap arms the action. Second identical tap performs it.", 34, 542);
+  }
+
+  UiTheme::card(18, 615, 504, 168);
+  UiTheme::label("PARTITION MODEL", 34, 633);
+  UiTheme::detail("Formatting creates one whole-card volume that PaperOS can mount.", 34, 671);
+  UiTheme::detail("Multi-partition editing is intentionally disabled in this alpha:", 34, 704);
+  UiTheme::detail("the current ESP32 SD mount layer exposes one mounted volume.", 34, 737);
+  UiTheme::detail(storage_.filesystemHint(), 34, 770);
+
+  bottomNav(4);
+  commitPage();
+}
+
 void UiManager::showPhoneLink() {
   page_ = Page::PhoneLink;
   preparePage();
@@ -2883,8 +2931,9 @@ void UiManager::loop() {
         storageStatus_ = config_.importWifiTextFromSd() ? "Wi-Fi networks imported" : "Wi-Fi import failed";
         showStorageTools();
       } else if (e.y >= 594 && e.y < 672) {
-        storageStatus_ = "Format manager: FAT/exFAT controls are in Labs > Storage in this alpha";
-        showStorageTools();
+        formatConfirmArmed_ = false;
+        pendingFormatType_ = "";
+        showStorageFormat();
       } else if (e.y >= 676 && e.y < 754) {
         storageStatus_ = storage_.available()
           ? String("Card ") + String((uint32_t)(storage_.totalBytes()/1048576ULL)) + " MB / used " +
@@ -2995,6 +3044,30 @@ void UiManager::loop() {
       if (e.y >= 574 && e.y < 666) {
         readBleGatt(selectedBleIndex_);
         showBleDetail(selectedBleIndex_);
+      }
+      return;
+    }
+
+    if (page_ == Page::StorageFormat) {
+      if (e.y >= 300 && e.y < 416) {
+        String type;
+        if (e.x < 178) type = "AUTO";
+        else if (e.x < 350) type = "FAT";
+        else type = "exFAT";
+
+        if (!formatConfirmArmed_ || pendingFormatType_ != type) {
+          pendingFormatType_ = type;
+          formatConfirmArmed_ = true;
+          showStorageFormat();
+        } else {
+          showAppLoading("Format microSD", String("Formatting ") + type + "...", 55);
+          bool ok = storage_.formatCard(type);
+          storageStatus_ = ok ? String("microSD formatted as ") + type + " and PaperOS layout recreated"
+                              : String("Format failed - card may need desktop recovery");
+          formatConfirmArmed_ = false;
+          pendingFormatType_ = "";
+          showStorageTools();
+        }
       }
       return;
     }

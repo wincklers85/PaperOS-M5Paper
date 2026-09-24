@@ -28,6 +28,13 @@ class PhoneLinkService {
   bool ancsReady() const { return ancsReady_; }
   bool bonded() const { return bonded_; }
   String peerAddress() const { return peerAddress_; }
+  int phoneBatteryPercent() const { return phoneBatteryPercent_; }
+  bool phoneBatteryKnown() const { return phoneBatteryPercent_ >= 0; }
+  bool phoneChargingKnown() const { return phoneChargingKnown_; }
+  bool phoneCharging() const { return phoneCharging_; }
+  String phoneName() const { return phoneName_; }
+  uint32_t phoneStatusAgeMs() const { return phoneStatusUpdatedMs_ ? millis() - phoneStatusUpdatedMs_ : 0; }
+  void updatePhoneStatus(int batteryPercent, bool charging, bool chargingKnown, const String& name = "iPhone");
 
   size_t notificationCount() const { return notifications_.size(); }
   const PhoneNotification* notification(size_t index) const;
@@ -66,6 +73,11 @@ class PhoneLinkService {
   std::vector<PhoneNotification> notifications_;
   String lastCommand_;
   String peerAddress_;
+  int phoneBatteryPercent_ = -1;
+  bool phoneCharging_ = false;
+  bool phoneChargingKnown_ = false;
+  String phoneName_ = "iPhone";
+  uint32_t phoneStatusUpdatedMs_ = 0;
 
   uint32_t pendingUid_ = 0;
   uint8_t pendingCategory_ = 0;

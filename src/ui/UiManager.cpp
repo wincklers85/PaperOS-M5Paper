@@ -1765,9 +1765,9 @@ void UiManager::showPhoneLink() {
 
   UiTheme::card(18, 694, 504, 148);
   UiTheme::label("PHONE CAPABILITIES", 34, 712);
-  UiTheme::detail("Notifications, calls, SMS/messages and camera require a companion", 34, 748);
-  UiTheme::detail("with the phone permissions. PaperOS sends real BLE commands;", 34, 780);
-  UiTheme::detail("the phone companion decides what it is allowed to execute.", 34, 812);
+  UiTheme::detail("Commands: call:+39... / message:+39...|text / phone:ring", 34, 748);
+  UiTheme::detail("camera:shutter / media:playpause. Companion permissions required.", 34, 780);
+  UiTheme::detail("Notifications arrive through BLE GATT or authenticated REST bridge.", 34, 812);
 
   bottomNav(4);
   commitPage();
@@ -2343,7 +2343,7 @@ void UiManager::showNetworkTools() {
 
   settingsRow(150, "PG", "Ping", "ICMP reachability + average latency");
   settingsRow(240, "DNS", "DNS Lookup", "Resolve hostname to IPv4");
-  settingsRow(330, "LAN", "Quick LAN Scan", "Hosts with common TCP services / .1-.64");
+  settingsRow(330, "LAN", "LAN Discovery", "Fing-style /24 segments + common services");
   settingsRow(420, "API", "HTTP / API Tester", "GET / POST / PUT + response body");
   settingsRow(510, "MQ", "MQTT Client", "Connect / subscribe / publish");
   settingsRow(600, "WOL", "Wake-on-LAN", "Send magic packet to a MAC address");

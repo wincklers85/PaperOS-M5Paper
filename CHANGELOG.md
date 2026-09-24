@@ -2,6 +2,40 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.3.1-alpha] - 2026-09-25
+
+### Lock / standby
+- User-facing Standby is now a soft lock instead of ESP32 deep sleep.
+- Wi-Fi, Bluetooth HID and Phone Link remain alive while locked.
+- Lock can be triggered from the pull-down Quick Settings panel.
+- Mouse-wheel click or the M5Paper center button arms unlock.
+- A right swipe on the touchscreen completes unlock and opens the Apps menu.
+- Automatic inactivity timeout now requests the same soft lock.
+- Real hardware deep sleep remains available explicitly through the ROOT Terminal with `deepsleep`.
+
+### Mouse wheel navigation
+- BLE mouse wheel up/down now navigates PaperOS menus and scrollable pages.
+- Menu items are visibly outlined while wheel navigation is active.
+- Pressing the wheel acts as OK/Enter.
+- Supported focus navigation includes Home, Apps, Settings, Files, Tools, Network Toolkit, Labs, Wi-Fi, BLE result lists and Classic Desktop.
+- Up/Down/Enter/Esc from a BLE keyboard mirror the same menu navigation behavior.
+
+### Notification Center
+- Added a bottom-up Notification Center opened by swiping upward from the bottom edge.
+- Swipe downward closes it.
+- Shows iPhone/Phone Link connection state, ANCS state and recent notifications.
+- Incoming calls, missed calls, mail, social, calendar and other ANCS categories are labelled when available.
+- Mouse wheel scrolls the notification list.
+- Tapping the phone card or a notification opens Phone Link.
+
+### iPhone battery status
+- ANCS itself does not expose iPhone battery percentage, so PaperOS does not fabricate it.
+- Added companion/Shortcut phone status support for real battery percentage and charging state.
+- Custom BLE status payload accepts `type=status`, `battery`, `charging` and `device`.
+- REST endpoint `POST /api/phone/status` accepts the same data.
+- `GET /api/phone/status` now reports phone name, battery, charging state and status age.
+- Notification Center displays `N/D` until a companion or Shortcut has supplied battery status.
+
 ## [0.3.0-alpha] - 2026-09-24
 
 ### Classic Desktop / Windows 3.11 mode

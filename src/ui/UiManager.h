@@ -110,7 +110,8 @@ class UiManager {
   uint32_t lastClockPageRefresh_ = 0;
   uint32_t lastFocusUiRefresh_ = 0;
   uint64_t lastOtpStep_ = 0;
-  bool firstPageFrame_ = true;
+  bool hasRenderedPage_ = false;
+  Page lastRenderedPage_ = Page::Home;
   int comingNav_ = 4;
   String comingTitle_;
 

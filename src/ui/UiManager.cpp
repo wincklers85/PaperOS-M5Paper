@@ -1988,7 +1988,70 @@ String UiManager::joinPath(const String& base, const String& name) const {
 bool UiManager::isTextFile(const String& name) const {
   String n = name;
   n.toLowerCase();
-  return n.endsWith(".txt") || n.endsWith(".md") || n.endsWith(".json") || n.endsWith(".log") || n.endsWith(".csv");
+  return n.endsWith(".txt") || n.endsWith(".md") || n.endsWith(".json") ||
+         n.endsWith(".log") || n.endsWith(".csv") || n.endsWith(".ini") ||
+         n.endsWith(".cfg") || n.endsWith(".xml") || n.endsWith(".html") ||
+         n.endsWith(".htm") || n.endsWith(".yaml") || n.endsWith(".yml");
+}
+
+bool UiManager::isImageFile(const String& name) const {
+  String n = name;
+  n.toLowerCase();
+  return n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png") || n.endsWith(".bmp");
+}
+
+bool UiManager::isPdfFile(const String& name) const {
+  String n = name;
+  n.toLowerCase();
+  return n.endsWith(".pdf");
+}
+
+String UiManager::extractPdfText(const String& path, size_t offset) const {
+  File f = SD.open(path, FILE_READ);
+  if (!f || f.isDirectory()) { if (f) f.close(); return ""; }
+
+  if (offset < f.size()) f.seek(offset);
+  String out;
+  out.reserve(2200);
+
+  bool inText = false;
+  bool escaped = false;
+  while (f.available() && out.length() < 2000) {
+    char c = static_cast<char>(f.read());
+    if (!inText) {
+      if (c == '(') {
+        inText = true;
+        escaped = false;
+      }
+      continue;
+    }
+
+    if (escaped) {
+      if (c == 'n' || c == 'r') out += '\n';
+      else if (c == 't') out += ' ';
+      else out += c;
+      escaped = false;
+      continue;
+    }
+
+    if (c == '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (c == ')') {
+      inText = false;
+      out += ' ';
+      continue;
+    }
+
+    uint8_t b = static_cast<uint8_t>(c);
+    if (b >= 32 && b < 127) out += c;
+    else if (c == '\n' || c == '\r') out += ' ';
+  }
+  f.close();
+  out.trim();
+  return out;
 }
 
 void UiManager::showFiles(const String& path) {
@@ -2079,19 +2142,52 @@ void UiManager::showFilePreview(const String& fullPath, const String& name, uint
 
   UiTheme::title(name, 18, 78);
   UiTheme::detail(String((uint32_t)size) + " bytes", 20, 119);
-
   UiTheme::card(18, 150, 504, 690);
 
-  if (!isTextFile(name)) {
-    UiTheme::value("Preview type pending", 40, 205, true);
-    UiTheme::detail("Images/PDF are handled by the Reader tools added in 0.1.9.", 40, 270);
-  } else {
+  if (isImageFile(name)) {
+    UiTheme::label("IMAGE READER", 34, 168);
+    bool ok = false;
+    String lower = name;
+    lower.toLowerCase();
+
+    // M5GFX decodes files directly from the mounted microSD. The original
+    // M5Paper framebuffer is monochrome, so color images are quantized by
+    // the display path rather than pretending to preserve LCD color.
+    if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+      ok = M5.Display.drawJpgFile(SD, fullPath.c_str(), 42, 205, 454, 550);
+    } else if (lower.endsWith(".png")) {
+      ok = M5.Display.drawPngFile(SD, fullPath.c_str(), 42, 205, 454, 550);
+    } else if (lower.endsWith(".bmp")) {
+      ok = M5.Display.drawBmpFile(SD, fullPath.c_str(), 42, 205, 454, 550);
+    }
+
+    UiTheme::detail(ok ? "Rendered from microSD / e-paper monochrome" : "Image decode failed or unsupported variant", 34, 786);
+    UiTheme::detail("JPEG / PNG / BMP", 34, 816);
+  } else if (isPdfFile(name)) {
+    UiTheme::label("PDF READER LITE", 34, 168);
+    String content = extractPdfText(fullPath, static_cast<size_t>(textScroll_));
+    if (!content.length()) {
+      UiTheme::value("No plain text extracted", 40, 220, false);
+      UiTheme::detail("Many PDFs compress/font-encode their page streams.", 40, 272);
+      UiTheme::detail("This ESP32 reader does not fake full PDF rendering.", 40, 308);
+      UiTheme::detail("Use paperos.local to download complex PDFs.", 40, 344);
+    } else {
+      M5.Display.setFont(&fonts::FreeMono9pt7b);
+      M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+      M5.Display.setTextWrap(true, true);
+      M5.Display.setCursor(34, 205);
+      M5.Display.print(content);
+      M5.Display.setTextWrap(false);
+      UiTheme::resetFont();
+    }
+    UiTheme::detail(String("PDF byte window ") + textScroll_ + " / " + String((uint32_t)size) + " - swipe", 34, 812);
+  } else if (isTextFile(name)) {
     File f = SD.open(fullPath, FILE_READ);
     String content;
     if (f) {
       size_t safeOffset = min<size_t>(textScroll_, f.size());
       f.seek(safeOffset);
-      while (f.available() && content.length() < 1800) content += (char)f.read();
+      while (f.available() && content.length() < 1800) content += static_cast<char>(f.read());
       f.close();
     }
     M5.Display.setFont(&fonts::FreeMono9pt7b);
@@ -2101,7 +2197,12 @@ void UiManager::showFilePreview(const String& fullPath, const String& name, uint
     M5.Display.print(content.length() ? content : String("[end of file]"));
     M5.Display.setTextWrap(false);
     UiTheme::resetFont();
-    UiTheme::detail(String("Offset ") + textScroll_ + " / " + String((uint32_t)size) + "  -  swipe up/down", 34, 812);
+    UiTheme::detail(String("Offset ") + textScroll_ + " / " + String((uint32_t)size) + " - swipe up/down", 34, 812);
+  } else {
+    UiTheme::value("Preview unavailable", 40, 205, true);
+    UiTheme::detail("Supported: TXT/MD/JSON/CSV/XML/HTML/YAML/INI/CFG", 40, 270);
+    UiTheme::detail("Images: JPEG/PNG/BMP. PDF: basic text extraction.", 40, 306);
+    UiTheme::detail("Other binary files remain accessible from paperos.local.", 40, 342);
   }
 
   bottomNav(2);

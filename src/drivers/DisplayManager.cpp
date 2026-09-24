@@ -59,7 +59,7 @@ void DisplayManager::splash() {
 void DisplayManager::pageRefresh() {
   // Fast waveform for normal page-to-page navigation. Ghosting is handled
   // by the less frequent quality clean in UiManager and the manual tool.
-  M5.Display.setEpdMode(m5gfx::epd_fast);
+  M5.Display.setEpdMode(m5gfx::epd_fastest);
   M5.Display.display();
   M5.Display.setEpdMode(m5gfx::epd_text);
   ++pageChangesSinceClean_;
@@ -84,7 +84,7 @@ void DisplayManager::cleanRefresh() {
 }
 
 void DisplayManager::partialRefresh(int32_t x, int32_t y, int32_t w, int32_t h) {
-  M5.Display.setEpdMode(m5gfx::epd_fast);
+  M5.Display.setEpdMode(m5gfx::epd_fastest);
   M5.Display.display(x, y, w, h);
   M5.Display.setEpdMode(m5gfx::epd_text);
 }

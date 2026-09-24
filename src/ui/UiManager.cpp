@@ -307,30 +307,34 @@ void UiManager::showGeneral() {
 
 void UiManager::showWiFi() {
   page_ = Page::WiFi;
+  wifiScan_.clear();
   preparePage();
   statusBar();
 
-  UiTheme::title("Wi-Fi", 18, 76);
-  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Non connesso"), 20, 116);
+  UiTheme::title("Wi-Fi Analyzer", 18, 76);
+  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Not connected"), 20, 116);
 
-  UiTheme::card(18, 145, 504, 112, true);
-  UiTheme::label("CONNECTION", 34, 161);
+  UiTheme::card(18, 145, 504, 118, true);
+  UiTheme::label("CURRENT NETWORK", 34, 161);
   String current = wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup");
-  if (current.length() > 24) current = current.substring(0, 24);
+  if (current.length() > 23) current = current.substring(0, 23);
   UiTheme::value(current, 34, 197, false);
-  UiTheme::detail(wifi_.isConnected() ? wifi_.ip().toString() : String("Setup AP active when needed"), 34, 232);
-  UiTheme::pill(wifi_.isConnected() ? String(WiFi.RSSI()) + " dBm" : "AP", 402, 160, false);
+  String networkDetail = wifi_.isConnected()
+    ? wifi_.ip().toString() + "  /  CH " + String(WiFi.channel())
+    : String("Tap a network below to connect");
+  UiTheme::detail(networkDetail, 34, 235);
+  UiTheme::pill(wifi_.isConnected() ? String(WiFi.RSSI()) + " dBm" : "OFFLINE", 392, 160, false);
 
-  UiTheme::label("AVAILABLE NETWORKS", 20, 282);
-  UiTheme::card(18, 306, 504, 470);
-  UiTheme::value("Scanning Wi-Fi...", 44, 350, false);
-  UiTheme::detail("Network scan runs in background.", 44, 392);
-  M5.Display.drawRoundRect(44, 442, 438, 18, 9, TFT_BLACK);
-  M5.Display.fillRoundRect(47, 445, 260, 12, 6, TFT_BLACK);
-  UiTheme::detail("Results replace this panel automatically.", 44, 486);
+  UiTheme::label("NEARBY NETWORKS", 20, 286);
+  UiTheme::card(18, 310, 504, 466);
+  UiTheme::value("Scanning...", 44, 354, false);
+  UiTheme::detail("SSID / signal / channel / security", 44, 398);
+  M5.Display.drawRoundRect(44, 448, 438, 18, 9, TFT_BLACK);
+  M5.Display.fillRoundRect(47, 451, 250, 12, 6, TFT_BLACK);
+  UiTheme::detail("Tap a result to join it.", 44, 493);
 
   UiTheme::card(18, 792, 504, 58);
-  UiTheme::detail("Passwords and saved networks: paperos.local > Wi-Fi", 34, 811);
+  UiTheme::detail(wifiStatusMessage_.length() ? wifiStatusMessage_ : String("Saved networks reconnect automatically."), 34, 811);
 
   bottomNav(4);
   commitPage();
@@ -341,11 +345,12 @@ void UiManager::showWiFi() {
 
 void UiManager::showBluetooth() {
   page_ = Page::Bluetooth;
+  bleScan_.clear();
   preparePage();
   statusBar();
 
-  UiTheme::title("Bluetooth", 18, 76);
-  UiTheme::detail("BLE explorer", 20, 116);
+  UiTheme::title("BLE Inspector", 18, 76);
+  UiTheme::detail("Bluetooth Low Energy scanner", 20, 116);
 
   if (!bluetoothActive_) {
     BLEDevice::init("PaperOS");
@@ -353,24 +358,65 @@ void UiManager::showBluetooth() {
   }
 
   UiTheme::card(18, 145, 504, 112, true);
-  UiTheme::label("BLUETOOTH LE", 34, 161);
-  UiTheme::value("Scanner ready", 34, 197, false);
-  UiTheme::detail("Tap this card to scan nearby BLE devices.", 34, 232);
+  UiTheme::label("SCANNER", 34, 161);
+  UiTheme::value("Ready", 34, 197, false);
+  UiTheme::detail("Tap SCAN, then tap a device for technical details.", 34, 232);
   UiTheme::pill("SCAN", 430, 160, true);
 
-  UiTheme::label("DEVICES", 20, 282);
+  UiTheme::label("NEARBY BLE DEVICES", 20, 282);
   UiTheme::card(18, 306, 504, 470);
-  UiTheme::value("Ready", 44, 350, false);
-  UiTheme::detail("A loading panel appears while the radio scans.", 44, 392);
-  UiTheme::detail("The final list is then drawn in one regional refresh.", 44, 426);
+  UiTheme::value("No scan yet", 44, 350, false);
+  UiTheme::detail("Shows name/address, RSSI, UUID and manufacturer bytes.", 44, 392);
 
   UiTheme::card(18, 792, 504, 58);
-  UiTheme::detail("BLE scan is a diagnostic feature in this alpha.", 34, 811);
+  UiTheme::detail("BLE Inspector is passive: it does not pair or write to devices.", 34, 811);
 
   bottomNav(4);
   commitPage();
 }
 
+
+
+String UiManager::bleManufacturerHex(const std::string& bytes) const {
+  static const char* hex = "0123456789ABCDEF";
+  String out;
+  size_t limit = bytes.size() > 18 ? 18 : bytes.size();
+  out.reserve(limit * 3);
+  for (size_t i = 0; i < limit; ++i) {
+    uint8_t b = static_cast<uint8_t>(bytes[i]);
+    if (i) out += ' ';
+    out += hex[(b >> 4) & 0x0F];
+    out += hex[b & 0x0F];
+  }
+  if (bytes.size() > limit) out += " ...";
+  return out;
+}
+
+void UiManager::showBleDetail(size_t index) {
+  if (index >= bleScan_.size()) return;
+  page_ = Page::BleDetail;
+  preparePage();
+  statusBar();
+
+  const BleScanEntry& d = bleScan_[index];
+  UiTheme::title("BLE Device", 18, 76);
+  UiTheme::detail(d.name.length() ? d.name : d.address, 20, 116);
+
+  settingRow(150, "Address", d.address);
+  settingRow(242, "Signal", String(d.rssi) + " dBm");
+  settingRow(334, "TX Power", d.hasTxPower ? String(d.txPower) + " dBm" : String("Not advertised"));
+  settingRow(426, "Service UUID", d.serviceUuid.length() ? d.serviceUuid : String("Not advertised"));
+  settingRow(518, "Manufacturer", d.manufacturerHex.length() ? d.manufacturerHex : String("No manufacturer data"));
+
+  UiTheme::card(18, 630, 504, 150);
+  UiTheme::label("USEFUL FOR", 34, 649);
+  UiTheme::detail("Beacon checks / RSSI positioning / identifying BLE sensors.", 34, 687);
+  UiTheme::detail("PaperOS only reads advertising data on this screen.", 34, 722);
+  UiTheme::detail("No pairing, connection or writes are performed.", 34, 757);
+
+  bottomNav(4);
+  commitPage();
+}
 
 void UiManager::showBattery() {
   page_ = Page::Battery;

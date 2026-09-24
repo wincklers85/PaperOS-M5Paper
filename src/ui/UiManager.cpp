@@ -982,14 +982,22 @@ void UiManager::loop() {
   if (e.clicked) {
     power_.markActivity();
 
+    // Battery indicator in the status bar is always a direct shortcut.
+    if (e.y < UiTheme::StatusH && e.x >= 430) {
+      showBattery();
+      return;
+    }
+
     if (e.y >= UiTheme::NavY) {
       handleBottomNav(e.x);
       return;
     }
 
     if (page_ == Page::Home) {
-      if (e.y >= 145 && e.y < 273) showWiFi();
-      else if (e.y >= 322 && e.y < 430) {
+      if (e.y >= 145 && e.y < 273) {
+        if (e.x >= 366) showBattery();
+        else showWiFi();
+      } else if (e.y >= 322 && e.y < 430) {
         if (e.x < 270) showNotes();
         else showFiles();
       } else if (e.y >= 442 && e.y < 550) {
@@ -1063,7 +1071,7 @@ void UiManager::loop() {
       else if (e.y >= 260 && e.y < 338) showGeneral();
       else if (e.y >= 342 && e.y < 420) showWiFi();
       else if (e.y >= 424 && e.y < 502) showBluetooth();
-      else if (e.y >= 525 && e.y < 603) showTools();
+      else if (e.y >= 525 && e.y < 603) showBattery();
       else if (e.y >= 607 && e.y < 685) showTools();
       else if (e.y >= 689 && e.y < 767) showLabs();
       return;
@@ -1079,7 +1087,10 @@ void UiManager::loop() {
         M5.Display.fillRect(18, 306, 504, 470, TFT_WHITE);
         UiTheme::card(18, 306, 504, 470);
         UiTheme::value("Scanning BLE...", 44, 350, false);
-        UiTheme::detail("Please keep the device awake.", 44, 392);
+        UiTheme::detail("Radio scan in progress.", 44, 392);
+        M5.Display.drawRoundRect(44, 442, 438, 18, 9, TFT_BLACK);
+        M5.Display.fillRoundRect(47, 445, 292, 12, 6, TFT_BLACK);
+        UiTheme::detail("Results appear when the scan completes.", 44, 486);
         display_.partialRefresh(18, 306, 504, 470);
 
         BLEScan* scanner = BLEDevice::getScan();
@@ -1133,7 +1144,6 @@ void UiManager::loop() {
           };
           calcKey(keys[row * 4 + col]);
 
-          // Only the calculator display changes; do not redraw all 20 keys.
           M5.Display.fillRect(18, 145, 504, 100, TFT_WHITE);
           UiTheme::card(18, 145, 504, 100, true);
           M5.Display.setFont(&fonts::FreeSansBold24pt7b);
@@ -1148,7 +1158,7 @@ void UiManager::loop() {
     }
   }
 
-  // Complete an asynchronous Wi-Fi scan without blocking page entry.
+  // Complete asynchronous Wi-Fi scanning without blocking page entry.
   if (page_ == Page::WiFi) {
     int n = WiFi.scanComplete();
     if (n >= 0) {
@@ -1172,13 +1182,21 @@ void UiManager::loop() {
     }
   }
 
+  // Battery screen is live, but e-paper is updated slowly enough to avoid
+  // pointless refresh churn. Voltage/trend samples are collected in PowerManager.
+  if (page_ == Page::Battery && millis() - lastBatteryUiRefresh_ > 30000UL) {
+    lastBatteryUiRefresh_ = millis();
+    M5.Display.fillRect(18, 145, 504, 325, TFT_WHITE);
+    drawBatteryLiveArea();
+    display_.partialRefresh(18, 145, 504, 325);
+  }
+
   if (millis() - lastClock_ > 60000UL) {
     lastClock_ = millis();
     statusBar();
     display_.partialRefresh(0, 0, M5.Display.width(), UiTheme::StatusH);
   }
 
-  // Rare quality refresh for ghosting control. Manual Clean Display is always available.
   if (millis() - lastDeepClean_ > 25UL * 60UL * 1000UL && page_ == Page::Home) {
     showHome(true);
   }

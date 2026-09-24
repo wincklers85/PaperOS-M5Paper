@@ -1521,6 +1521,15 @@ void UiManager::finishKeyboard() {
     return;
   }
 
+  if (target == InputTarget::ClassicTerminal) {
+    classicTerminalInput_ = inputValue_;
+    String cmd=classicTerminalInput_;
+    classicTerminalInput_="";
+    classicTerminalExecute(cmd);
+    showClassicTerminal();
+    return;
+  }
+
   if (target == InputTarget::ManualTime) {
     int yy=0, mo=0, dd=0, hh=0, mm=0;
     String v = inputValue_;
@@ -3617,6 +3626,222 @@ void UiManager::handleBottomNav(int x) {
   else showApps();
 }
 
+
+void UiManager::classicHandlePointer(int x, int y, bool click) {
+  classicMouseX_ = constrain(x, 0, UiTheme::ScreenW - 1);
+  classicMouseY_ = constrain(y, 0, UiTheme::ScreenH - 1);
+  if (!click) return;
+
+  if (x >= 480 && y >= 12 && y <= 58) {
+    if (page_ == Page::ClassicDesktop) showApps();
+    else showClassicDesktop();
+    return;
+  }
+
+  if (page_ == Page::ClassicDesktop) {
+    struct Hit { int x; int y; int w; int h; int app; };
+    const Hit hits[] = {
+      {54,178,100,92,0}, {208,178,100,92,1}, {362,178,100,92,2},
+      {54,330,100,92,3}, {208,330,100,92,4}, {362,330,100,92,5},
+      {54,482,100,92,6}, {208,482,100,92,7}, {362,482,100,92,8}
+    };
+    for (const auto& h : hits) {
+      if (x < h.x || x >= h.x+h.w || y < h.y || y >= h.y+h.h) continue;
+      if (h.app == 0) {
+        if (classicTerminalLines_.empty()) {
+          classicTerminalPrint(String("PaperOS ROOT Terminal ") + VERSION);
+          classicTerminalPrint("Type HELP for available commands.");
+        }
+        showClassicTerminal();
+      } else if (h.app == 1) {
+        showFiles("/");
+      } else if (h.app == 2) {
+        showSettings();
+      } else if (h.app == 3) {
+        if (!bluetoothActive_) {
+          BLEDevice::init("PaperOS");
+          bluetoothActive_ = true;
+        }
+        hidInput_.begin();
+        showClassicHid();
+      } else if (h.app == 4) {
+        classicInitSki();
+        showClassicSki();
+      } else if (h.app == 5) {
+        classicInitSolitaire();
+        showClassicSolitaire();
+      } else if (h.app == 6) {
+        showNetworkTools();
+      } else if (h.app == 7) {
+        showGpioLab();
+      } else {
+        showApps();
+      }
+      return;
+    }
+  }
+
+  if (page_ == Page::ClassicTerminal) {
+    if (y >= 810 && y <= 890) {
+      showKeyboard(InputTarget::ClassicTerminal, "PaperOS ROOT command", classicTerminalInput_, false);
+    }
+    return;
+  }
+
+  if (page_ == Page::ClassicHid) {
+    if (x >= 380 && y >= 128 && y <= 210) {
+      if (!bluetoothActive_) {
+        BLEDevice::init("PaperOS");
+        bluetoothActive_ = true;
+      }
+      hidInput_.begin();
+      classicHidStatus_ = "Scanning BLE HID...";
+      showClassicHid();
+      hidInput_.scan(4);
+      classicHidStatus_ = hidInput_.statusText();
+      showClassicHid();
+      return;
+    }
+
+    if (y >= 248 && y < 248 + 7 * 76) {
+      int idx = (y - 248) / 76;
+      if (idx >= 0 && idx < (int)hidInput_.devices().size()) {
+        classicHidStatus_ = hidInput_.connect((size_t)idx) ? "Connected" : "Connection failed";
+        showClassicHid();
+      }
+    }
+    return;
+  }
+
+  if (page_ == Page::ClassicSki) {
+    if (!skiRunning_) {
+      classicInitSki();
+    } else {
+      skiPlayerX_ += x < UiTheme::ScreenW/2 ? -32 : 32;
+      skiPlayerX_ = constrain(skiPlayerX_, 35, 505);
+    }
+    showClassicSki();
+    return;
+  }
+
+  if (page_ == Page::ClassicSolitaire) {
+    if (y >= 138 && y <= 225) {
+      if (x >= 18 && x < 86) {
+        if (solStock_.empty()) {
+          while (!solWaste_.empty()) {
+            ClassicCard c=solWaste_.back(); solWaste_.pop_back(); c.faceUp=false; solStock_.push_back(c);
+          }
+        } else {
+          ClassicCard c=solStock_.back(); solStock_.pop_back(); c.faceUp=true; solWaste_.push_back(c);
+        }
+        solSelectedType_=-1; solSelectedPile_=-1;
+      } else if (x >= 88 && x < 160) {
+        if (!solWaste_.empty()) { solSelectedType_=0; solSelectedPile_=-1; }
+      } else if (x >= 225) {
+        int foundation=(x-230)/72;
+        if (foundation>=0 && foundation<4) classicSolitaireMoveToFoundation(foundation);
+      }
+      showClassicSolitaire();
+      return;
+    }
+
+    if (y >= 245 && y < 810) {
+      int col=(x-15)/75;
+      if (col>=0 && col<7) {
+        if (solSelectedType_ >= 0) {
+          if (!classicSolitaireMoveToTableau(col)) {
+            solSelectedType_=-1; solSelectedPile_=-1;
+          }
+        } else if (!solTableau_[col].empty() && solTableau_[col].back().faceUp) {
+          solSelectedType_=1; solSelectedPile_=col;
+        }
+        showClassicSolitaire();
+      }
+    }
+    return;
+  }
+}
+
+void UiManager::classicHandleKey(const HidKeyEvent& key) {
+  if ((key.alt && key.keycode == 0x3D) || key.keycode == 0x29) {
+    if (page_ == Page::ClassicDesktop) showApps();
+    else showClassicDesktop();
+    return;
+  }
+
+  if (page_ == Page::ClassicTerminal) {
+    if (key.ascii == '\n') {
+      String cmd=classicTerminalInput_;
+      classicTerminalInput_="";
+      classicTerminalExecute(cmd);
+    } else if (key.ascii == '\b') {
+      if (classicTerminalInput_.length()) classicTerminalInput_.remove(classicTerminalInput_.length()-1);
+    } else if (key.ascii >= 32 && key.ascii < 127 && classicTerminalInput_.length() < 160) {
+      classicTerminalInput_ += key.ascii;
+    }
+    showClassicTerminal();
+    return;
+  }
+
+  if (page_ == Page::ClassicDesktop) {
+    if (key.keycode == 0x4F) classicMouseX_ += 28;
+    else if (key.keycode == 0x50) classicMouseX_ -= 28;
+    else if (key.keycode == 0x51) classicMouseY_ += 28;
+    else if (key.keycode == 0x52) classicMouseY_ -= 28;
+    else if (key.keycode == 0x28) { classicHandlePointer(classicMouseX_, classicMouseY_, true); return; }
+    classicMouseX_=constrain(classicMouseX_,0,539);
+    classicMouseY_=constrain(classicMouseY_,0,959);
+    showClassicDesktop();
+    return;
+  }
+
+  if (page_ == Page::ClassicSki) {
+    if (key.keycode == 0x50 || key.ascii == 'a' || key.ascii == 'A') skiPlayerX_ -= 36;
+    else if (key.keycode == 0x4F || key.ascii == 'd' || key.ascii == 'D') skiPlayerX_ += 36;
+    else if (key.ascii == 'n' || key.ascii == 'N' || key.keycode == 0x28) classicInitSki();
+    skiPlayerX_=constrain(skiPlayerX_,35,505);
+    showClassicSki();
+    return;
+  }
+
+  if (page_ == Page::ClassicSolitaire) {
+    if (key.ascii == 'n' || key.ascii == 'N') {
+      classicInitSolitaire();
+      showClassicSolitaire();
+    }
+  }
+}
+
+void UiManager::classicProcessHidInput() {
+  bool classic = page_ == Page::ClassicDesktop || page_ == Page::ClassicTerminal ||
+                 page_ == Page::ClassicHid || page_ == Page::ClassicSki ||
+                 page_ == Page::ClassicSolitaire;
+  if (!classic || !hidInput_.active()) return;
+
+  HidKeyEvent key;
+  while (hidInput_.popKey(key)) classicHandleKey(key);
+
+  HidMouseEvent mouse;
+  bool moved=false;
+  while (hidInput_.popMouse(mouse)) {
+    classicMouseX_ = constrain(classicMouseX_ + (int)mouse.dx * 2, 0, 539);
+    classicMouseY_ = constrain(classicMouseY_ + (int)mouse.dy * 2, 0, 959);
+    bool down=(mouse.buttons & 1U)!=0;
+    bool click=down && !(classicMouseButtons_ & 1U);
+    classicMouseButtons_=mouse.buttons;
+    moved = moved || mouse.dx || mouse.dy;
+    if (click) {
+      classicHandlePointer(classicMouseX_, classicMouseY_, true);
+      moved=false;
+    }
+  }
+
+  if (moved && millis()-classicLastPointerRefresh_ > 170) {
+    classicLastPointerRefresh_=millis();
+    renderPage(page_);
+  }
+}
+
 void UiManager::openAppIndex(int index) {
   if (index == 0) showNotes();
   else if (index == 1) showFiles();
@@ -3638,6 +3863,7 @@ void UiManager::openAppIndex(int index) {
 void UiManager::loop() {
   M5.update();
   networkTools_.loop();
+  classicProcessHidInput();
 
   if (M5.BtnC.wasHold()) {
     power_.sleepNow();
@@ -3684,6 +3910,15 @@ void UiManager::loop() {
 
   if (e.clicked) {
     power_.markActivity();
+
+    bool classicPage = page_ == Page::ClassicDesktop || page_ == Page::ClassicTerminal ||
+                       page_ == Page::ClassicHid || page_ == Page::ClassicSki ||
+                       page_ == Page::ClassicSolitaire || page_ == Page::ClassicSplash;
+
+    if (classicPage && page_ != Page::ClassicSplash) {
+      classicHandlePointer(e.x, e.y, true);
+      return;
+    }
 
     if (page_ != Page::Keyboard && e.y < UiTheme::StatusH && e.x < 42 && page_ != Page::Home) {
       navigateBack();

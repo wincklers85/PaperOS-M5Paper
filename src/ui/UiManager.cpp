@@ -884,6 +884,7 @@ void UiManager::showKeyboard(InputTarget target, const String& prompt, const Str
   inputPrompt_ = prompt;
   inputValue_ = initial;
   inputMasked_ = masked;
+  keyboardShowSecret_ = false;
   keyboardShift_ = false;
   keyboardSymbols_ = false;
   page_ = Page::Keyboard;
@@ -899,15 +900,16 @@ void UiManager::drawKeyboard() {
 
   UiTheme::card(18, 145, 504, 95, true);
   String shown = inputValue_;
-  if (inputMasked_) {
+  if (inputMasked_ && !keyboardShowSecret_) {
     shown = "";
-    int n = inputValue_.length() < 28 ? inputValue_.length() : 28;
+    int n = inputValue_.length() < 26 ? inputValue_.length() : 26;
     for (int i = 0; i < n; ++i) shown += '*';
-  } else if (shown.length() > 44) {
-    shown = "..." + shown.substring(shown.length() - 41);
+  } else if (shown.length() > 38) {
+    shown = "..." + shown.substring(shown.length() - 35);
   }
   UiTheme::value(shown.length() ? shown : String("_"), 34, 178, false);
-  UiTheme::detail(String(inputValue_.length()) + " chars", 420, 213);
+  UiTheme::detail(String(inputValue_.length()) + " chars", 34, 213);
+  if (inputMasked_) UiTheme::pill(keyboardShowSecret_ ? "HIDE" : "SHOW", 442, 161, true);
 
   const int x0 = 15, keyW = 47, gap = 4, keyH = 58;
   const int ys[4] = {260, 330, 400, 470};
@@ -933,6 +935,7 @@ void UiManager::drawKeyboard() {
       }
       M5.Display.setFont(&fonts::FreeSansBold9pt7b);
       M5.Display.setTextDatum(middle_center);
+      M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
       M5.Display.drawString(key, x + keyW / 2, ys[row] + keyH / 2);
       UiTheme::resetFont();
     }
@@ -955,11 +958,30 @@ void UiManager::drawKeyboard() {
 
   UiTheme::card(18, 730, 504, 112);
   UiTheme::label("INPUT", 34, 747);
-  UiTheme::detail("SHIFT changes letter case. SYM opens common password/URL symbols.", 34, 782);
-  UiTheme::detail("Hardware Home/App buttons can also leave this screen.", 34, 816);
+  UiTheme::detail("Keys flash dark when accepted. SHIFT changes letter case.", 34, 782);
+  UiTheme::detail(inputMasked_ ? "SHOW/HIDE reveals the current password temporarily." : "SYM opens common URL and symbol characters.", 34, 816);
 }
 
 void UiManager::handleKeyboardTap(int x, int y) {
+  if (inputMasked_ && y >= 145 && y < 240 && x >= 405) {
+    keyboardShowSecret_ = !keyboardShowSecret_;
+    M5.Display.fillRect(18, 145, 504, 95, TFT_WHITE);
+    UiTheme::card(18, 145, 504, 95, true);
+    String shown = inputValue_;
+    if (!keyboardShowSecret_) {
+      shown = "";
+      int n = inputValue_.length() < 26 ? inputValue_.length() : 26;
+      for (int i = 0; i < n; ++i) shown += '*';
+    } else if (shown.length() > 38) {
+      shown = "..." + shown.substring(shown.length() - 35);
+    }
+    UiTheme::value(shown.length() ? shown : String("_"), 34, 178, false);
+    UiTheme::detail(String(inputValue_.length()) + " chars", 34, 213);
+    UiTheme::pill(keyboardShowSecret_ ? "HIDE" : "SHOW", 442, 161, true);
+    display_.partialRefresh(18, 145, 504, 95);
+    return;
+  }
+
   const int x0 = 15, keyW = 47, gap = 4, keyH = 58;
   const int ys[4] = {260, 330, 400, 470};
   String rows[4];
@@ -982,7 +1004,17 @@ void UiManager::handleKeyboardTap(int x, int y) {
     if (col >= 0 && col < 10 && lx >= 0 && lx < keyW) {
       char c = rows[row][col];
       if (!keyboardSymbols_ && keyboardShift_ && row > 0 && c >= 'a' && c <= 'z') c = static_cast<char>(c - 'a' + 'A');
-      if (inputValue_.length() < 96) inputValue_ += c;
+
+      const int keyX = x0 + col * (keyW + gap);
+      M5.Display.fillRoundRect(keyX, ys[row], keyW, keyH, 10, TFT_BLACK);
+      M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+      M5.Display.setTextDatum(middle_center);
+      M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+      M5.Display.drawString(String(c), keyX + keyW / 2, ys[row] + keyH / 2);
+      UiTheme::resetFont();
+      display_.partialRefresh(keyX, ys[row], keyW, keyH);
+
+      if (inputValue_.length() < 160) inputValue_ += c;
       changed = true;
     }
   }
@@ -1003,7 +1035,7 @@ void UiManager::handleKeyboardTap(int x, int y) {
       return;
     }
     if (x >= 212 && x < 336) {
-      if (inputValue_.length() < 96) inputValue_ += ' ';
+      if (inputValue_.length() < 160) inputValue_ += ' ';
       changed = true;
     } else if (x >= 344 && x < 424) {
       if (inputValue_.length()) inputValue_.remove(inputValue_.length() - 1);
@@ -1015,17 +1047,8 @@ void UiManager::handleKeyboardTap(int x, int y) {
   }
 
   if (y >= 642 && y < 714) {
-    InputTarget previous = inputTarget_;
     inputTarget_ = InputTarget::None;
-    if (previous == InputTarget::WiFiPassword) showWiFi();
-    else if (previous == InputTarget::BrowserUrl) showBrowser();
-    else if (previous == InputTarget::OtpSecret) showOtp();
-    else if (previous == InputTarget::PingHost) showPingTool();
-    else if (previous == InputTarget::DnsHost) showDnsTool();
-    else if (previous == InputTarget::ApiUrl || previous == InputTarget::ApiBody) showApiTester();
-    else if (previous == InputTarget::MqttHost || previous == InputTarget::MqttTopic || previous == InputTarget::MqttPayload) showMqtt();
-    else if (previous == InputTarget::WolMac) showWakeOnLan();
-    else showApps();
+    navigateBack();
     return;
   }
 
@@ -1033,16 +1056,21 @@ void UiManager::handleKeyboardTap(int x, int y) {
     M5.Display.fillRect(18, 145, 504, 95, TFT_WHITE);
     UiTheme::card(18, 145, 504, 95, true);
     String shown = inputValue_;
-    if (inputMasked_) {
+    if (inputMasked_ && !keyboardShowSecret_) {
       shown = "";
-      int n = min<int>(inputValue_.length(), 28);
+      int n = inputValue_.length() < 26 ? inputValue_.length() : 26;
       for (int i = 0; i < n; ++i) shown += '*';
-    } else if (shown.length() > 44) {
-      shown = "..." + shown.substring(shown.length() - 41);
+    } else if (shown.length() > 38) {
+      shown = "..." + shown.substring(shown.length() - 35);
     }
     UiTheme::value(shown.length() ? shown : String("_"), 34, 178, false);
-    UiTheme::detail(String(inputValue_.length()) + " chars", 420, 213);
+    UiTheme::detail(String(inputValue_.length()) + " chars", 34, 213);
+    if (inputMasked_) UiTheme::pill(keyboardShowSecret_ ? "HIDE" : "SHOW", 442, 161, true);
     display_.partialRefresh(18, 145, 504, 95);
+
+    UiTheme::beginFrame();
+    drawKeyboard();
+    display_.partialRefresh(15, 260, 507, 280);
   }
 }
 

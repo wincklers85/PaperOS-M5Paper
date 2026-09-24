@@ -185,6 +185,7 @@ void UiManager::renderPage(Page target) {
     case Page::Mqtt: showMqtt(); break;
     case Page::WakeOnLan: showWakeOnLan(); break;
     case Page::WiFi: showWiFi(); break;
+    case Page::WifiAudit: showWifiAudit(); break;
     case Page::Bluetooth: showBluetooth(); break;
     case Page::BleDetail:
       if (selectedBleIndex_ < bleScan_.size()) showBleDetail(selectedBleIndex_);
@@ -660,6 +661,7 @@ void UiManager::showWiFi() {
 
   UiTheme::card(18, 792, 504, 58);
   UiTheme::detail(wifiStatusMessage_.length() ? wifiStatusMessage_ : String("Saved networks reconnect automatically."), 34, 811);
+  UiTheme::pill("AUDIT", 438, 796, true);
 
   bottomNav(4);
   commitPage();
@@ -669,6 +671,74 @@ void UiManager::showWiFi() {
     WiFi.scanNetworks(true, true);
     wifiScanRunning_ = true;
   }
+}
+
+
+void UiManager::showWifiAudit() {
+  page_ = Page::WifiAudit;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Wi-Fi Audit", 18, 76);
+  UiTheme::detail("Authorized 2.4 GHz configuration audit", 20, 116);
+
+  int openCount = 0, legacyCount = 0, modernCount = 0, hiddenCount = 0;
+  int channelCounts[14] = {0};
+  for (const auto& n : wifiScan_) {
+    if (!n.ssid.length()) hiddenCount++;
+    if (n.authMode == 0) openCount++;
+    else if (n.authMode == 1 || n.authMode == 2 || n.authMode == 4) legacyCount++;
+    else modernCount++;
+    if (n.channel >= 1 && n.channel <= 13) channelCounts[n.channel]++;
+  }
+
+  int busiestChannel = 0, busiestCount = 0;
+  for (int ch = 1; ch <= 13; ++ch) {
+    if (channelCounts[ch] > busiestCount) {
+      busiestCount = channelCounts[ch];
+      busiestChannel = ch;
+    }
+  }
+
+  homeCard(18, 145, 160, 112, "OPEN", String(openCount), "No encryption", false);
+  homeCard(190, 145, 160, 112, "LEGACY", String(legacyCount), "WEP/WPA/mixed", false);
+  homeCard(362, 145, 160, 112, "MODERN", String(modernCount), "WPA2/3/enterprise", false);
+
+  UiTheme::card(18, 276, 504, 126);
+  UiTheme::label("CHANNEL CONGESTION", 34, 293);
+  UiTheme::value(busiestChannel ? String("Busiest CH ") + busiestChannel + " / " + busiestCount + " APs" : String("No channel data"), 34, 330, false);
+  UiTheme::detail(String("Hidden SSIDs: ") + hiddenCount + " / total " + wifiScan_.size(), 34, 370);
+
+  UiTheme::label("STRONGEST NETWORKS", 20, 424);
+  std::vector<WiFiScanEntry> sorted = wifiScan_;
+  std::sort(sorted.begin(), sorted.end(), [](const WiFiScanEntry& a, const WiFiScanEntry& b){ return a.rssi > b.rssi; });
+  int shown = min(4, static_cast<int>(sorted.size()));
+  for (int i = 0; i < shown; ++i) {
+    int y = 450 + i * 76;
+    const auto& n = sorted[i];
+    String auth;
+    switch (n.authMode) {
+      case 0: auth = "OPEN"; break;
+      case 1: auth = "WEP"; break;
+      case 2: auth = "WPA"; break;
+      case 3: auth = "WPA2"; break;
+      case 4: auth = "WPA/WPA2"; break;
+      case 5: auth = "WPA2 ENT"; break;
+      case 6: auth = "WPA3"; break;
+      case 7: auth = "WPA2/3"; break;
+      default: auth = String("AUTH ") + n.authMode; break;
+    }
+    String title = n.ssid.length() ? n.ssid : String("<hidden>");
+    if (title.length() > 25) title = title.substring(0, 25);
+    settingsRow(y, "WF", title, String(n.rssi) + " dBm / CH " + n.channel + " / " + auth, false);
+  }
+
+  UiTheme::card(18, 770, 504, 80);
+  UiTheme::detail("Diagnostic only: no deauth, cracking or credential capture.", 34, 793);
+  UiTheme::detail("Run a fresh scan from Wi-Fi Analyzer for current results.", 34, 824);
+
+  bottomNav(3);
+  commitPage();
 }
 
 void UiManager::showBluetooth() {
@@ -2957,6 +3027,10 @@ void UiManager::loop() {
         showWiFi();
         return;
       }
+      if (e.y >= 792 && e.y < 850 && e.x >= 400) {
+        showWifiAudit();
+        return;
+      }
       if (e.y >= 310 && e.y < 776) {
         int local = (e.y - 310) / 88;
         int idx = wifiScroll_ + local;
@@ -3262,7 +3336,8 @@ void UiManager::loop() {
         entry.ssid = WiFi.SSID(i);
         entry.rssi = WiFi.RSSI(i);
         entry.channel = WiFi.channel(i);
-        entry.encrypted = WiFi.encryptionType(i) != WIFI_AUTH_OPEN;
+        entry.authMode = static_cast<int>(WiFi.encryptionType(i));
+        entry.encrypted = entry.authMode != 0;
         wifiScan_.push_back(entry);
       }
       wifiScanRunning_ = false;

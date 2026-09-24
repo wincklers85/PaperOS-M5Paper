@@ -18,7 +18,7 @@
 - native Wi-Fi Analyzer with asynchronous scan, RSSI/channel/security details, touch network selection, on-device password entry, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
 - native BLE Inspector with passive scanning, device detail, RSSI, address, TX power, service UUID and manufacturer advertising data
 - native Calculator utility
-- native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)\n- native Browser Lite for HTTP/HTTPS reader-mode browsing\n- native RFC6238 TOTP calculator with volatile-only Base32 secret storage\n- reusable on-screen touch keyboard for Wi-Fi, browser URLs and OTP input
+- native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)\n- native Web Reader for HTTP/HTTPS reader-mode browsing\n- native RFC6238 TOTP calculator with volatile-only Base32 secret storage\n- reusable on-screen touch keyboard for Wi-Fi, browser URLs and OTP input
 - native Battery / Power Center with voltage trend, wake diagnostics and charging-likely estimation
 - Web Power Center plus extended battery REST telemetry
 - WinLabs Solutions Labs area with beta tools and HID script library
@@ -38,9 +38,23 @@
 
 
 
-## Browser Lite and OTP
 
-Browser Lite is intentionally a reader-style browser rather than a desktop browser engine. It retrieves HTTP/HTTPS pages, follows redirects, extracts readable text and exposes a small number of absolute links. JavaScript, video, downloads and complex CSS are not executed. HTTPS currently uses a lightweight connection without CA certificate validation, and PaperOS says so in the interface.
+## Network Toolkit
+
+PaperOS includes a native network toolbox intended for diagnostics and local device work rather than general web browsing:
+
+- **Ping** — real ICMP ping with average latency.
+- **DNS Lookup** — resolves hostnames through the active Wi-Fi DNS server.
+- **Quick LAN Service Scan** — probes `.1` through `.64` of the current IPv4 `/24` for common TCP services on ports 22, 80, 443, 1883 and 8080. It is intentionally bounded to keep the M5Paper responsive; it is a service scan, not a guaranteed inventory of every host.
+- **HTTP/API Tester** — GET, POST and PUT with response code/body.
+- **MQTT Client** — connect, subscribe, publish and show the latest message on a topic. The alpha client targets plain local MQTT on port 1883; TLS/authentication are not yet implemented.
+- **Wake-on-LAN** — sends a standard magic packet to the current subnet broadcast address.
+
+BLE Inspector also recognises common iBeacon/Eddystone advertising markers and offers a **read-only GATT Reader** for connectable BLE devices. Only characteristics advertising the READ property are read; PaperOS does not write characteristics from this tool.
+
+## Web Reader and OTP
+
+Web Reader is intentionally a reader-style browser rather than a desktop browser engine. It retrieves HTTP/HTTPS pages, follows redirects, extracts readable text and exposes a small number of absolute links. JavaScript, video, downloads and complex CSS are not executed. HTTPS currently uses a lightweight connection without CA certificate validation, and PaperOS says so in the interface.
 
 The OTP tool implements standard RFC6238 TOTP with HMAC-SHA1, six digits and a 30-second step. The Base32 secret is kept only in RAM. PaperOS restores Unix time from the hardware RTC at boot and refreshes it from NTP whenever Wi-Fi connects, so OTP can continue working offline once the RTC is correct.
 

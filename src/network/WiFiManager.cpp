@@ -2,6 +2,8 @@
 #include "PaperOS.h"
 #include <algorithm>
 #include <ArduinoJson.h>
+#include <M5Unified.h>
+#include <time.h>
 
 namespace paperos {
 void WiFiManager::begin() {
@@ -27,10 +29,33 @@ bool WiFiManager::connect(const String& ssid, const String& password, bool saveN
   if (WiFi.status() == WL_CONNECTED) {
     if (saveNetwork) { cfg_.upsertNetwork(ssid, password, 100); cfg_.save(); }
     startMdns();
+    syncClock();
     return true;
   }
   WiFi.disconnect(true);
   return false;
+}
+
+
+void WiFiManager::syncClock() {
+  const char* tz = cfg_.get().timezone == "Europe/Rome"
+    ? "CET-1CEST,M3.5.0,M10.5.0/3"
+    : "UTC0";
+
+  configTzTime(tz, "pool.ntp.org", "time.nist.gov");
+  struct tm info;
+  if (getLocalTime(&info, 1800)) {
+    M5.Rtc.setDateTime({{
+      static_cast<int16_t>(info.tm_year + 1900),
+      static_cast<int8_t>(info.tm_mon + 1),
+      static_cast<int8_t>(info.tm_mday)
+    }, {
+      static_cast<int8_t>(info.tm_hour),
+      static_cast<int8_t>(info.tm_min),
+      static_cast<int8_t>(info.tm_sec)
+    }});
+    timeSynced_ = true;
+  }
 }
 
 void WiFiManager::startSetupAp() {

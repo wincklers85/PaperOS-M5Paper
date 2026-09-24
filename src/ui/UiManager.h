@@ -7,6 +7,8 @@
 #include "../network/WiFiManager.h"
 #include "../storage/StorageManager.h"
 #include "../services/PowerManager.h"
+#include "../services/SimpleBrowser.h"
+#include "../services/OtpService.h"
 #include "../core/ConfigManager.h"
 
 namespace paperos {
@@ -38,17 +40,43 @@ class UiManager {
   void showClock();
   void showFocus();
   void showFun();
+  void showBrowser();
+  void showOtp();
 
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, WiFi, Bluetooth, General, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, ComingSoon
+    Files, FileView, Tools, WiFi, Bluetooth, BleDetail, General, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
     String name;
     bool directory = false;
     uint64_t size = 0;
+  };
+
+  struct WiFiScanEntry {
+    String ssid;
+    int32_t rssi = 0;
+    int32_t channel = 0;
+    bool encrypted = true;
+  };
+
+  struct BleScanEntry {
+    String name;
+    String address;
+    String serviceUuid;
+    String manufacturerHex;
+    int32_t rssi = 0;
+    int32_t txPower = 0;
+    bool hasTxPower = false;
+  };
+
+  enum class InputTarget : uint8_t {
+    None = 0,
+    WiFiPassword,
+    BrowserUrl,
+    OtpSecret
   };
 
   Page page_ = Page::Home;
@@ -64,6 +92,8 @@ class UiManager {
   uint32_t lastBatteryUiRefresh_ = 0;
   uint32_t lastClockPageRefresh_ = 0;
   uint32_t lastFocusUiRefresh_ = 0;
+  uint64_t lastOtpStep_ = 0;
+  bool firstPageFrame_ = true;
   int comingNav_ = 4;
   String comingTitle_;
 
@@ -76,10 +106,25 @@ class UiManager {
   bool calcResetInput_ = true;
   std::vector<String> noteIds_;
   std::vector<String> noteTitles_;
+  std::vector<WiFiScanEntry> wifiScan_;
+  std::vector<BleScanEntry> bleScan_;
   bool focusRunning_ = false;
   uint32_t focusEndMs_ = 0;
   uint32_t focusRemainingSec_ = 25UL * 60UL;
   String funResult_ = "Tap a game";
+  String selectedWifiSsid_;
+  String wifiStatusMessage_;
+  InputTarget inputTarget_ = InputTarget::None;
+  String inputValue_;
+  String inputPrompt_;
+  bool inputMasked_ = false;
+  bool keyboardShift_ = false;
+  bool keyboardSymbols_ = false;
+  SimpleBrowser browserService_;
+  BrowserPage browserPage_;
+  String browserUrl_ = "https://";
+  String otpSecret_;
+  String otpCode_;
 
   void preparePage(bool forceClean = false);
   void commitPage();
@@ -102,6 +147,14 @@ class UiManager {
   void drawClockLiveArea();
   void drawFocusLiveArea();
   void drawFunResult();
+  void showKeyboard(InputTarget target, const String& prompt, const String& initial = "", bool masked = false);
+  void handleKeyboardTap(int x, int y);
+  void finishKeyboard();
+  void drawKeyboard();
+  void fetchBrowserUrl(const String& url);
+  void drawOtpCode();
+  void showBleDetail(size_t index);
+  String bleManufacturerHex(const std::string& bytes) const;
 };
 
 }

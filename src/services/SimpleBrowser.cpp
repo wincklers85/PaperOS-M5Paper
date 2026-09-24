@@ -45,7 +45,8 @@ String SimpleBrowser::stripTags(String html) const {
   }
 
   String out;
-  size_t reserveLen = html.length() < 12000 ? html.length() : 12000;\n  out.reserve(reserveLen);
+  size_t reserveLen = html.length() < 12000 ? html.length() : 12000;
+  out.reserve(reserveLen);
   bool inTag = false;
   bool lastSpace = false;
   for (size_t i = 0; i < html.length() && out.length() < 12000; ++i) {

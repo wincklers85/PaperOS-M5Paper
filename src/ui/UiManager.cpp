@@ -377,7 +377,7 @@ void UiManager::showBluetooth() {
 
 
 
-String UiManager::bleManufacturerHex(const std::string& bytes) const {
+String UiManager::bleManufacturerHex(const String& bytes) const {
   static const char* hex = "0123456789ABCDEF";
   String out;
   size_t limit = bytes.size() > 18 ? 18 : bytes.size();

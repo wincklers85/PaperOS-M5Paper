@@ -13,6 +13,68 @@ String SimpleBrowser::normalizeUrl(const String& rawUrl) const {
   return url;
 }
 
+String SimpleBrowser::urlEncode(const String& value) const {
+  static const char* hex = "0123456789ABCDEF";
+  String out;
+  for (size_t i = 0; i < value.length(); ++i) {
+    uint8_t c = static_cast<uint8_t>(value[i]);
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+        (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~') {
+      out += static_cast<char>(c);
+    } else if (c == ' ') {
+      out += '+';
+    } else {
+      out += '%';
+      out += hex[(c >> 4) & 0x0F];
+      out += hex[c & 0x0F];
+    }
+  }
+  return out;
+}
+
+String SimpleBrowser::searchUrl(const String& query) const {
+  return String("https://html.duckduckgo.com/html/?q=") + urlEncode(query);
+}
+
+BrowserPage SimpleBrowser::search(const String& query) {
+  String q = query;
+  q.trim();
+  if (!q.length()) {
+    BrowserPage p;
+    p.error = "Empty search";
+    return p;
+  }
+  return fetch(searchUrl(q));
+}
+
+String SimpleBrowser::resolveLink(const String& baseUrl, const String& hrefRaw) const {
+  String href = decodeEntities(hrefRaw);
+  href.trim();
+  if (!href.length() || href.startsWith("#") || href.startsWith("javascript:") ||
+      href.startsWith("mailto:") || href.startsWith("tel:")) return "";
+  if (href.startsWith("http://") || href.startsWith("https://")) return href;
+
+  int scheme = baseUrl.indexOf("://");
+  if (scheme < 0) return "";
+  int hostStart = scheme + 3;
+  int pathStart = baseUrl.indexOf('/', hostStart);
+  String origin = pathStart >= 0 ? baseUrl.substring(0, pathStart) : baseUrl;
+
+  if (href.startsWith("//")) return baseUrl.substring(0, scheme) + ":" + href;
+  if (href.startsWith("/")) return origin + href;
+
+  String baseDir = pathStart >= 0 ? baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1) : origin + "/";
+  while (href.startsWith("../")) {
+    href = href.substring(3);
+    if (baseDir.endsWith("/")) baseDir.remove(baseDir.length() - 1);
+    int slash = baseDir.lastIndexOf('/');
+    if (slash > scheme + 2) baseDir = baseDir.substring(0, slash + 1);
+    else baseDir = origin + "/";
+  }
+  if (href.startsWith("./")) href = href.substring(2);
+  return baseDir + href;
+}
+
 String SimpleBrowser::decodeEntities(String text) const {
   text.replace("&nbsp;", " ");
   text.replace("&amp;", "&");
@@ -83,7 +145,7 @@ void SimpleBrowser::parseHtml(const String& html, BrowserPage& page) const {
   if (!page.title.length()) page.title = page.finalUrl;
 
   int pos = 0;
-  while (page.links.size() < 8) {
+  while (page.links.size() < 16) {
     int href = lower.indexOf("href", pos);
     if (href < 0) break;
     int eq = lower.indexOf('=', href + 4);
@@ -104,7 +166,8 @@ void SimpleBrowser::parseHtml(const String& html, BrowserPage& page) const {
       link = html.substring(p, end);
     }
 
-    if (link.startsWith("http://") || link.startsWith("https://")) {
+    link = resolveLink(page.finalUrl, link);
+    if (link.length()) {
       bool duplicate = false;
       for (const auto& existing : page.links) if (existing == link) duplicate = true;
       if (!duplicate) page.links.push_back(link);

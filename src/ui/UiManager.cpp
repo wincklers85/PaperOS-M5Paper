@@ -2018,8 +2018,40 @@ void UiManager::loop() {
   }
 
   auto e = touch_.poll();
+
+  if (e.active) power_.markActivity();
+
+  if (e.released && quickPanelOpen_) {
+    if (e.gesture == TouchGesture::SwipeUp) closeQuickPanel();
+    else if (e.clicked) handleQuickPanelTap(e.x, e.y);
+    return;
+  }
+
+  if (e.released && e.gesture == TouchGesture::SwipeDown && e.startY < 120) {
+    power_.markActivity();
+    showQuickPanel();
+    return;
+  }
+
+  if (e.released && (e.gesture == TouchGesture::SwipeUp || e.gesture == TouchGesture::SwipeDown)) {
+    power_.markActivity();
+    handleScrollGesture(e.gesture);
+    return;
+  }
+
+  if (e.released && e.gesture == TouchGesture::SwipeRight && e.startX < 80) {
+    power_.markActivity();
+    navigateBack();
+    return;
+  }
+
   if (e.clicked) {
     power_.markActivity();
+
+    if (page_ != Page::Keyboard && e.y < UiTheme::StatusH && e.x < 42 && page_ != Page::Home) {
+      navigateBack();
+      return;
+    }
 
     if (page_ != Page::Keyboard && e.y < UiTheme::StatusH && e.x >= 430) {
       showBattery();

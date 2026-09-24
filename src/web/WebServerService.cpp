@@ -93,6 +93,11 @@ void WebServerService::routes() {
     d["status"]=phoneLink_.statusText();
     d["notifications"]=phoneLink_.notificationCount();
     d["lastCommand"]=phoneLink_.lastCommand();
+    d["phoneName"]=phoneLink_.phoneName();
+    d["phoneBattery"]=phoneLink_.phoneBatteryKnown()?phoneLink_.phoneBatteryPercent():-1;
+    d["phoneChargingKnown"]=phoneLink_.phoneChargingKnown();
+    d["phoneCharging"]=phoneLink_.phoneCharging();
+    d["phoneStatusAgeMs"]=phoneLink_.phoneStatusAgeMs();
     String o; serializeJson(d,o); sendJson(200,o);
   });
 
@@ -108,6 +113,18 @@ void WebServerService::routes() {
       o["app"]=n->app;o["title"]=n->title;o["body"]=n->body;o["receivedMs"]=n->receivedMs;
     }
     String o;serializeJson(d,o);sendJson(200,o);
+  });
+
+  server_.on("/api/phone/status",HTTP_POST,[this](){
+    if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}
+    DynamicJsonDocument d(1024);
+    if(deserializeJson(d,body())){sendJson(400,"{\"error\":\"invalid_json\"}");return;}
+    int battery=d.containsKey("battery")?d["battery"].as<int>():-1;
+    bool charging=d.containsKey("charging")?d["charging"].as<bool>():false;
+    bool chargingKnown=d.containsKey("charging");
+    String name=d["device"]|"iPhone";
+    phoneLink_.updatePhoneStatus(battery,charging,chargingKnown,name);
+    sendJson(200,"{\"ok\":true}");
   });
 
   server_.on("/api/phone/notify",HTTP_POST,[this](){

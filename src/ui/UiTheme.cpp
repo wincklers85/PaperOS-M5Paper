@@ -151,37 +151,49 @@ void UiTheme::appTile(int x, int y, int w, int h, const String& glyph, const Str
 }
 
 void UiTheme::batteryIcon(int x, int y, int percent) {
-  M5.Display.drawRect(x, y, 26, 13, TFT_BLACK);
-  M5.Display.fillRect(x + 26, y + 3, 3, 7, TFT_BLACK);
+  M5.Display.drawRoundRect(x, y, 28, 15, 4, TFT_BLACK);
+  M5.Display.fillRoundRect(x + 28, y + 4, 3, 7, 1, TFT_BLACK);
   int fill = constrain(map(percent, 0, 100, 0, 22), 0, 22);
-  if (fill > 0) M5.Display.fillRect(x + 2, y + 2, fill, 9, TFT_BLACK);
+  if (fill > 0) M5.Display.fillRoundRect(x + 3, y + 3, fill, 9, 2, TFT_BLACK);
 }
 
 void UiTheme::wifiIcon(int x, int y, bool connected) {
+  const int cx = x + 10;
   if (!connected) {
-    M5.Display.drawLine(x, y, x + 18, y + 18, TFT_BLACK);
-    M5.Display.drawLine(x + 18, y, x, y + 18, TFT_BLACK);
+    M5.Display.drawCircle(cx, y + 9, 9, TFT_BLACK);
+    M5.Display.drawLine(x + 3, y + 2, x + 18, y + 17, TFT_BLACK);
     return;
   }
-  M5.Display.drawFastHLine(x + 1, y + 2, 17, TFT_BLACK);
-  M5.Display.drawFastHLine(x + 4, y + 8, 11, TFT_BLACK);
-  M5.Display.fillCircle(x + 9, y + 15, 2, TFT_BLACK);
+  M5.Display.drawLine(cx, y + 16, cx, y + 17, TFT_BLACK);
+  M5.Display.fillCircle(cx, y + 16, 2, TFT_BLACK);
+  M5.Display.drawLine(x + 6, y + 12, cx, y + 9, TFT_BLACK);
+  M5.Display.drawLine(cx, y + 9, x + 14, y + 12, TFT_BLACK);
+  M5.Display.drawLine(x + 3, y + 8, cx, y + 4, TFT_BLACK);
+  M5.Display.drawLine(cx, y + 4, x + 17, y + 8, TFT_BLACK);
+  M5.Display.drawLine(x, y + 4, cx, y, TFT_BLACK);
+  M5.Display.drawLine(cx, y, x + 20, y + 4, TFT_BLACK);
 }
 
 void UiTheme::bluetoothIcon(int x, int y, bool enabled) {
   uint32_t c = TFT_BLACK;
-  M5.Display.drawLine(x + 7, y, x + 7, y + 18, c);
-  M5.Display.drawLine(x + 7, y, x + 14, y + 5, c);
-  M5.Display.drawLine(x + 14, y + 5, x + 3, y + 13, c);
-  M5.Display.drawLine(x + 3, y + 5, x + 14, y + 13, c);
-  M5.Display.drawLine(x + 14, y + 13, x + 7, y + 18, c);
-  if (!enabled) M5.Display.drawLine(x, y, x + 17, y + 18, c);
+  const int cx = x + 8;
+  M5.Display.drawLine(cx, y, cx, y + 20, c);
+  M5.Display.drawLine(cx, y, x + 15, y + 5, c);
+  M5.Display.drawLine(x + 15, y + 5, x + 3, y + 14, c);
+  M5.Display.drawLine(x + 3, y + 6, x + 15, y + 15, c);
+  M5.Display.drawLine(x + 15, y + 15, cx, y + 20, c);
+  if (!enabled) {
+    M5.Display.drawLine(x, y + 1, x + 18, y + 20, c);
+    M5.Display.drawLine(x + 1, y + 1, x + 19, y + 20, c);
+  }
 }
 
 void UiTheme::sdIcon(int x, int y, bool mounted) {
-  M5.Display.drawRect(x, y + 2, 16, 18, TFT_BLACK);
-  M5.Display.drawLine(x + 10, y + 2, x + 16, y + 8, TFT_BLACK);
-  if (!mounted) M5.Display.drawLine(x - 2, y, x + 18, y + 22, TFT_BLACK);
+  M5.Display.drawRoundRect(x, y + 2, 17, 20, 3, TFT_BLACK);
+  M5.Display.drawLine(x + 10, y + 2, x + 17, y + 9, TFT_BLACK);
+  M5.Display.drawFastVLine(x + 4, y + 5, 6, TFT_BLACK);
+  M5.Display.drawFastVLine(x + 8, y + 5, 6, TFT_BLACK);
+  if (!mounted) M5.Display.drawLine(x - 2, y, x + 20, y + 24, TFT_BLACK);
 }
 
 

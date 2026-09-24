@@ -2195,14 +2195,14 @@ void UiManager::showNote(size_t index) {
 }
 
 String UiManager::parentPath(const String& path) const {
-  if (path == "/PaperOS") return "/PaperOS";
+  if (path == "/" || !path.length()) return "/";
   int pos = path.lastIndexOf('/');
-  if (pos <= 0) return "/PaperOS";
-  String p = path.substring(0, pos);
-  return p.startsWith("/PaperOS") ? p : String("/PaperOS");
+  if (pos <= 0) return "/";
+  return path.substring(0, pos);
 }
 
 String UiManager::joinPath(const String& base, const String& name) const {
+  if (base == "/") return "/" + name;
   return base + (base.endsWith("/") ? "" : "/") + name;
 }
 
@@ -2286,7 +2286,7 @@ void UiManager::showFiles(const String& path) {
     fileEntries_.clear();
 
     if (storage_.available()) {
-      if (currentFilePath_ != "/PaperOS") {
+      if (currentFilePath_ != "/") {
         FileEntry up;
         up.name = "..";
         up.directory = true;
@@ -2294,18 +2294,20 @@ void UiManager::showFiles(const String& path) {
       }
 
       File root = SD.open(currentFilePath_);
-      for (File f = root.openNextFile(); f; f = root.openNextFile()) {
-        FileEntry e;
-        e.name = String(f.name());
-        int slash = e.name.lastIndexOf('/');
-        if (slash >= 0) e.name = e.name.substring(slash + 1);
-        e.directory = f.isDirectory();
-        e.size = f.size();
-        fileEntries_.push_back(e);
-        f.close();
-        if (fileEntries_.size() >= 160) break;
+      if (root && root.isDirectory()) {
+        for (File f = root.openNextFile(); f; f = root.openNextFile()) {
+          FileEntry e;
+          e.name = String(f.name());
+          int slash = e.name.lastIndexOf('/');
+          if (slash >= 0) e.name = e.name.substring(slash + 1);
+          e.directory = f.isDirectory();
+          e.size = f.size();
+          fileEntries_.push_back(e);
+          f.close();
+          if (fileEntries_.size() >= 220) break;
+        }
       }
-      root.close();
+      if (root) root.close();
     }
   } else {
     currentFilePath_ = nextPath;
@@ -2313,38 +2315,60 @@ void UiManager::showFiles(const String& path) {
 
   preparePage();
   statusBar();
-  UiTheme::title("Files", 18, 78);
-  UiTheme::detail(currentFilePath_, 20, 119);
+  UiTheme::title("File Manager", 18, 72);
+  UiTheme::detail("PaperOS + full microSD", 20, 111);
+
+  UiTheme::iconButton(18, 137, 246, 72, "P", "PaperOS", currentFilePath_.startsWith("/PaperOS"));
+  UiTheme::iconButton(276, 137, 246, 72, "SD", "SD Card /", currentFilePath_ == "/" || !currentFilePath_.startsWith("/PaperOS"));
+
+  UiTheme::card(18, 220, 504, 54);
+  String shownPath = currentFilePath_;
+  if (shownPath.length() > 54) shownPath = "..." + shownPath.substring(shownPath.length() - 51);
+  UiTheme::detail(shownPath, 34, 239);
+  if (fileSelectionMode_) UiTheme::pill("SELECT", 423, 230, true);
 
   if (!storage_.available()) {
-    UiTheme::card(18, 160, 504, 260, true);
-    UiTheme::value("microSD required", 40, 205, true);
-    UiTheme::detail("Insert a card to browse local files.", 40, 270);
-    UiTheme::detail("Storage tools and backup also depend on microSD.", 40, 304);
+    UiTheme::card(18, 286, 504, 260, true);
+    UiTheme::value("microSD required", 40, 325, true);
+    UiTheme::detail("Insert a card to browse PaperOS or the SD root.", 40, 390);
   } else if (fileEntries_.empty()) {
-    UiTheme::card(18, 160, 504, 220);
-    UiTheme::value("Empty folder", 40, 205, true);
-    UiTheme::detail("Upload files from paperos.local.", 40, 270);
+    UiTheme::card(18, 286, 504, 210);
+    UiTheme::value("Empty folder", 40, 325, true);
+    UiTheme::detail("Use Paste or upload files from paperos.local.", 40, 384);
   } else {
-    const int visible = 8;
+    const int visible = 6;
     int maxOffset = max(0, static_cast<int>(fileEntries_.size()) - visible);
     fileScroll_ = constrain(fileScroll_, 0, maxOffset);
     int shown = min(visible, static_cast<int>(fileEntries_.size()) - fileScroll_);
 
     for (int row = 0; row < shown; ++row) {
       const FileEntry& e = fileEntries_[fileScroll_ + row];
-      int y = 150 + row * 82;
-      UiTheme::card(18, y, 504, 70);
+      int y = 284 + row * 72;
+      String full = e.name == ".." ? parentPath(currentFilePath_) : joinPath(currentFilePath_, e.name);
+      bool selected = selectedFilePath_.length() && full == selectedFilePath_;
+      UiTheme::card(18, y, 504, 64, selected);
       String title = (e.directory ? "[DIR] " : "") + e.name;
-      if (title.length() > 34) title = title.substring(0, 31) + "...";
-      UiTheme::value(title, 34, y + 13, false);
-      UiTheme::detail(e.name == ".." ? "Parent folder" : (e.directory ? "Folder" : String((uint32_t)e.size) + " bytes"), 34, y + 46);
-      UiTheme::chevron(491, y + 25);
+      if (title.length() > 35) title = title.substring(0, 32) + "...";
+      UiTheme::value(title, 34, y + 9, false);
+      String detail = e.name == ".." ? "Parent folder" : (e.directory ? "Folder" : String((uint32_t)e.size) + " bytes");
+      if (selected) detail = "SELECTED / " + detail;
+      UiTheme::detail(detail, 34, y + 39);
+      if (!fileSelectionMode_) UiTheme::chevron(491, y + 21);
     }
-
-    UiTheme::detail(String(fileScroll_ + 1) + "-" + String(fileScroll_ + shown) + " / " + String(fileEntries_.size()) +
-                    "  -  swipe", 350, 822);
+    UiTheme::detail(String(fileScroll_ + 1) + "-" + String(fileScroll_ + shown) + " / " + String(fileEntries_.size()) + "  swipe", 344, 720);
   }
+
+  UiTheme::iconButton(18, 744, 116, 76, "SEL", fileSelectionMode_ ? "Cancel" : "Select", fileSelectionMode_);
+  UiTheme::iconButton(144, 744, 116, 76, "CP", "Copy", selectedFilePath_.length());
+  UiTheme::iconButton(270, 744, 116, 76, "CUT", "Cut", selectedFilePath_.length());
+  UiTheme::iconButton(396, 744, 126, 76, "PST", "Paste", fileClipboardPath_.length());
+
+  UiTheme::card(18, 828, 504, 32);
+  String status = fileStatus_;
+  if (!status.length() && fileClipboardPath_.length()) status = String(fileClipboardCut_ ? "Cut: " : "Copied: ") + fileClipboardName_;
+  if (!status.length()) status = "Select a file/folder for Copy or Cut";
+  if (status.length() > 62) status = status.substring(0, 59) + "...";
+  UiTheme::detail(status, 28, 836);
 
   bottomNav(2);
   commitPage();
@@ -2907,18 +2931,89 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Files) {
-      if (e.y >= 150 && e.y < 150 + 8 * 82) {
-        size_t idx = static_cast<size_t>(fileScroll_) + static_cast<size_t>((e.y - 150) / 82);
+      if (e.y >= 137 && e.y < 209) {
+        fileSelectionMode_ = false;
+        selectedFilePath_ = "";
+        fileStatus_ = "";
+        showFiles(e.x < 270 ? "/PaperOS" : "/");
+        return;
+      }
+
+      if (e.y >= 284 && e.y < 284 + 6 * 72) {
+        size_t local = static_cast<size_t>((e.y - 284) / 72);
+        size_t idx = static_cast<size_t>(fileScroll_) + local;
         if (idx < fileEntries_.size()) {
           const FileEntry& entry = fileEntries_[idx];
           if (entry.name == "..") {
-            showFiles(parentPath(currentFilePath_));
+            if (!fileSelectionMode_) showFiles(parentPath(currentFilePath_));
           } else {
             String full = joinPath(currentFilePath_, entry.name);
-            if (entry.directory) showFiles(full);
-            else showFilePreview(full, entry.name, entry.size);
+            if (fileSelectionMode_) {
+              selectedFilePath_ = full;
+              selectedFileName_ = entry.name;
+              selectedFileDirectory_ = entry.directory;
+              fileStatus_ = String("Selected: ") + entry.name;
+              showFiles(currentFilePath_);
+            } else if (entry.directory) {
+              showFiles(full);
+            } else {
+              showFilePreview(full, entry.name, entry.size);
+            }
           }
         }
+        return;
+      }
+
+      if (e.y >= 744 && e.y < 820) {
+        if (e.x < 139) {
+          fileSelectionMode_ = !fileSelectionMode_;
+          if (!fileSelectionMode_) {
+            selectedFilePath_ = "";
+            selectedFileName_ = "";
+          }
+          fileStatus_ = fileSelectionMode_ ? "Tap a file or folder to select it" : "";
+        } else if (e.x < 265) {
+          if (selectedFilePath_.length()) {
+            fileClipboardPath_ = selectedFilePath_;
+            fileClipboardName_ = selectedFileName_;
+            fileClipboardCut_ = false;
+            fileSelectionMode_ = false;
+            selectedFilePath_ = "";
+            fileStatus_ = String("Copied to clipboard: ") + fileClipboardName_;
+          } else fileStatus_ = "Select a file or folder first";
+        } else if (e.x < 391) {
+          if (selectedFilePath_.length()) {
+            fileClipboardPath_ = selectedFilePath_;
+            fileClipboardName_ = selectedFileName_;
+            fileClipboardCut_ = true;
+            fileSelectionMode_ = false;
+            selectedFilePath_ = "";
+            fileStatus_ = String("Cut to clipboard: ") + fileClipboardName_;
+          } else fileStatus_ = "Select a file or folder first";
+        } else {
+          if (!fileClipboardPath_.length()) {
+            fileStatus_ = "Clipboard is empty";
+          } else {
+            String target = storage_.uniqueDestination(currentFilePath_, fileClipboardName_);
+            showAppLoading(fileClipboardCut_ ? "Moving" : "Copying", fileClipboardName_, 55);
+            bool ok = fileClipboardCut_
+              ? storage_.movePath(fileClipboardPath_, target)
+              : storage_.copyPath(fileClipboardPath_, target);
+            if (ok) {
+              fileStatus_ = String(fileClipboardCut_ ? "Moved: " : "Pasted: ") + fileClipboardName_;
+              if (fileClipboardCut_) {
+                fileClipboardPath_ = "";
+                fileClipboardName_ = "";
+                fileClipboardCut_ = false;
+              }
+              fileEntries_.clear();
+            } else {
+              fileStatus_ = "Paste failed";
+            }
+          }
+        }
+        showFiles(currentFilePath_);
+        return;
       }
       return;
     }

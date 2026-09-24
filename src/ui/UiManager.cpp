@@ -371,7 +371,7 @@ void UiManager::showBluetooth() {
   UiTheme::detail("Shows name/address, RSSI, UUID and manufacturer bytes.", 44, 392);
 
   UiTheme::card(18, 792, 504, 58);
-  UiTheme::detail("BLE Inspector is passive: it does not pair or write to devices.", 34, 811);
+  UiTheme::detail("Advertising is passive; GATT Reader connects only when requested.", 34, 811);
 
   bottomNav(4);
   commitPage();
@@ -2121,6 +2121,14 @@ void UiManager::loop() {
       if (e.y >= 306 && e.y < 776) {
         int idx = (e.y - 306) / 88;
         if (idx >= 0 && idx < static_cast<int>(bleScan_.size())) showBleDetail(static_cast<size_t>(idx));
+      }
+      return;
+    }
+
+    if (page_ == Page::BleDetail) {
+      if (e.y >= 574 && e.y < 666) {
+        readBleGatt(selectedBleIndex_);
+        showBleDetail(selectedBleIndex_);
       }
       return;
     }

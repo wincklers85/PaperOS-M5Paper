@@ -85,6 +85,54 @@ void WebServerService::routes() {
   server_.on("/api/notes/item",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;} String id=server_.arg("id");bool ok=notes_.save(id,body());sendJson(ok?200:400,ok?"{\"ok\":true}":"{\"ok\":false}"); });
   server_.on("/api/notes/delete",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;} DynamicJsonDocument d(512);deserializeJson(d,body());bool ok=notes_.remove(d["id"]|"");sendJson(ok?200:400,ok?"{\"ok\":true}":"{\"ok\":false}"); });
 
+  server_.on("/api/phone/status",HTTP_GET,[this](){
+    if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}
+    DynamicJsonDocument d(1024);
+    d["active"]=phoneLink_.active();
+    d["connected"]=phoneLink_.connected();
+    d["status"]=phoneLink_.statusText();
+    d["notifications"]=phoneLink_.notificationCount();
+    d["lastCommand"]=phoneLink_.lastCommand();
+    String o; serializeJson(d,o); sendJson(200,o);
+  });
+
+  server_.on("/api/phone/notifications",HTTP_GET,[this](){
+    if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}
+    DynamicJsonDocument d(6144);
+    JsonArray arr=d.createNestedArray("items");
+    size_t count=phoneLink_.notificationCount();
+    for(size_t i=0;i<count && i<30;++i){
+      const PhoneNotification* n=phoneLink_.notification(i);
+      if(!n) continue;
+      JsonObject o=arr.createNestedObject();
+      o["app"]=n->app;o["title"]=n->title;o["body"]=n->body;o["receivedMs"]=n->receivedMs;
+    }
+    String o;serializeJson(d,o);sendJson(200,o);
+  });
+
+  server_.on("/api/phone/notify",HTTP_POST,[this](){
+    if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}
+    DynamicJsonDocument d(2048);
+    if(deserializeJson(d,body())){sendJson(400,"{\"error\":\"invalid_json\"}");return;}
+    phoneLink_.pushNotification(d["app"]|"Phone",d["title"]|"",d["body"]|"");
+    sendJson(200,"{\"ok\":true}");
+  });
+
+  server_.on("/api/phone/command",HTTP_POST,[this](){
+    if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}
+    DynamicJsonDocument d(1536);
+    if(deserializeJson(d,body())){sendJson(400,"{\"error\":\"invalid_json\"}");return;}
+    String cmd=d["command"]|"";
+    bool ok=phoneLink_.sendCommand(cmd);
+    sendJson(ok?200:409,ok?"{\"ok\":true}":"{\"ok\":false,\"error\":\"bridge_inactive\"}");
+  });
+
+  server_.on("/api/phone/start",HTTP_POST,[this](){
+    if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}
+    bool ok=phoneLink_.begin();
+    sendJson(ok?200:500,ok?"{\"ok\":true}":"{\"ok\":false}");
+  });
+
   server_.on("/api/settings",HTTP_GET,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;} DynamicJsonDocument d(1536);d["deviceName"]=config_.get().deviceName;d["language"]=config_.get().language;d["timezone"]=config_.get().timezone;d["sleepMinutes"]=config_.get().sleepMinutes;d["touchWakeEnabled"]=config_.get().touchWakeEnabled;d["scheduledWakeMinutes"]=config_.get().scheduledWakeMinutes; String o;serializeJson(d,o);sendJson(200,o); });
   server_.on("/api/settings",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;} DynamicJsonDocument d(2048);if(deserializeJson(d,body())){sendJson(400,"{\"error\":\"invalid_json\"}");return;} if(d.containsKey("deviceName"))config_.edit().deviceName=String((const char*)d["deviceName"]);if(d.containsKey("language"))config_.edit().language=String((const char*)d["language"]);if(d.containsKey("timezone"))config_.edit().timezone=String((const char*)d["timezone"]);if(d.containsKey("sleepMinutes"))config_.edit().sleepMinutes=d["sleepMinutes"].as<uint32_t>();if(d.containsKey("touchWakeEnabled"))config_.edit().touchWakeEnabled=d["touchWakeEnabled"].as<bool>();if(d.containsKey("scheduledWakeMinutes"))config_.edit().scheduledWakeMinutes=d["scheduledWakeMinutes"].as<uint32_t>();bool ok=config_.save();sendJson(ok?200:500,ok?"{\"ok\":true}":"{\"ok\":false}"); });
 

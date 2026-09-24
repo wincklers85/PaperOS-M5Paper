@@ -125,6 +125,7 @@ class UiManager {
   bool keyboardShowSecret_ = false;
   int settingsScroll_ = 0;
   int wifiScroll_ = 0;
+  bool wifiScanRunning_ = false;
   int bleScroll_ = 0;
   int fileScroll_ = 0;
   int textScroll_ = 0;

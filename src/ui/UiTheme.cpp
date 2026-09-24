@@ -129,24 +129,89 @@ void UiTheme::navItem(int index, const String& labelText, bool active) {
 void UiTheme::appTile(int x, int y, int w, int h, const String& glyph, const String& labelText, bool comingSoon) {
   card(x, y, w, h, false);
 
-  const int iconX = x + 14;
-  const int iconY = y + 13;
-  const uint32_t iconBg = comingSoon ? TFT_WHITE : TFT_BLACK;
-  const uint32_t iconFg = comingSoon ? TFT_BLACK : TFT_WHITE;
+  const int ix = x + 14;
+  const int iy = y + 13;
+  const int cx = ix + 23;
+  const int cy = iy + 23;
+  const uint32_t bg = comingSoon ? TFT_WHITE : TFT_BLACK;
+  const uint32_t fg = comingSoon ? TFT_BLACK : TFT_WHITE;
+  const int radius = style_ == 2 ? 7 : 15;
 
-  M5.Display.fillRoundRect(iconX, iconY, 46, 46, 9, iconBg);
-  M5.Display.drawRoundRect(iconX, iconY, 46, 46, 9, TFT_BLACK);
-  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.setTextColor(iconFg, iconBg);
-  M5.Display.drawString(glyph, iconX + 23, iconY + 23);
+  M5.Display.fillRoundRect(ix, iy, 46, 46, radius, bg);
+  M5.Display.drawRoundRect(ix, iy, 46, 46, radius, TFT_BLACK);
+
+  if (glyph == "NT") {
+    M5.Display.drawRoundRect(cx-11,cy-13,22,26,3,fg);
+    M5.Display.drawFastHLine(cx-6,cy-6,12,fg);
+    M5.Display.drawFastHLine(cx-6,cy,12,fg);
+    M5.Display.drawFastHLine(cx-6,cy+6,9,fg);
+  } else if (glyph == "FL") {
+    M5.Display.drawRoundRect(cx-14,cy-7,28,19,3,fg);
+    M5.Display.drawRect(cx-12,cy-12,12,6,fg);
+  } else if (glyph == "CAL") {
+    M5.Display.drawRoundRect(cx-13,cy-13,26,26,4,fg);
+    M5.Display.drawFastHLine(cx-8,cy-5,16,fg);
+    M5.Display.drawFastVLine(cx-4,cy-1,11,fg);
+    M5.Display.drawFastVLine(cx+4,cy-1,11,fg);
+  } else if (glyph == "WF") {
+    M5.Display.fillCircle(cx,cy+9,2,fg);
+    M5.Display.drawLine(cx-6,cy+3,cx,cy,fg); M5.Display.drawLine(cx,cy,cx+6,cy+3,fg);
+    M5.Display.drawLine(cx-12,cy-4,cx,cy-9,fg); M5.Display.drawLine(cx,cy-9,cx+12,cy-4,fg);
+  } else if (glyph == "BT") {
+    M5.Display.drawLine(cx,cy-14,cx,cy+14,fg);
+    M5.Display.drawLine(cx,cy-14,cx+9,cy-6,fg); M5.Display.drawLine(cx+9,cy-6,cx-8,cy+7,fg);
+    M5.Display.drawLine(cx-8,cy-7,cx+9,cy+6,fg); M5.Display.drawLine(cx+9,cy+6,cx,cy+14,fg);
+  } else if (glyph == "WEB") {
+    M5.Display.drawCircle(cx,cy,13,fg);
+    M5.Display.drawFastHLine(cx-12,cy,24,fg);
+    M5.Display.drawFastVLine(cx,cy-12,24,fg);
+    M5.Display.drawRoundRect(cx-6,cy-12,12,24,6,fg);
+  } else if (glyph == "BAT") {
+    M5.Display.drawRoundRect(cx-14,cy-8,25,16,4,fg);
+    M5.Display.fillRect(cx+11,cy-4,4,8,fg);
+    M5.Display.fillRoundRect(cx-10,cy-4,14,8,2,fg);
+  } else if (glyph == "CK" || glyph == "25") {
+    M5.Display.drawCircle(cx,cy,13,fg);
+    M5.Display.drawLine(cx,cy,cx,cy-8,fg);
+    M5.Display.drawLine(cx,cy,cx+7,cy+5,fg);
+  } else if (glyph == "OTP") {
+    M5.Display.drawRoundRect(cx-14,cy-10,28,20,5,fg);
+    for (int k=-7;k<=7;k+=7) M5.Display.fillCircle(cx+k,cy,2,fg);
+  } else if (glyph == "NET") {
+    M5.Display.fillCircle(cx,cy-9,3,fg);
+    M5.Display.fillCircle(cx-11,cy+8,3,fg);
+    M5.Display.fillCircle(cx+11,cy+8,3,fg);
+    M5.Display.drawLine(cx,cy-6,cx-9,cy+6,fg);
+    M5.Display.drawLine(cx,cy-6,cx+9,cy+6,fg);
+    M5.Display.drawFastHLine(cx-8,cy+8,16,fg);
+  } else if (glyph == "ST") {
+    M5.Display.drawCircle(cx,cy,11,fg);
+    M5.Display.drawCircle(cx,cy,4,fg);
+    M5.Display.drawFastHLine(cx-15,cy,30,fg);
+    M5.Display.drawFastVLine(cx,cy-15,30,fg);
+  } else if (glyph == "SYS") {
+    M5.Display.drawRect(cx-14,cy-11,28,20,fg);
+    M5.Display.drawLine(cx-8,cy+14,cx+8,cy+14,fg);
+    M5.Display.drawFastVLine(cx,cy+9,5,fg);
+  } else if (glyph == "LAB") {
+    M5.Display.drawLine(cx-5,cy-14,cx-5,cy-4,fg); M5.Display.drawLine(cx+5,cy-14,cx+5,cy-4,fg);
+    M5.Display.drawLine(cx-5,cy-4,cx-12,cy+12,fg); M5.Display.drawLine(cx+5,cy-4,cx+12,cy+12,fg);
+    M5.Display.drawFastHLine(cx-12,cy+12,24,fg); M5.Display.drawFastHLine(cx-7,cy+5,14,fg);
+  } else if (glyph == "PH") {
+    M5.Display.drawRoundRect(cx-9,cy-14,18,28,5,fg);
+    M5.Display.drawFastHLine(cx-4,cy+9,8,fg);
+  } else {
+    M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.setTextColor(fg,bg);
+    M5.Display.drawString(glyph,cx,cy);
+  }
   resetFont();
 
   M5.Display.setFont(&fonts::FreeSansBold9pt7b);
   M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
   M5.Display.drawString(labelText, x + 14, y + 66);
   resetFont();
-
   detail(comingSoon ? "SOON" : "READY", x + 14, y + 91);
 }
 

@@ -280,6 +280,7 @@ void UiManager::handleQuickPanelTap(int x, int y) {
     } else {
       if (bluetoothActive_) {
         phoneLink_.stop();
+        hidInput_.stop();
         BLEDevice::deinit(true);
         bluetoothActive_ = false;
         bleScan_.clear();

@@ -1583,18 +1583,18 @@ void UiManager::showTools() {
   UiTheme::title("Tools", 18, 78);
   UiTheme::detail("Useful native utilities", 20, 119);
 
-  settingRow(150, "Wi-Fi Analyzer", "Networks / RSSI / channel / connect");
-  settingRow(242, "BLE Inspector", "Nearby devices / UUID / manufacturer data");
-  settingRow(334, "Web Reader", "HTTP / HTTPS reader mode");
-  settingRow(426, "OTP Authenticator", "RFC6238 TOTP / 6 digits / 30 sec");
-  settingRow(518, "Clean Display", "Quality white anti-ghost wipe");
+  settingRow(150, "Network Toolkit", "Ping / DNS / LAN / API / MQTT / Wake-on-LAN");
+  settingRow(242, "Wi-Fi Analyzer", "Networks / RSSI / channel / connect");
+  settingRow(334, "BLE Inspector", "Beacon scan / UUID / manufacturer / GATT");
+  settingRow(426, "Web Reader", "HTTP / HTTPS reader mode");
+  settingRow(518, "OTP Authenticator", "RFC6238 TOTP / 6 digits / 30 sec");
   settingRow(610, "System Monitor", "Memory / battery / network");
 
   UiTheme::card(18, 714, 504, 128);
   UiTheme::label("PAGE TRANSITIONS", 34, 730);
-  UiTheme::detail("Every full page change now performs a clean white refresh.", 34, 765);
-  UiTheme::detail("The complete next page is then committed in one buffered pass.", 34, 798);
-  UiTheme::detail("Dynamic widgets still use fast regional updates.", 34, 828);
+  UiTheme::detail("Every full page change performs a clean white refresh.", 34, 765);
+  UiTheme::detail("The next page is then committed as one buffered frame.", 34, 798);
+  UiTheme::detail("Live widgets continue to use fast regional updates.", 34, 828);
 
   bottomNav(3);
   commitPage();

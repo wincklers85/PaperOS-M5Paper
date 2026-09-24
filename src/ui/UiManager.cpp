@@ -286,6 +286,7 @@ void UiManager::handleQuickPanelTap(int x, int y) {
       showQuickPanel();
     } else {
       if (bluetoothActive_) {
+        phoneLink_.stop();
         BLEDevice::deinit(true);
         bluetoothActive_ = false;
         bleScan_.clear();
@@ -341,6 +342,10 @@ void UiManager::handleScrollGesture(TouchGesture gesture) {
   } else if (page_ == Page::FileView) {
     textScroll_ = max(0, textScroll_ + delta * 900);
     showFilePreview(currentPreviewPath_, currentPreviewName_, currentPreviewSize_);
+  } else if (page_ == Page::PhoneLink) {
+    int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - 3);
+    phoneScroll_ = constrain(phoneScroll_ + delta * 3, 0, maxOffset);
+    showPhoneLink();
   }
 }
 
@@ -399,14 +404,14 @@ void UiManager::showApps() {
     "Wi-Fi", "Bluetooth", "Browser",
     "Battery", "Clock", "Focus",
     "OTP", "Network", "Settings",
-    "System", "Labs", "Fun"
+    "System", "Labs", "Phone Link"
   };
   const char* glyphs[15] = {
     "NT", "FL", "CAL",
     "WF", "BT", "WEB",
     "BAT", "CK", "25",
     "OTP", "NET", "ST",
-    "SYS", "LAB", "FUN"
+    "SYS", "LAB", "PH"
   };
 
   const int tileW = 160;
@@ -2365,7 +2370,7 @@ void UiManager::openAppIndex(int index) {
   else if (index == 11) showSettings();
   else if (index == 12) showSystem();
   else if (index == 13) showLabs();
-  else if (index == 14) showFun();
+  else if (index == 14) showPhoneLink();
 }
 
 void UiManager::loop() {
@@ -2788,6 +2793,52 @@ void UiManager::loop() {
       return;
     }
 
+    if (page_ == Page::PhoneLink) {
+      if (e.y >= 145 && e.y < 257) {
+        if (phoneLink_.active()) {
+          phoneLink_.stop();
+          phoneLinkStatus_ = "Bridge stopped";
+        } else {
+          bool ok = phoneLink_.begin();
+          bluetoothActive_ = bluetoothActive_ || ok;
+          phoneLinkStatus_ = ok ? "Bridge advertising" : "Bridge start failed";
+        }
+        showPhoneLink();
+      } else if (e.y >= 570 && e.y < 674) {
+        if (e.x < 178) {
+          phoneLinkStatus_ = phoneLink_.sendCommand("camera:shutter") ? "Camera shutter command sent" : "Start bridge first";
+          showPhoneLink();
+        } else if (e.x < 350) {
+          phoneLinkStatus_ = phoneLink_.sendCommand("media:playpause") ? "Media command sent" : "Start bridge first";
+          showPhoneLink();
+        } else {
+          showKeyboard(InputTarget::PhoneCommand, "Companion command", phoneCommandDraft_, false);
+        }
+      }
+      return;
+    }
+
+    if (page_ == Page::GpioLab) {
+      if (e.y >= 145 && e.y < 145 + 6 * 94) {
+        static const int pins[6] = {25, 32, 26, 33, 18, 19};
+        int idx = (e.y - 145) / 94;
+        if (idx >= 0 && idx < 6) {
+          gpioModeState_[idx] = (gpioModeState_[idx] + 1) % 3;
+          if (gpioModeState_[idx] == 0) {
+            pinMode(pins[idx], INPUT);
+            gpioOutputLevel_[idx] = false;
+          } else {
+            pinMode(pins[idx], OUTPUT);
+            gpioOutputLevel_[idx] = gpioModeState_[idx] == 2;
+            digitalWrite(pins[idx], gpioOutputLevel_[idx] ? HIGH : LOW);
+          }
+          gpioStatus_ = String("GPIO") + pins[idx] + " updated";
+          showGpioLab();
+        }
+      }
+      return;
+    }
+
     if (page_ == Page::Browser) {
       if (e.y >= 145 && e.y < 253) {
         showKeyboard(InputTarget::BrowserUrl, "Web address", browserUrl_.length() ? browserUrl_ : String("https://"), false);
@@ -2862,7 +2913,7 @@ void UiManager::loop() {
     if (page_ == Page::Labs) {
       if (e.y >= 252 && e.y < 330) showHidLab();
       else if (e.y >= 342 && e.y < 420) showBluetooth();
-      else if (e.y >= 432 && e.y < 510) showComingSoon("GPIO Lab", 4);
+      else if (e.y >= 432 && e.y < 510) showGpioLab();
       else if (e.y >= 522 && e.y < 600) showComingSoon("Serial Lab", 4);
       else if (e.y >= 612 && e.y < 690) showLabs();
       else if (e.y >= 702 && e.y < 780) showSystem();

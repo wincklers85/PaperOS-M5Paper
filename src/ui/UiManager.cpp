@@ -434,10 +434,9 @@ void UiManager::readBleGatt(size_t index) {
         if (!ch || !ch->canRead()) continue;
 
         std::string raw = ch->readValue();
-        String value;
-        value.reserve(raw.length());
-        for (size_t i = 0; i < raw.length() && i < 24; ++i) value += static_cast<char>(raw[i]);
-        String rawArduino(raw.c_str(), raw.length());
+        String rawArduino;
+        rawArduino.reserve(raw.length());
+        for (size_t i = 0; i < raw.length(); ++i) rawArduino += static_cast<char>(raw[i]);
         String row = String(ch->getUUID().toString().c_str()) + " = " + bytesHex(rawArduino, 12);
         gattRows_.push_back(row);
         if (gattRows_.size() >= 6) break;

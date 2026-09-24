@@ -2259,7 +2259,8 @@ void UiManager::classicTerminalExecute(const String& commandRaw) {
   if (cmd == "help" || cmd == "?") {
     classicTerminalPrint("PaperOS ROOT Terminal commands:");
     classicTerminalPrint("ver sysinfo heap battery time sd cls pwd cd dir ls type cat");
-    classicTerminalPrint("mkdir md del rm copy move gpio wifi hid bt nfc reboot sleep");
+    classicTerminalPrint("mkdir md del rm copy cp move touch write append gpio wifi hid bt nfc");
+    classicTerminalPrint("reboot sleep");
     classicTerminalPrint("unsafe on|off  - unlock internal GPIO 0..39");
     return;
   }
@@ -2377,10 +2378,35 @@ void UiManager::classicTerminalExecute(const String& commandRaw) {
     return;
   }
 
-  if (cmd == "copy") {
+  if (cmd == "copy" || cmd == "cp") {
     if (a.size() < 3) { classicTerminalPrint("Usage: copy <source> <destination>"); return; }
     String from = resolve(a[1]), to = resolve(a[2]);
     classicTerminalPrint(storage_.copyPath(from, to) ? "Copied" : "copy failed");
+    return;
+  }
+
+  if (cmd == "touch") {
+    if (a.size() < 2) { classicTerminalPrint("Usage: touch <file>"); return; }
+    String p=resolve(a[1]);
+    File f=SD.open(p, FILE_APPEND);
+    bool ok=(bool)f;
+    if(f) f.close();
+    classicTerminalPrint(ok ? "File ready" : "touch failed");
+    return;
+  }
+
+  if (cmd == "write" || cmd == "append") {
+    if (a.size() < 3) { classicTerminalPrint(String("Usage: ")+cmd+" <file> <text>"); return; }
+    String p=resolve(a[1]);
+    String textValue;
+    for(size_t i=2;i<a.size();++i){ if(i>2) textValue+=" "; textValue+=a[i]; }
+    if (cmd == "write" && SD.exists(p)) SD.remove(p);
+    File f=SD.open(p, cmd=="append" ? FILE_APPEND : FILE_WRITE);
+    if(!f){ classicTerminalPrint("open failed"); return; }
+    size_t n=f.print(textValue);
+    if(cmd=="append") f.print("\n");
+    f.flush(); f.close();
+    classicTerminalPrint(n ? "Written" : "write failed");
     return;
   }
 

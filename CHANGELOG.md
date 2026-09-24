@@ -2,6 +2,34 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.2.0-alpha] - 2026-09-24
+
+### iPhone Link / Apple ANCS
+- Added native Apple Notification Center Service (ANCS) accessory mode on the original ESP32 M5Paper.
+- PaperOS advertises ANCS service solicitation, requests secure BLE bonding and connects back to the paired iPhone ANCS service.
+- Added Notification Source / Data Source subscriptions and Control Point attribute requests for app identifier, title, message and action labels.
+- iOS notification categories such as incoming call, missed call, social, email and calendar are shown natively on PaperOS.
+- Added ANCS positive/negative notification actions when iOS advertises those actions.
+- The existing custom BLE/REST companion bridge remains available for extra phone-controlled actions such as camera shutter, media controls and app-specific call/message workflows.
+- Full Contacts, SMS history and call-history databases are not exposed by ANCS and are not falsely presented as native data sources.
+- Added first-pair instructions using nRF Connect as a reliable BLE discovery/pairing fallback for DIY accessories.
+
+### Professional UI redesign
+- Added persistent UI themes: Soft, Classic, Technical and Minimal.
+- Soft is the new default with larger rounded corners and a cleaner mobile-style layout.
+- Redesigned Settings icons as drawn e-paper symbols instead of plain abbreviation blocks.
+- Redesigned Wi-Fi, Bluetooth, microSD and battery status icons.
+- Quick Settings now behaves as a floating pull-down sheet above the existing framebuffer.
+- Added a dithered/frosted background layer and panel shadow to simulate blur and 3D depth on the monochrome e-paper display.
+- Rounded icon buttons are used for Quick Settings and iPhone Link controls.
+
+### NFC Lab
+- Added optional PN532 support through the Seeed PN532 library.
+- NFC Lab uses HSU/UART on original M5Paper Port C: G18 RX and G19 TX.
+- Added PN532 firmware/module test and ISO14443A passive tag scanning with UID display.
+- NFC Lab is read-only in this release: no tag writes or card emulation.
+- UI documents that Port C red supply is 5 V and module power must match the specific PN532 board rating.
+
 ## [0.1.9-alpha] - 2026-09-24
 
 ### Navigation / gestures

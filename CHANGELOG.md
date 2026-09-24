@@ -2,6 +2,46 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.3.0-alpha] - 2026-09-24
+
+### Classic Desktop / Windows 3.11 mode
+- Added a full-screen Classic Desktop app launched from the Apps page.
+- Added a vector-rendered Windows 3.11-style startup splash followed by Program Manager.
+- Program Manager launches ROOT Terminal, File Manager, Control Panel, Bluetooth Input, Ski, Solitaire, Network and I/O tools.
+- Touchscreen and BLE mouse share the same pointer/click path.
+- BLE keyboard input is routed directly into Classic Desktop apps.
+- Esc and Alt+F4 return from Classic windows.
+
+### Bluetooth mouse / keyboard
+- Added BLE HID Host support for devices advertising standard HID service UUID 0x1812.
+- Scans and identifies likely keyboards/mice, connects and subscribes to Boot Keyboard, Boot Mouse and input Report characteristics.
+- Supports pointer movement, primary click, keyboard characters, arrows and common control keys.
+- Multiple BLE HID clients can remain connected simultaneously when memory/radio conditions allow.
+- This release targets BLE HID; Bluetooth Classic HID is not enabled yet.
+
+### ROOT Terminal
+- Added a real PaperOS command console instead of a simulated DOS prompt.
+- Filesystem: pwd, cd, dir/ls, type/cat, mkdir/md, del/rm, copy and move.
+- Hardware/system: sysinfo, heap, battery, time, sd, reboot and sleep.
+- GPIO: list, read, mode, write and ADC commands.
+- Port A/B/C GPIO work without unlocking. `unsafe on` permits raw access to GPIO 0..39 and warns that internal display/SD pins can be disrupted.
+- Network/radio: Wi-Fi status/on/off/scan and BLE HID status/scan/connect.
+- NFC tag scan is available directly from the terminal.
+- Classic drive aliases: `C:` maps to `/PaperOS`; `D:` maps to microSD root `/`.
+
+### Games
+- Added Ski with keyboard arrows/A-D, touch/mouse steering, obstacles, score and timed movement.
+- Added Klondike Solitaire with 52-card shuffle, stock, waste, seven tableau piles and four suit foundations.
+- Solitaire currently moves one exposed card at a time, with alternating-color tableau and ascending-suit foundation rules.
+
+### File Manager
+- Fixed SD visibility: the native File Manager can now switch directly between `/PaperOS` and the complete microSD root `/`.
+- Added selection mode and real Cut / Copy / Paste controls.
+- Copy works recursively for folders.
+- Cut uses move/rename when possible and falls back to copy/remove.
+- Paste creates a duplicate-safe destination name instead of silently overwriting an existing item.
+- Folder deletion is recursive while `/` and `/PaperOS` roots remain protected.
+
 ## [0.2.0-alpha] - 2026-09-24
 
 ### iPhone Link / Apple ANCS

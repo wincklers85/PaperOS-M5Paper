@@ -916,13 +916,13 @@ void UiManager::showBleDetail(size_t index) {
   settingRow(478, "Manufacturer", d.manufacturerHex.length() ? d.manufacturerHex : String("No manufacturer data"));
 
   UiTheme::card(18, 574, 504, 92, true);
-  UiTheme::value("READ GATT", 194, 606, false);
-  UiTheme::detail("Connect and read characteristics marked readable", 96, 642);
+  UiTheme::value("TEST + READ GATT", 145, 606, false);
+  UiTheme::detail("Connection test + services + readable characteristics", 76, 642);
 
   UiTheme::card(18, 684, 504, 158);
   UiTheme::label("GATT RESULT", 34, 702);
   if (gattRows_.empty()) {
-    UiTheme::detail("Tap READ GATT for connectable BLE sensors/devices.", 34, 742);
+    UiTheme::detail("Tap TEST + READ GATT for connectable BLE sensors/devices.", 34, 742);
     UiTheme::detail("Beacon-only devices may reject connections.", 34, 776);
   } else {
     size_t shown = gattRows_.size() > 3 ? 3 : gattRows_.size();

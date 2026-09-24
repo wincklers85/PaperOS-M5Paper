@@ -273,7 +273,7 @@ void UiManager::showSettings() {
 
   UiTheme::card(18, 522, 504, 250);
   settingsRow(525, "PW", "Batteria e Sleep", String(power_.batteryPercent()) + "%  /  " + String(power_.batteryMillivolts()) + " mV");
-  settingsRow(607, "DS", "Display", "540x960 / fastest UI / anti-ghost");
+  settingsRow(607, "DS", "Display", "540x960 / clean transitions / buffered UI");
   settingsRow(689, "LB", "Labs", "Funzioni beta WinLabs");
 
   bottomNav(4);
@@ -1567,10 +1567,8 @@ void UiManager::loop() {
       else if (e.y >= 242 && e.y < 330) showBluetooth();
       else if (e.y >= 334 && e.y < 422) showBrowser();
       else if (e.y >= 426 && e.y < 514) showOtp();
-      else if (e.y >= 518 && e.y < 606) {
-        display_.cleanRefresh();
-        showTools();
-      } else if (e.y >= 610 && e.y < 698) showSystem();
+      else if (e.y >= 518 && e.y < 606) showTools();
+      else if (e.y >= 610 && e.y < 698) showSystem();
       return;
     }
 
@@ -1741,10 +1739,8 @@ void UiManager::loop() {
       else if (e.y >= 342 && e.y < 420) showBluetooth();
       else if (e.y >= 432 && e.y < 510) showComingSoon("GPIO Lab", 4);
       else if (e.y >= 522 && e.y < 600) showComingSoon("Serial Lab", 4);
-      else if (e.y >= 612 && e.y < 690) {
-        display_.cleanRefresh();
-        showLabs();
-      } else if (e.y >= 702 && e.y < 780) showSystem();
+      else if (e.y >= 612 && e.y < 690) showLabs();
+      else if (e.y >= 702 && e.y < 780) showSystem();
       return;
     }
 

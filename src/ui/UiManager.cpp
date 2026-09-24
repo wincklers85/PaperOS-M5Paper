@@ -10,7 +10,7 @@ namespace paperos {
 void UiManager::preparePage(bool forceClean) {
   // Full quality wipes are intentionally rare. Normal navigation uses the
   // fast waveform and regional updates are used for dynamic UI.
-  if (forceClean || display_.pageChangesSinceClean() >= 12) {
+  if (forceClean || display_.pageChangesSinceClean() >= 20) {
     display_.cleanRefresh();
     lastDeepClean_ = millis();
   }

@@ -30,6 +30,8 @@ class PowerManager {
   bool chargingLikely() const;
   int batteryTrendDeltaMv() const { return trendDeltaMv_; }
   String wakeReason() const;
+  uint8_t voltageHistoryCount() const { return voltageHistoryCount_; }
+  int voltageHistoryMv(uint8_t chronologicalIndex) const;
 
   void markActivity();
   void loop();
@@ -53,6 +55,11 @@ class PowerManager {
   uint8_t batterySampleIndex_ = 0;
   uint32_t lastBatterySampleMs_ = 0;
   int trendDeltaMv_ = 0;
+
+  static constexpr uint8_t kVoltageHistorySamples = 32;
+  int voltageHistory_[kVoltageHistorySamples] = {0};
+  uint8_t voltageHistoryCount_ = 0;
+  uint8_t voltageHistoryIndex_ = 0;
 
   void sampleBattery();
   void drawSleepScreen(uint32_t wakeSeconds);

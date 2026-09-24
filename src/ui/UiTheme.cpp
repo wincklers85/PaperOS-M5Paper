@@ -2,6 +2,15 @@
 
 namespace paperos {
 
+uint8_t UiTheme::style_ = 1;
+
+String UiTheme::styleName() {
+  if (style_ == 0) return "CLASSIC";
+  if (style_ == 2) return "TECH";
+  if (style_ == 3) return "MINIMAL";
+  return "SOFT";
+}
+
 void UiTheme::resetFont() {
   M5.Display.setFont(&fonts::Font2);
   M5.Display.setTextSize(1);
@@ -16,7 +25,7 @@ void UiTheme::beginFrame() {
 }
 
 void UiTheme::card(int x, int y, int w, int h, bool heavy) {
-  const int radius = 10;
+  const int radius = style_ == 0 ? 8 : (style_ == 2 ? 4 : (style_ == 3 ? 14 : 18));
   M5.Display.fillRoundRect(x, y, w, h, radius, TFT_WHITE);
   M5.Display.drawRoundRect(x, y, w, h, radius, TFT_BLACK);
   if (heavy) {
@@ -175,4 +184,33 @@ void UiTheme::sdIcon(int x, int y, bool mounted) {
   if (!mounted) M5.Display.drawLine(x - 2, y, x + 18, y + 22, TFT_BLACK);
 }
 
+}
+
+void UiTheme::shadowCard(int x,int y,int w,int h,int depth) {
+  const int radius = style_ == 2 ? 5 : 18;
+  M5.Display.fillRoundRect(x+depth,y+depth,w,h,radius,TFT_BLACK);
+  M5.Display.fillRoundRect(x,y,w,h,radius,TFT_WHITE);
+  M5.Display.drawRoundRect(x,y,w,h,radius,TFT_BLACK);
+}
+
+void UiTheme::ditherOverlay(int x,int y,int w,int h) {
+  for (int yy=y; yy<y+h; yy+=4) {
+    int offset=((yy/4)&1)?2:0;
+    for (int xx=x+offset; xx<x+w; xx+=4) M5.Display.drawPixel(xx,yy,TFT_BLACK);
+  }
+}
+
+void UiTheme::iconButton(int x,int y,int w,int h,const String& glyph,const String& labelText,bool filled) {
+  uint32_t bg=filled?TFT_BLACK:TFT_WHITE;
+  uint32_t fg=filled?TFT_WHITE:TFT_BLACK;
+  int radius = style_ == 2 ? 6 : 18;
+  M5.Display.fillRoundRect(x,y,w,h,radius,bg);
+  M5.Display.drawRoundRect(x,y,w,h,radius,TFT_BLACK);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+  M5.Display.setTextColor(fg,bg);
+  M5.Display.drawString(glyph,x+w/2,y+h/2-10);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString(labelText,x+w/2,y+h-20);
+  resetFont();
 }

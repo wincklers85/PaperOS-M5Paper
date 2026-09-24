@@ -4,6 +4,8 @@
 #include <SD.h>
 #include <ArduinoJson.h>
 #include <BLEDevice.h>
+#include <BLEClient.h>
+#include <BLEUtils.h>
 #include <esp_system.h>
 #include <time.h>
 

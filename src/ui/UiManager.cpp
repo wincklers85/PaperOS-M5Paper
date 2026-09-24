@@ -482,6 +482,223 @@ void UiManager::handleNotificationPanelTap(int x, int y) {
   }
 }
 
+
+bool UiManager::isClassicPage() const {
+  return page_ == Page::ClassicDesktop || page_ == Page::ClassicTerminal ||
+         page_ == Page::ClassicHid || page_ == Page::ClassicSki ||
+         page_ == Page::ClassicSolitaire || page_ == Page::ClassicSplash;
+}
+
+int UiManager::wheelItemCount() const {
+  switch (page_) {
+    case Page::Home: return 8;
+    case Page::Apps: return 16;
+    case Page::Settings: return 10;
+    case Page::Files: return static_cast<int>(fileEntries_.size());
+    case Page::Tools: return 6;
+    case Page::NetworkTools: return 6;
+    case Page::Labs: return 6;
+    case Page::WiFi: return 1 + static_cast<int>(wifiScan_.size());
+    case Page::ClassicDesktop: return 9;
+    default: return 0;
+  }
+}
+
+void UiManager::drawWheelFocus() {
+  if (!wheelFocusVisible_) return;
+  int x=0,y=0,w=0,h=0;
+  const int idx=wheelFocusIndex_;
+
+  if (page_ == Page::Home) {
+    const int rects[8][4] = {
+      {16,143,352,132},{364,143,160,132},
+      {16,320,250,112},{274,320,250,112},
+      {16,440,250,112},{274,440,250,112},
+      {16,602,250,106},{274,602,250,106}
+    };
+    x=rects[idx][0];y=rects[idx][1];w=rects[idx][2];h=rects[idx][3];
+  } else if (page_ == Page::Apps) {
+    if (idx < 15) {
+      int col=idx%3,row=idx/3;
+      x=16+col*172; y=152+row*116; w=164; h=112;
+    } else { x=16;y=744;w=508;h=108; }
+  } else if (page_ == Page::Settings) {
+    if (idx < settingsScroll_ || idx >= settingsScroll_+6) return;
+    x=20;y=258+(idx-settingsScroll_)*82;w=500;h=82;
+  } else if (page_ == Page::Files) {
+    if (idx < fileScroll_ || idx >= fileScroll_+6) return;
+    x=16;y=282+(idx-fileScroll_)*72;w=508;h=68;
+  } else if (page_ == Page::Tools) {
+    x=16;y=148+idx*92;w=508;h=92;
+  } else if (page_ == Page::NetworkTools) {
+    x=16;y=148+idx*90;w=508;h=82;
+  } else if (page_ == Page::Labs) {
+    x=16;y=250+idx*90;w=508;h=82;
+  } else if (page_ == Page::WiFi) {
+    if (idx == 0) { x=16;y=143;w=508;h=122; }
+    else {
+      int item=idx-1;
+      if (item < wifiScroll_ || item >= wifiScroll_+5) return;
+      x=20;y=309+(item-wifiScroll_)*88;w=500;h=82;
+    }
+  } else if (page_ == Page::ClassicDesktop) {
+    int col=idx%3,row=idx/3;
+    x=50+col*154;y=174+row*152;w=108;h=98;
+  } else return;
+
+  M5.Display.drawRoundRect(x,y,w,h,8,TFT_BLACK);
+  M5.Display.drawRoundRect(x+2,y+2,w-4,h-4,7,TFT_BLACK);
+}
+
+void UiManager::handleWheelNavigate(int direction) {
+  if (!direction) return;
+  power_.markActivity();
+
+  if (locked_) return;
+
+  if (notificationPanelOpen_) {
+    int total=static_cast<int>(phoneLink_.notificationCount());
+    notificationScroll_=constrain(notificationScroll_+direction,0,max(0,total-5));
+    showNotificationCenter();
+    return;
+  }
+
+  int count=wheelItemCount();
+  if (count <= 0) {
+    wheelFocusVisible_=false;
+    handleScrollGesture(direction > 0 ? TouchGesture::SwipeUp : TouchGesture::SwipeDown);
+    return;
+  }
+
+  wheelFocusVisible_=true;
+  wheelFocusIndex_=constrain(wheelFocusIndex_+direction,0,count-1);
+
+  if (page_ == Page::Settings) {
+    if (wheelFocusIndex_ < settingsScroll_) settingsScroll_=wheelFocusIndex_;
+    if (wheelFocusIndex_ >= settingsScroll_+6) settingsScroll_=wheelFocusIndex_-5;
+  } else if (page_ == Page::Files) {
+    if (wheelFocusIndex_ < fileScroll_) fileScroll_=wheelFocusIndex_;
+    if (wheelFocusIndex_ >= fileScroll_+6) fileScroll_=wheelFocusIndex_-5;
+  } else if (page_ == Page::WiFi && wheelFocusIndex_ > 0) {
+    int item=wheelFocusIndex_-1;
+    if (item < wifiScroll_) wifiScroll_=item;
+    if (item >= wifiScroll_+5) wifiScroll_=item-4;
+  }
+
+  renderPage(page_);
+}
+
+void UiManager::activateWheelFocus() {
+  power_.markActivity();
+  if (locked_) {
+    armUnlock();
+    return;
+  }
+  if (notificationPanelOpen_) {
+    notificationPanelOpen_=false;
+    showPhoneLink();
+    return;
+  }
+
+  int count=wheelItemCount();
+  if (count <= 0) return;
+  if (!wheelFocusVisible_) {
+    wheelFocusVisible_=true;
+    wheelFocusIndex_=0;
+    renderPage(page_);
+    return;
+  }
+
+  const int idx=constrain(wheelFocusIndex_,0,count-1);
+
+  if (page_ == Page::Home) {
+    if(idx==0) showWiFi(); else if(idx==1) showBattery();
+    else if(idx==2) showNotes(); else if(idx==3) showFiles();
+    else if(idx==4) showSettings(); else if(idx==5) showSystem();
+    else if(idx==6) showThermo(); else showSolar();
+    return;
+  }
+
+  if (page_ == Page::Apps) {
+    if(idx<15) openAppIndex(idx); else showClassicSplash();
+    return;
+  }
+
+  if (page_ == Page::Settings) {
+    if (idx==0) showGeneral();
+    else if (idx==1) {
+      uint8_t next=(static_cast<uint8_t>(config_.get().uiStyle)+1)%4;
+      config_.edit().uiStyle=static_cast<UiStyle>(next);config_.save();UiTheme::setStyle(next);showSettings();
+    } else if(idx==2) showWiFi();
+    else if(idx==3) showBluetooth();
+    else if(idx==4) showDateTime();
+    else if(idx==5) showBattery();
+    else if(idx==6) {
+      uint8_t next=(display_.profile()+1)%3;
+      display_.setProfile(next);config_.edit().displayProfile=static_cast<DisplayProfile>(next);config_.save();showSettings();
+    } else if(idx==7 || idx==8) showStorageTools();
+    else showLabs();
+    return;
+  }
+
+  if (page_ == Page::Files) {
+    if (idx >= static_cast<int>(fileEntries_.size())) return;
+    const FileEntry& entry=fileEntries_[idx];
+    if(entry.name=="..") { showFiles(parentPath(currentFilePath_)); return; }
+    String full=joinPath(currentFilePath_,entry.name);
+    if(fileSelectionMode_) {
+      selectedFilePath_=full;selectedFileName_=entry.name;selectedFileDirectory_=entry.directory;
+      fileStatus_=String("Selected: ")+entry.name;showFiles(currentFilePath_);
+    } else if(entry.directory) showFiles(full);
+    else showFilePreview(full,entry.name,entry.size);
+    return;
+  }
+
+  if (page_ == Page::Tools) {
+    if(idx==0) showNetworkTools(); else if(idx==1) showWiFi(); else if(idx==2) showBluetooth();
+    else if(idx==3) showBrowser(); else if(idx==4) showOtp(); else showSystem();
+    return;
+  }
+
+  if (page_ == Page::NetworkTools) {
+    if(idx==0) showPingTool(); else if(idx==1) showDnsTool(); else if(idx==2) showLanScan();
+    else if(idx==3) showApiTester(); else if(idx==4) showMqtt(); else showWakeOnLan();
+    return;
+  }
+
+  if (page_ == Page::Labs) {
+    if(idx==0) showHidLab(); else if(idx==1) showBluetooth(); else if(idx==2) showNfcLab();
+    else if(idx==3) showGpioLab(); else if(idx==4) { display_.cleanRefresh(); showLabs(); }
+    else showSystem();
+    return;
+  }
+
+  if (page_ == Page::WiFi) {
+    if(idx==0) {
+      wifiScan_.clear();wifiScroll_=0;wifiScanRunning_=false;wifiStatusMessage_="";showWiFi();
+      return;
+    }
+    int n=idx-1;
+    if(n<0 || n>=static_cast<int>(wifiScan_.size())) return;
+    const WiFiScanEntry entry=wifiScan_[n];
+    if(!entry.ssid.length()) return;
+    selectedWifiSsid_=entry.ssid;
+    if(entry.encrypted) showKeyboard(InputTarget::WiFiPassword,String("Password for ")+entry.ssid,"",true);
+    else {
+      showAppLoading("Wi-Fi",String("Connecting to ")+entry.ssid,65);
+      bool ok=wifi_.connect(entry.ssid,"",true);
+      wifiStatusMessage_=ok?String("Connected to ")+entry.ssid:String("Connection failed: ")+entry.ssid;
+      showWiFi();
+    }
+    return;
+  }
+
+  if (page_ == Page::ClassicDesktop) {
+    int col=idx%3,row=idx/3;
+    classicHandlePointer(104+col*154,224+row*152,true);
+  }
+}
+
 void UiManager::handleScrollGesture(TouchGesture gesture) {
   const int delta = gesture == TouchGesture::SwipeUp ? 1 : -1;
 

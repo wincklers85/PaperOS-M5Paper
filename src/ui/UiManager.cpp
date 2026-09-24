@@ -4,6 +4,7 @@
 #include <SD.h>
 #include <ArduinoJson.h>
 #include <BLEDevice.h>
+#include <esp_system.h>
 
 namespace paperos {
 
@@ -1266,6 +1267,42 @@ void UiManager::loop() {
       return;
     }
 
+    if (page_ == Page::Focus) {
+      if (e.y >= 515 && e.y < 627) {
+        if (e.x < 270) {
+          if (focusRunning_) {
+            int32_t diff = static_cast<int32_t>(focusEndMs_ - millis());
+            focusRemainingSec_ = diff > 0 ? static_cast<uint32_t>(diff) / 1000UL : 0;
+            focusRunning_ = false;
+          } else {
+            if (focusRemainingSec_ == 0) focusRemainingSec_ = 25UL * 60UL;
+            focusEndMs_ = millis() + focusRemainingSec_ * 1000UL;
+            focusRunning_ = true;
+          }
+        } else {
+          focusRunning_ = false;
+          focusRemainingSec_ = 25UL * 60UL;
+        }
+        showFocus();
+      }
+      return;
+    }
+
+    if (page_ == Page::Fun) {
+      if (e.y >= 400 && e.y < 518) {
+        if (e.x < 178) {
+          funResult_ = String("D6: ") + String((esp_random() % 6U) + 1U);
+        } else if (e.x < 350) {
+          funResult_ = (esp_random() & 1U) ? "HEADS" : "TAILS";
+        } else {
+          funResult_ = String("Number: ") + String((esp_random() % 100U) + 1U);
+        }
+        drawFunResult();
+        display_.partialRefresh(18, 145, 504, 230);
+      }
+      return;
+    }
+
     if (page_ == Page::Labs) {
       if (e.y >= 252 && e.y < 330) showHidLab();
       else if (e.y >= 342 && e.y < 420) showBluetooth();
@@ -1307,6 +1344,18 @@ void UiManager::loop() {
     }
   }
 
+  if (focusRunning_) {
+    int32_t diff = static_cast<int32_t>(focusEndMs_ - millis());
+    if (diff <= 0) {
+      focusRunning_ = false;
+      focusRemainingSec_ = 0;
+      if (page_ == Page::Focus) {
+        drawFocusLiveArea();
+        display_.partialRefresh(18, 145, 504, 350);
+      }
+    }
+  }
+
   // Complete asynchronous Wi-Fi scanning without blocking page entry.
   if (page_ == Page::WiFi) {
     int n = WiFi.scanComplete();
@@ -1338,6 +1387,18 @@ void UiManager::loop() {
     M5.Display.fillRect(18, 145, 504, 325, TFT_WHITE);
     drawBatteryLiveArea();
     display_.partialRefresh(18, 145, 504, 325);
+  }
+
+  if (page_ == Page::Clock && millis() - lastClockPageRefresh_ > 60000UL) {
+    lastClockPageRefresh_ = millis();
+    drawClockLiveArea();
+    display_.partialRefresh(18, 145, 504, 410);
+  }
+
+  if (page_ == Page::Focus && focusRunning_ && millis() - lastFocusUiRefresh_ > 60000UL) {
+    lastFocusUiRefresh_ = millis();
+    drawFocusLiveArea();
+    display_.partialRefresh(18, 145, 504, 350);
   }
 
   if (millis() - lastClock_ > 60000UL) {

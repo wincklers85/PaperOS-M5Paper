@@ -79,6 +79,7 @@ class UiManager {
     String address;
     String serviceUuid;
     String manufacturerHex;
+    String manufacturerName;
     String beaconType;
     int32_t rssi = 0;
     int32_t txPower = 0;

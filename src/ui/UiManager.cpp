@@ -21,6 +21,61 @@ void UiManager::commitPage() {
   display_.pageRefresh();
 }
 
+void UiManager::showAppLoading(const String& titleText, const String& detailText, int percent) {
+  UiTheme::beginFrame();
+  statusBar();
+
+  UiTheme::title(titleText, 18, 92);
+  UiTheme::detail(detailText, 20, 136);
+
+  UiTheme::card(42, 270, 456, 250, true);
+  UiTheme::label("LOADING", 66, 300);
+  UiTheme::value("Please wait", 66, 344, false);
+  UiTheme::detail("PaperOS is preparing the app.", 66, 392);
+
+  const int barX = 66, barY = 444, barW = 408, barH = 18;
+  M5.Display.drawRoundRect(barX, barY, barW, barH, 9, TFT_BLACK);
+  int fill = constrain((barW - 6) * constrain(percent, 0, 100) / 100, 0, barW - 6);
+  if (fill > 0) M5.Display.fillRoundRect(barX + 3, barY + 3, fill, barH - 6, 6, TFT_BLACK);
+
+  UiTheme::detail(String(constrain(percent, 0, 100)) + "%", 430, 478);
+  display_.pageRefresh();
+}
+
+void UiManager::drawBatteryLiveArea() {
+  const int pct = constrain(power_.batteryPercent(), 0, 100);
+  const int mv = power_.batteryMillivolts();
+
+  UiTheme::card(18, 145, 504, 178, true);
+  UiTheme::label("BATTERY", 34, 162);
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString(String(pct) + "%", 34, 201);
+  UiTheme::resetFont();
+  UiTheme::detail(String(mv) + " mV", 36, 260);
+
+  const int bx = 238, by = 194, bw = 246, bh = 46;
+  M5.Display.drawRoundRect(bx, by, bw, bh, 10, TFT_BLACK);
+  M5.Display.fillRect(bx + bw, by + 13, 8, 20, TFT_BLACK);
+  const int fill = (bw - 10) * pct / 100;
+  if (fill > 0) M5.Display.fillRoundRect(bx + 5, by + 5, fill, bh - 10, 6, TFT_BLACK);
+
+  UiTheme::detail("Voltage trend: " + power_.batteryTrendLabel(), 238, 258);
+  if (power_.chargingLikely()) {
+    UiTheme::pill("CHARGE LIKELY", 336, 279, true);
+  } else if (power_.batteryTrend() == BatteryTrend::Falling) {
+    UiTheme::pill("ON BATTERY", 360, 279, false);
+  } else {
+    UiTheme::pill("MONITORING", 362, 279, false);
+  }
+
+  UiTheme::card(18, 338, 504, 132);
+  UiTheme::label("LIVE POWER STATUS", 34, 355);
+  UiTheme::value(power_.chargingLikely() ? "Probabile ricarica" : "Stato non misurabile", 34, 392, false);
+  UiTheme::detail("Trend " + String(power_.batteryTrendDeltaMv()) + " mV / finestra campioni", 34, 430);
+  UiTheme::detail("USB/charger state is not exposed by M5Paper V1 hardware.", 34, 453);
+}
+
 void UiManager::begin() {
   // The boot splash already refreshed the complete panel; avoid a second
   // quality wipe during startup.
@@ -87,17 +142,18 @@ void UiManager::showHome(bool forceClean) {
   UiTheme::detail(config_.get().deviceName + "  /  " + VERSION, 20, 116);
   UiTheme::pill("ALPHA", 436, 79, true);
 
-  // Device overview: one dense card instead of several slow dashboard blocks.
   UiTheme::card(18, 145, 504, 128, true);
   UiTheme::label("CONNECTION", 34, 160);
   String netName = wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup");
-  if (netName.length() > 23) netName = netName.substring(0, 23);
+  if (netName.length() > 22) netName = netName.substring(0, 22);
   UiTheme::value(netName, 34, 194, false);
-  UiTheme::detail(wifi_.isConnected() ? wifi_.ip().toString() : String("192.168.4.1 / setup mode"), 34, 232);
-  M5.Display.drawFastVLine(372, 160, 94, TFT_BLACK);
-  UiTheme::label("BATTERY", 394, 160);
-  UiTheme::value(String(power_.batteryPercent()) + "%", 394, 194, false);
-  UiTheme::detail(String(power_.batteryMillivolts()) + " mV", 394, 232);
+  UiTheme::detail(wifi_.isConnected() ? wifi_.ip().toString() : String("192.168.4.1 / setup"), 34, 232);
+
+  M5.Display.drawFastVLine(366, 160, 94, TFT_BLACK);
+  UiTheme::label("BATTERY", 386, 160);
+  UiTheme::value(String(power_.batteryPercent()) + "%", 386, 194, false);
+  UiTheme::detail(String(power_.batteryMillivolts()) + " mV", 386, 232);
+  UiTheme::chevron(496, 190);
 
   UiTheme::label("QUICK ACCESS", 20, 294);
   homeCard(18, 322, 246, 108, "NOTES", storage_.available() ? "Open notes" : "Needs SD", "Notes on microSD", true);
@@ -125,26 +181,26 @@ void UiManager::showApps() {
   statusBar();
 
   UiTheme::title("Apps", 18, 76);
-  UiTheme::detail("Native launcher  /  tap an app", 20, 116);
+  UiTheme::detail("Native launcher  /  fastest e-paper mode", 20, 116);
 
   const char* names[15] = {
     "Home", "Notes", "Files",
     "Calculator", "Wi-Fi", "Bluetooth",
-    "Termo", "Solar", "Tasks",
+    "Termo", "Solar", "Battery",
     "Calendar", "MQTT", "Settings",
     "System", "Labs", "Reader"
   };
   const char* glyphs[15] = {
     "HM", "NT", "FL",
     "CAL", "WF", "BT",
-    "TH", "SL", "TK",
+    "TH", "SL", "BAT",
     "CL", "MQ", "ST",
     "SYS", "LAB", "RD"
   };
   const bool ready[15] = {
     true, true, true,
     true, true, true,
-    false, false, false,
+    false, false, true,
     false, false, true,
     true, true, false
   };
@@ -162,9 +218,9 @@ void UiManager::showApps() {
   }
 
   UiTheme::card(18, 746, 504, 104);
-  UiTheme::label("WINLABS LABS", 34, 762);
-  UiTheme::detail("Experimental tools are isolated from core PaperOS.", 34, 797);
-  UiTheme::detail("Termo / Solar remain visible but do not show fake data.", 34, 826);
+  UiTheme::label("PAPEROS NATIVE", 34, 762);
+  UiTheme::detail("Apps open as full screens; slow operations show loading state.", 34, 797);
+  UiTheme::detail("Fastest waveform is used for interactive navigation.", 34, 826);
 
   bottomNav(4);
   commitPage();
@@ -219,8 +275,8 @@ void UiManager::showSettings() {
   settingsRow(424, "BT", "Bluetooth", bluetoothActive_ ? "Pronto / BLE inizializzato" : "Pronto");
 
   UiTheme::card(18, 522, 504, 250);
-  settingsRow(525, "PW", "Batteria e Sleep", String(power_.batteryPercent()) + "%  /  sleep " + config_.get().sleepMinutes + " min");
-  settingsRow(607, "DS", "Display", "540x960 / fast refresh / anti-ghost");
+  settingsRow(525, "PW", "Batteria e Sleep", String(power_.batteryPercent()) + "%  /  " + String(power_.batteryMillivolts()) + " mV");
+  settingsRow(607, "DS", "Display", "540x960 / fastest UI / anti-ghost");
   settingsRow(689, "LB", "Labs", "Funzioni beta WinLabs");
 
   bottomNav(4);
@@ -270,9 +326,11 @@ void UiManager::showWiFi() {
 
   UiTheme::label("AVAILABLE NETWORKS", 20, 282);
   UiTheme::card(18, 306, 504, 470);
-  UiTheme::value("Scanning...", 44, 350, false);
-  UiTheme::detail("The page stays responsive while Wi-Fi scans in background.", 44, 392);
-  UiTheme::detail("Tap this page again to restart the scan.", 44, 426);
+  UiTheme::value("Scanning Wi-Fi...", 44, 350, false);
+  UiTheme::detail("Network scan runs in background.", 44, 392);
+  M5.Display.drawRoundRect(44, 442, 438, 18, 9, TFT_BLACK);
+  M5.Display.fillRoundRect(47, 445, 260, 12, 6, TFT_BLACK);
+  UiTheme::detail("Results replace this panel automatically.", 44, 486);
 
   UiTheme::card(18, 792, 504, 58);
   UiTheme::detail("Passwords and saved networks: paperos.local > Wi-Fi", 34, 811);
@@ -280,7 +338,6 @@ void UiManager::showWiFi() {
   bottomNav(4);
   commitPage();
 
-  // Async scan: opening Wi-Fi no longer blocks the UI for several seconds.
   WiFi.scanDelete();
   WiFi.scanNetworks(true, true);
 }
@@ -306,15 +363,52 @@ void UiManager::showBluetooth() {
 
   UiTheme::label("DEVICES", 20, 282);
   UiTheme::card(18, 306, 504, 470);
-  UiTheme::value("No scan running", 44, 350, false);
-  UiTheme::detail("Scanning is manual so opening Bluetooth stays instant.", 44, 392);
-  UiTheme::detail("A scan updates only this region of the e-paper panel.", 44, 426);
+  UiTheme::value("Ready", 44, 350, false);
+  UiTheme::detail("A loading panel appears while the radio scans.", 44, 392);
+  UiTheme::detail("The final list is then drawn in one regional refresh.", 44, 426);
 
   UiTheme::card(18, 792, 504, 58);
-  UiTheme::detail("BLE scan is a Labs-grade diagnostic feature in this alpha.", 34, 811);
+  UiTheme::detail("BLE scan is a diagnostic feature in this alpha.", 34, 811);
 
   bottomNav(4);
   commitPage();
+}
+
+
+void UiManager::showBattery() {
+  page_ = Page::Battery;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Batteria", 18, 76);
+  UiTheme::detail("Power Center  /  M5Paper original", 20, 116);
+
+  drawBatteryLiveArea();
+
+  UiTheme::card(18, 486, 246, 120);
+  UiTheme::label("CURRENT", 34, 503);
+  UiTheme::value("N/D", 34, 540, false);
+  UiTheme::detail("No current sensor", 34, 575);
+
+  UiTheme::card(276, 486, 246, 120);
+  UiTheme::label("CAPACITY", 292, 503);
+  UiTheme::value(String(power_.nominalBatteryCapacityMah()) + " mAh", 292, 540, false);
+  UiTheme::detail("Nominal battery", 292, 575);
+
+  UiTheme::card(18, 620, 504, 112);
+  UiTheme::label("USB / CHARGING", 34, 637);
+  UiTheme::value("5 V / 500 mA max input", 34, 672, false);
+  UiTheme::detail("Actual charge mA and charger state are not measurable on M5Paper V1.", 34, 708);
+
+  UiTheme::card(18, 746, 504, 104);
+  UiTheme::label("SLEEP & WAKE", 34, 763);
+  UiTheme::detail(String("Auto sleep: ") + config_.get().sleepMinutes + " min  /  Touch wake: " +
+                  (config_.get().touchWakeEnabled ? "ON" : "OFF"), 34, 798);
+  UiTheme::detail("Last boot/wake: " + power_.wakeReason(), 34, 828);
+
+  bottomNav(3);
+  commitPage();
+  lastBatteryUiRefresh_ = millis();
 }
 
 void UiManager::showLabs() {
@@ -507,6 +601,17 @@ void UiManager::showNotes() {
   UiTheme::title("Notes", 18, 78);
   UiTheme::detail("Stored on microSD", 20, 119);
 
+  // Show the complete app shell immediately; SD enumeration happens after.
+  UiTheme::card(18, 150, 504, 690);
+  UiTheme::label("LOADING NOTES", 40, 180);
+  UiTheme::value("Reading microSD...", 40, 220, false);
+  M5.Display.drawRoundRect(40, 282, 460, 18, 9, TFT_BLACK);
+  M5.Display.fillRoundRect(43, 285, 240, 12, 6, TFT_BLACK);
+  bottomNav(1);
+  commitPage();
+
+  M5.Display.fillRect(18, 150, 504, 690, TFT_WHITE);
+
   if (!storage_.available()) {
     UiTheme::card(18, 160, 504, 260, true);
     UiTheme::value("microSD required", 40, 205, true);
@@ -543,8 +648,7 @@ void UiManager::showNotes() {
     }
   }
 
-  bottomNav(1);
-  commitPage();
+  display_.partialRefresh(18, 150, 504, 690);
 }
 
 void UiManager::showNote(size_t index) {
@@ -616,6 +720,16 @@ void UiManager::showFiles(const String& path) {
   UiTheme::title("Files", 18, 78);
   UiTheme::detail(currentFilePath_, 20, 119);
 
+  UiTheme::card(18, 150, 504, 690);
+  UiTheme::label("LOADING FILES", 40, 180);
+  UiTheme::value("Reading microSD...", 40, 220, false);
+  M5.Display.drawRoundRect(40, 282, 460, 18, 9, TFT_BLACK);
+  M5.Display.fillRoundRect(43, 285, 280, 12, 6, TFT_BLACK);
+  bottomNav(2);
+  commitPage();
+
+  M5.Display.fillRect(18, 150, 504, 690, TFT_WHITE);
+
   if (!storage_.available()) {
     UiTheme::card(18, 160, 504, 260, true);
     UiTheme::value("microSD required", 40, 205, true);
@@ -662,8 +776,7 @@ void UiManager::showFiles(const String& path) {
     }
   }
 
-  bottomNav(2);
-  commitPage();
+  display_.partialRefresh(18, 150, 504, 690);
 }
 
 void UiManager::showFilePreview(const String& fullPath, const String& name, uint64_t size) {
@@ -838,7 +951,7 @@ void UiManager::openAppIndex(int index) {
   else if (index == 5) showBluetooth();
   else if (index == 6) showThermo();
   else if (index == 7) showSolar();
-  else if (index == 8) showComingSoon("Tasks", 4);
+  else if (index == 8) showBattery();
   else if (index == 9) showComingSoon("Calendar", 4);
   else if (index == 10) showComingSoon("MQTT", 4);
   else if (index == 11) showSettings();

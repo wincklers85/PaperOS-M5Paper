@@ -433,14 +433,72 @@ void UiManager::settingRow(int y, const String& titleText, const String& detailT
 }
 
 
+static void drawSettingsSymbol(const String& glyph, int cx, int cy) {
+  const uint32_t c = TFT_WHITE;
+  if (glyph == "GN") {
+    M5.Display.drawCircle(cx, cy, 9, c);
+    M5.Display.drawCircle(cx, cy, 3, c);
+    M5.Display.drawFastHLine(cx-13, cy, 26, c);
+    M5.Display.drawFastVLine(cx, cy-13, 26, c);
+  } else if (glyph == "TH") {
+    M5.Display.drawCircle(cx, cy, 7, c);
+    M5.Display.drawCircle(cx, cy, 12, c);
+    M5.Display.fillCircle(cx, cy, 2, c);
+  } else if (glyph == "WF") {
+    M5.Display.fillCircle(cx, cy+9, 2, c);
+    M5.Display.drawLine(cx-5,cy+4,cx,cy+1,c);
+    M5.Display.drawLine(cx,cy+1,cx+5,cy+4,c);
+    M5.Display.drawLine(cx-10,cy-2,cx,cy-7,c);
+    M5.Display.drawLine(cx,cy-7,cx+10,cy-2,c);
+  } else if (glyph == "BT") {
+    M5.Display.drawLine(cx,cy-13,cx,cy+13,c);
+    M5.Display.drawLine(cx,cy-13,cx+8,cy-6,c);
+    M5.Display.drawLine(cx+8,cy-6,cx-7,cy+7,c);
+    M5.Display.drawLine(cx-7,cy-7,cx+8,cy+6,c);
+    M5.Display.drawLine(cx+8,cy+6,cx,cy+13,c);
+  } else if (glyph == "TM") {
+    M5.Display.drawCircle(cx,cy,12,c);
+    M5.Display.drawLine(cx,cy,cx,cy-7,c);
+    M5.Display.drawLine(cx,cy,cx+6,cy+4,c);
+  } else if (glyph == "PW") {
+    M5.Display.drawRoundRect(cx-13,cy-7,24,14,3,c);
+    M5.Display.fillRect(cx+11,cy-3,3,6,c);
+    M5.Display.fillRect(cx-9,cy-3,13,6,c);
+  } else if (glyph == "EP") {
+    M5.Display.drawRoundRect(cx-13,cy-10,26,20,4,c);
+    M5.Display.drawFastHLine(cx-7,cy-4,14,c);
+    M5.Display.drawFastHLine(cx-7,cy+1,10,c);
+    M5.Display.fillCircle(cx+8,cy+6,2,c);
+  } else if (glyph == "SD") {
+    M5.Display.drawRoundRect(cx-10,cy-13,20,26,3,c);
+    M5.Display.drawLine(cx+3,cy-13,cx+10,cy-6,c);
+    M5.Display.drawFastVLine(cx-5,cy-8,7,c);
+    M5.Display.drawFastVLine(cx,cy-8,7,c);
+  } else if (glyph == "BK") {
+    M5.Display.drawRoundRect(cx-12,cy-9,24,19,3,c);
+    M5.Display.drawLine(cx,cy-13,cx,cy+2,c);
+    M5.Display.drawLine(cx,cy+2,cx-5,cy-3,c);
+    M5.Display.drawLine(cx,cy+2,cx+5,cy-3,c);
+  } else if (glyph == "LB") {
+    M5.Display.drawLine(cx-5,cy-13,cx-5,cy-3,c);
+    M5.Display.drawLine(cx+5,cy-13,cx+5,cy-3,c);
+    M5.Display.drawLine(cx-5,cy-3,cx-11,cy+11,c);
+    M5.Display.drawLine(cx+5,cy-3,cx+11,cy+11,c);
+    M5.Display.drawFastHLine(cx-11,cy+11,22,c);
+    M5.Display.drawFastHLine(cx-7,cy+4,14,c);
+  } else {
+    M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.setTextColor(TFT_WHITE,TFT_BLACK);
+    M5.Display.drawString(glyph,cx,cy);
+  }
+}
+
 void UiManager::settingsRow(int y, const String& glyph, const String& titleText, const String& detailText, bool withChevron) {
-  // Mobile-style grouped row: no nested rounded border per item.
   M5.Display.fillRect(22, y, 496, 78, TFT_WHITE);
-  M5.Display.fillRoundRect(34, y + 15, 46, 46, 9, TFT_BLACK);
-  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
-  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-  M5.Display.setTextDatum(middle_center);
-  M5.Display.drawString(glyph, 57, y + 38);
+  const int r = UiTheme::style() == 2 ? 8 : 15;
+  M5.Display.fillRoundRect(34, y + 15, 46, 46, r, TFT_BLACK);
+  drawSettingsSymbol(glyph, 57, y + 38);
   UiTheme::resetFont();
 
   UiTheme::value(titleText, 96, y + 11, false);
@@ -455,42 +513,43 @@ void UiManager::showSettings() {
   statusBar();
 
   UiTheme::title("Impostazioni", 18, 76);
-  UiTheme::detail("Swipe up/down for more options", 20, 116);
+  UiTheme::detail("PaperOS / swipe up-down", 20, 116);
 
-  UiTheme::card(18, 145, 504, 96, true);
-  M5.Display.fillCircle(66, 193, 29, TFT_BLACK);
+  UiTheme::shadowCard(18, 145, 504, 96, 4);
+  M5.Display.fillRoundRect(38, 166, 54, 54, 18, TFT_BLACK);
   M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
-  M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
   M5.Display.setTextDatum(middle_center);
-  M5.Display.drawString("P", 66, 193);
+  M5.Display.drawString("P", 65, 193);
   UiTheme::resetFont();
   UiTheme::value(config_.get().deviceName, 112, 164, false);
-  UiTheme::detail(String("PaperOS ") + VERSION + " / WinLabs Solutions", 112, 202);
+  UiTheme::detail(String("PaperOS ") + VERSION + "  /  " + UiTheme::styleName(), 112, 202);
 
-  const char* glyphs[9] = {"GN","WF","BT","TM","PW","EP","SD","BK","LB"};
-  const char* titles[9] = {"Generali","Wi-Fi","Bluetooth","Data e ora","Batteria e Sleep","Display / EPD","Storage / SD","Backup & Restore","Labs"};
-  String details[9] = {
+  const char* glyphs[10] = {"GN","TH","WF","BT","TM","PW","EP","SD","BK","LB"};
+  const char* titles[10] = {"Generali","Tema","Wi-Fi","Bluetooth","Data e ora","Batteria e Sleep","Display / EPD","Storage / SD","Backup & Restore","Labs"};
+  String details[10] = {
     "Info dispositivo, firmware e memoria",
+    String(UiTheme::styleName()) + " / tap to change",
     wifi_.isConnected() ? WiFi.SSID() : (wifi_.radioEnabled() ? "Non connesso" : "Radio OFF"),
-    bluetoothActive_ ? "BLE attivo" : "BLE disattivato",
+    phoneLink_.ancsReady() ? "iPhone ANCS connected" : (bluetoothActive_ ? "BLE attivo" : "BLE disattivato"),
     wifi_.timeSynced() ? "NTP sincronizzato" : "RTC / sincronizzazione manuale",
     String(power_.batteryPercent()) + "% / " + String(power_.batteryMillivolts()) + " mV",
-    String("Profilo ") + display_.profileLabel(),
+    String("Qualita ") + display_.profileLabel(),
     storage_.available() ? String("microSD / ") + String((uint32_t)(storage_.freeBytes()/1048576ULL)) + " MB liberi" : "microSD non disponibile",
     "Configurazione e reti Wi-Fi su SD",
-    "Funzioni beta WinLabs"
+    "NFC / GPIO / BLE / strumenti beta"
   };
 
   const int visible = 6;
-  settingsScroll_ = constrain(settingsScroll_, 0, 9 - visible);
-  UiTheme::card(18, 257, 504, 510);
+  settingsScroll_ = constrain(settingsScroll_, 0, 10 - visible);
+  UiTheme::shadowCard(18, 257, 504, 510, 4);
   for (int row = 0; row < visible; ++row) {
     int idx = settingsScroll_ + row;
     settingsRow(260 + row * 82, glyphs[idx], titles[idx], details[idx]);
   }
 
   UiTheme::card(18, 782, 504, 68);
-  UiTheme::detail(String(settingsScroll_ + 1) + "-" + String(settingsScroll_ + visible) + " / 9  -  swipe up/down", 34, 806);
+  UiTheme::detail(String(settingsScroll_ + 1) + "-" + String(settingsScroll_ + visible) + " / 10  -  swipe", 34, 806);
 
   bottomNav(4);
   commitPage();

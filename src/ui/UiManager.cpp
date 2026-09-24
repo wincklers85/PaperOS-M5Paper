@@ -861,36 +861,90 @@ void UiManager::showBleDetail(size_t index) {
   commitPage();
 }
 
+
+void UiManager::drawBatteryGraph() {
+  UiTheme::card(18, 486, 504, 170);
+  UiTheme::label("VOLTAGE HISTORY", 34, 503);
+
+  const int gx = 42, gy = 542, gw = 454, gh = 84;
+  M5.Display.drawRect(gx, gy, gw, gh, TFT_BLACK);
+
+  const uint8_t count = power_.voltageHistoryCount();
+  if (count < 2) {
+    UiTheme::detail("Collecting real voltage samples...", 96, 575);
+    return;
+  }
+
+  int minMv = 9999, maxMv = 0;
+  for (uint8_t i = 0; i < count; ++i) {
+    int mv = power_.voltageHistoryMv(i);
+    if (mv <= 0) continue;
+    minMv = min(minMv, mv);
+    maxMv = max(maxMv, mv);
+  }
+  if (minMv > maxMv) return;
+  if (maxMv - minMv < 40) {
+    minMv -= 20;
+    maxMv += 20;
+  }
+
+  int px = gx;
+  int py = gy + gh / 2;
+  for (uint8_t i = 0; i < count; ++i) {
+    int mv = power_.voltageHistoryMv(i);
+    int x = gx + (count <= 1 ? 0 : (static_cast<int>(i) * (gw - 1) / (count - 1)));
+    int y = gy + gh - 1 - ((mv - minMv) * (gh - 2) / max(1, maxMv - minMv));
+    if (i) M5.Display.drawLine(px, py, x, y, TFT_BLACK);
+    M5.Display.fillCircle(x, y, 1, TFT_BLACK);
+    px = x; py = y;
+  }
+
+  UiTheme::detail(String(minMv) + "-" + String(maxMv) + " mV / " + String(count) + " samples", 34, 630);
+}
+
+void UiManager::drawBatteryImpactEstimate() {
+  UiTheme::card(18, 670, 504, 132);
+  UiTheme::label("ESTIMATED IMPACT", 34, 687);
+
+  struct Impact { String name; int score; };
+  Impact items[4] = {
+    {"Wi-Fi", wifi_.radioEnabled() ? (wifi_.isConnected() ? 3 : 2) : 0},
+    {"Bluetooth", bluetoothActive_ ? 2 : 0},
+    {"E-paper", display_.profile() == 2 ? 3 : (display_.profile() == 1 ? 2 : 1)},
+    {"CPU / active UI", 2}
+  };
+
+  for (int i = 0; i < 4; ++i) {
+    for (int j = i + 1; j < 4; ++j) {
+      if (items[j].score > items[i].score) {
+        Impact t = items[i]; items[i] = items[j]; items[j] = t;
+      }
+    }
+  }
+
+  String line;
+  for (int i = 0; i < 4; ++i) {
+    if (i) line += "  >  ";
+    line += items[i].name;
+  }
+  UiTheme::value(line, 34, 722, false);
+  UiTheme::detail("Relative software estimate only - M5Paper V1 has no current sensor.", 34, 770);
+}
+
 void UiManager::showBattery() {
   page_ = Page::Battery;
   preparePage();
   statusBar();
 
   UiTheme::title("Batteria", 18, 76);
-  UiTheme::detail("Power Center  /  M5Paper original", 20, 116);
+  UiTheme::detail("Power Center / real voltage + estimated subsystem impact", 20, 116);
 
   drawBatteryLiveArea();
+  drawBatteryGraph();
+  drawBatteryImpactEstimate();
 
-  UiTheme::card(18, 486, 246, 120);
-  UiTheme::label("CURRENT", 34, 503);
-  UiTheme::value("N/D", 34, 540, false);
-  UiTheme::detail("No current sensor", 34, 575);
-
-  UiTheme::card(276, 486, 246, 120);
-  UiTheme::label("CAPACITY", 292, 503);
-  UiTheme::value(String(power_.nominalBatteryCapacityMah()) + " mAh", 292, 540, false);
-  UiTheme::detail("Nominal battery", 292, 575);
-
-  UiTheme::card(18, 620, 504, 112);
-  UiTheme::label("USB / CHARGING", 34, 637);
-  UiTheme::value("5 V / 500 mA max input", 34, 672, false);
-  UiTheme::detail("Actual charge mA and charger state are not measurable on M5Paper V1.", 34, 708);
-
-  UiTheme::card(18, 746, 504, 104);
-  UiTheme::label("SLEEP & WAKE", 34, 763);
-  UiTheme::detail(String("Auto sleep: ") + config_.get().sleepMinutes + " min  /  Touch wake: " +
-                  (config_.get().touchWakeEnabled ? "ON" : "OFF"), 34, 798);
-  UiTheme::detail(String("Last boot/wake: ") + power_.wakeReason(), 34, 828);
+  UiTheme::card(18, 816, 504, 34);
+  UiTheme::detail("Swipe down for Quick Settings / battery current mA unavailable on V1", 34, 824);
 
   bottomNav(3);
   commitPage();

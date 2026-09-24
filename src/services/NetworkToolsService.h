@@ -45,8 +45,8 @@ class NetworkToolsService {
   void mqttDisconnect();
   bool mqttPublish(const String& topic, const String& payload, bool retained = false);
   bool mqttSubscribe(const String& topic);
-  bool mqttConnected() const;
-  int mqttState() const;
+  bool mqttConnected();
+  int mqttState();
   String mqttLastTopic() const { return lastMqttTopic_; }
   String mqttLastPayload() const { return lastMqttPayload_; }
   String mqttHost() const { return mqttHost_; }

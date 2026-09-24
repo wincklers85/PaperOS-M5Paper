@@ -2,6 +2,40 @@
 
 All notable changes follow Semantic Versioning.
 
+## [0.1.8-alpha] - 2026-09-24
+
+### Display
+- Every full page transition now performs a quality white anti-ghost cleanup before the new buffered frame is committed.
+- In-page interactions continue to use regional refreshes so calculator keys, Focus, Fun, OTP and scan results do not trigger unnecessary full cleans.
+- Buffered rendering remains enabled, so the new page is still composed off-screen and appears in one pass after the cleanup.
+
+### Wi-Fi
+- Wi-Fi Analyzer now shows nearby SSID, RSSI, channel and security state.
+- Scan results are selectable on the M5Paper.
+- Open networks connect immediately.
+- Protected networks open the new native touch keyboard for password entry and are saved for automatic reconnect.
+- Successful Wi-Fi connections synchronize system time from NTP and update the hardware RTC.
+- At boot, PaperOS seeds Unix time from the RTC so time-dependent tools can continue to work offline.
+
+### Bluetooth
+- BLE Inspector now keeps scan results and opens a detailed advertising-data view.
+- Device detail includes address, RSSI, advertised TX power, service UUID and manufacturer bytes when available.
+- Inspector remains passive and does not pair, connect or write to nearby devices.
+
+### Browser Lite
+- Added a native HTTP/HTTPS text browser designed for ESP32/e-paper constraints.
+- Supports URL entry, redirects, title/text extraction and a small list of absolute links.
+- JavaScript, video, downloads and complex CSS are intentionally unsupported.
+- HTTPS currently uses lightweight transport without CA certificate validation and is labelled accordingly in the UI.
+
+### OTP
+- Added RFC6238 TOTP generation using HMAC-SHA1, six digits and a 30-second period.
+- OTP Base32 secret is held only in volatile RAM and is not saved to LittleFS or microSD.
+- OTP can use RTC-restored system time offline after the clock has previously been synchronized.
+
+### Input
+- Added a reusable on-screen touch keyboard with lower/upper case, numeric keys and common symbols for Wi-Fi passwords, URLs and OTP secrets.
+
 ## [0.1.7-alpha] - 2026-09-24
 
 ### Buffered one-pass UI

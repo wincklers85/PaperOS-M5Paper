@@ -4,9 +4,11 @@
 #include <ArduinoJson.h>
 #include <M5Unified.h>
 #include <time.h>
+#include <sys/time.h>
 
 namespace paperos {
 void WiFiManager::begin() {
+  restoreClockFromRtc();
   WiFi.mode(WIFI_STA);
   WiFi.setHostname(HOSTNAME);
   if (!connectKnown()) startSetupAp();
@@ -36,6 +38,32 @@ bool WiFiManager::connect(const String& ssid, const String& password, bool saveN
   return false;
 }
 
+
+void WiFiManager::restoreClockFromRtc() {
+  auto dt = M5.Rtc.getDateTime();
+  if (dt.date.year < 2020 || dt.date.year > 2099) return;
+
+  const char* tz = cfg_.get().timezone == "Europe/Rome"
+    ? "CET-1CEST,M3.5.0,M10.5.0/3"
+    : "UTC0";
+  setenv("TZ", tz, 1);
+  tzset();
+
+  struct tm localTime = {};
+  localTime.tm_year = dt.date.year - 1900;
+  localTime.tm_mon = dt.date.month - 1;
+  localTime.tm_mday = dt.date.date;
+  localTime.tm_hour = dt.time.hours;
+  localTime.tm_min = dt.time.minutes;
+  localTime.tm_sec = dt.time.seconds;
+  localTime.tm_isdst = -1;
+
+  time_t epoch = mktime(&localTime);
+  if (epoch > 1700000000) {
+    struct timeval tv = { epoch, 0 };
+    settimeofday(&tv, nullptr);
+  }
+}
 
 void WiFiManager::syncClock() {
   const char* tz = cfg_.get().timezone == "Europe/Rome"

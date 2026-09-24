@@ -49,6 +49,7 @@ bool ConfigManager::loadFromPath(const char* path) {
   config_.touchWakeEnabled = doc["touchWakeEnabled"] | true;
   config_.scheduledWakeMinutes = doc["scheduledWakeMinutes"] | 0;
   config_.powerMode = static_cast<PowerMode>(doc["powerMode"] | 1);
+  config_.displayProfile = static_cast<DisplayProfile>(doc["displayProfile"] | 1);
   config_.wifiNetworks.clear();
   for (JsonObject n : doc["wifiNetworks"].as<JsonArray>()) {
     WiFiCredential c;
@@ -73,6 +74,7 @@ bool ConfigManager::save() {
   doc["touchWakeEnabled"] = config_.touchWakeEnabled;
   doc["scheduledWakeMinutes"] = config_.scheduledWakeMinutes;
   doc["powerMode"] = static_cast<int>(config_.powerMode);
+  doc["displayProfile"] = static_cast<int>(config_.displayProfile);
   JsonArray arr = doc.createNestedArray("wifiNetworks");
   for (const auto& n : config_.wifiNetworks) {
     JsonObject o = arr.createNestedObject();

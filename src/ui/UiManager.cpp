@@ -60,7 +60,7 @@ void UiManager::drawBatteryLiveArea() {
   const int fill = (bw - 10) * pct / 100;
   if (fill > 0) M5.Display.fillRoundRect(bx + 5, by + 5, fill, bh - 10, 6, TFT_BLACK);
 
-  UiTheme::detail("Voltage trend: " + power_.batteryTrendLabel(), 238, 258);
+  UiTheme::detail(String("Voltage trend: ") + power_.batteryTrendLabel(), 238, 258);
   if (power_.chargingLikely()) {
     UiTheme::pill("CHARGE LIKELY", 336, 279, true);
   } else if (power_.batteryTrend() == BatteryTrend::Falling) {
@@ -72,7 +72,7 @@ void UiManager::drawBatteryLiveArea() {
   UiTheme::card(18, 338, 504, 132);
   UiTheme::label("LIVE POWER STATUS", 34, 355);
   UiTheme::value(power_.chargingLikely() ? "Probabile ricarica" : "Stato non misurabile", 34, 392, false);
-  UiTheme::detail("Trend " + String(power_.batteryTrendDeltaMv()) + " mV / finestra campioni", 34, 430);
+  UiTheme::detail(String("Trend ") + String(power_.batteryTrendDeltaMv()) + " mV / finestra campioni", 34, 430);
   UiTheme::detail("USB/charger state is not exposed by M5Paper V1 hardware.", 34, 453);
 }
 
@@ -404,7 +404,7 @@ void UiManager::showBattery() {
   UiTheme::label("SLEEP & WAKE", 34, 763);
   UiTheme::detail(String("Auto sleep: ") + config_.get().sleepMinutes + " min  /  Touch wake: " +
                   (config_.get().touchWakeEnabled ? "ON" : "OFF"), 34, 798);
-  UiTheme::detail("Last boot/wake: " + power_.wakeReason(), 34, 828);
+  UiTheme::detail(String("Last boot/wake: ") + power_.wakeReason(), 34, 828);
 
   bottomNav(3);
   commitPage();

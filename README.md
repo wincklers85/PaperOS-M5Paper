@@ -1,10 +1,10 @@
 # PaperOS
 
-**PaperOS 0.3.0-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
+**PaperOS 0.3.1-alpha** is an offline-first, e-paper-native PDA firmware for the **original M5Stack M5Paper (ESP32-D0WDQ6-V3)**. It is intentionally not an Android clone. The architecture is designed around limited RAM, PSRAM, low power, e-paper refresh constraints, microSD storage and browser-based administration.
 
 > Target: M5Stack M5Paper first generation only. M5Paper S3 is not the target of this repository.
 
-## What is real in 0.3.0-alpha
+## What is real in 0.3.1-alpha
 
 - M5Unified/M5GFX initialization for original M5Paper
 - boot splash and touch UI
@@ -14,7 +14,7 @@
 - buffered one-pass 540×960 rendering: screens are composed off-screen, then committed with `epd_fastest`; only live regions use partial refresh
 - clean anti-ghost transition when navigating to another page, with buffered one-pass redraw and fast regional updates inside the same app
 - dedicated Solar and Termo UI shells marked Coming Soon, with no fake telemetry
-- corrected no-timer deep-sleep behavior with retained sleep screen, GT911 touch wake and optional timer wake
+- soft-lock standby keeps BLE/Wi-Fi/Phone Link alive; wheel-click or center button arms unlock, then a right swipe unlocks to Apps
 - native Wi-Fi Analyzer with asynchronous scan, RSSI/channel/security details, touch network selection, on-device password entry, saved networks, reconnect and Setup AP (`PaperOS-Setup`)
 - native BLE Inspector with scrollable scans, manufacturer/company identification, beacon classification, connection testing and read-only GATT service/characteristic inspection
 - native Calculator utility
@@ -27,6 +27,8 @@
 - optional **PN532 NFC Lab** on Port C UART (G18/G19) with module diagnostics and ISO14443A UID scanning
 - **Classic Desktop / Windows 3.11 mode** with startup splash, Program Manager, ROOT Terminal, BLE mouse/keyboard, Ski and Solitaire
 - full microSD root browsing plus native File Manager Cut / Copy / Paste
+- bottom-up Notification Center with ANCS calls/messages/mail, phone connection state and companion-supplied phone battery
+- BLE mouse-wheel menu navigation with visible focus and wheel-click OK/Enter
 - reusable on-screen touch keyboard with pressed-key feedback and SHOW/HIDE for passwords
 - native Battery / Power Center with real rolling voltage graph, wake diagnostics, charging-likely estimation and clearly-labelled subsystem impact estimate
 - Web Power Center plus extended battery REST telemetry
@@ -189,11 +191,11 @@ PaperOS creates:
   /Config
 ```
 
-All Web File Manager paths are sandboxed below `/PaperOS`.
+Native File Manager can browse the full microSD root. Web/API file operations also use validated absolute SD paths.
 
 ## Release
 
-Current semantic version: **0.3.0-alpha**.. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
+Current semantic version: **0.3.1-alpha**. See [CHANGELOG.md](CHANGELOG.md) and [RELEASE.md](RELEASE.md).
 
 ## License
 

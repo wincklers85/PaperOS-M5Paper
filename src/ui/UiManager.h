@@ -10,14 +10,15 @@
 #include "../services/SimpleBrowser.h"
 #include "../services/OtpService.h"
 #include "../services/NetworkToolsService.h"
+#include "../services/PhoneLinkService.h"
 #include "../core/ConfigManager.h"
 
 namespace paperos {
 
 class UiManager {
  public:
-  UiManager(DisplayManager& d, TouchManager& t, WiFiManager& w, StorageManager& s, PowerManager& p, ConfigManager& c)
-   : display_(d), touch_(t), wifi_(w), storage_(s), power_(p), config_(c) {}
+  UiManager(DisplayManager& d, TouchManager& t, WiFiManager& w, StorageManager& s, PowerManager& p, ConfigManager& c, PhoneLinkService& phone)
+   : display_(d), touch_(t), wifi_(w), storage_(s), power_(p), config_(c), phoneLink_(phone) {}
 
   void begin();
   void loop();
@@ -110,6 +111,7 @@ class UiManager {
   StorageManager& storage_;
   PowerManager& power_;
   ConfigManager& config_;
+  PhoneLinkService& phoneLink_;
 
   uint32_t lastClock_ = 0;
   uint32_t lastDeepClean_ = 0;

@@ -154,7 +154,7 @@ class UiManager {
   void fetchBrowserUrl(const String& url);
   void drawOtpCode();
   void showBleDetail(size_t index);
-  String bleManufacturerHex(const std::string& bytes) const;
+  String bleManufacturerHex(const String& bytes) const;
 };
 
 }

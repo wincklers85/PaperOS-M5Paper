@@ -17,6 +17,8 @@ class StorageManager {
   bool removePath(const String& path);
   bool renamePath(const String& from, const String& to);
   bool copyFile(const String& from, const String& to);
+  bool formatCard(const String& type);
+  String filesystemHint() const;
   bool validPath(const String& path) const;
   fs::FS& fs() { return SD; }
  private:

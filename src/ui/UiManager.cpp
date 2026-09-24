@@ -380,7 +380,7 @@ void UiManager::showBluetooth() {
 String UiManager::bleManufacturerHex(const String& bytes) const {
   static const char* hex = "0123456789ABCDEF";
   String out;
-  size_t limit = bytes.size() > 18 ? 18 : bytes.size();
+  size_t limit = bytes.length() > 18 ? 18 : bytes.length();
   out.reserve(limit * 3);
   for (size_t i = 0; i < limit; ++i) {
     uint8_t b = static_cast<uint8_t>(bytes[i]);
@@ -388,7 +388,7 @@ String UiManager::bleManufacturerHex(const String& bytes) const {
     out += hex[(b >> 4) & 0x0F];
     out += hex[b & 0x0F];
   }
-  if (bytes.size() > limit) out += " ...";
+  if (bytes.length() > limit) out += " ...";
   return out;
 }
 
@@ -626,7 +626,7 @@ void UiManager::drawKeyboard() {
   String shown = inputValue_;
   if (inputMasked_) {
     shown = "";
-    int n = min<int>(inputValue_.length(), 28);
+    int n = inputValue_.length() < 28 ? inputValue_.length() : 28;
     for (int i = 0; i < n; ++i) shown += '*';
   } else if (shown.length() > 44) {
     shown = "..." + shown.substring(shown.length() - 41);

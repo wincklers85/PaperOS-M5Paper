@@ -1725,6 +1725,7 @@ void UiManager::openAppIndex(int index) {
 
 void UiManager::loop() {
   M5.update();
+  networkTools_.loop();
 
   if (M5.BtnC.wasHold()) {
     power_.sleepNow();
@@ -1818,12 +1819,125 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Tools) {
-      if (e.y >= 150 && e.y < 238) showWiFi();
-      else if (e.y >= 242 && e.y < 330) showBluetooth();
-      else if (e.y >= 334 && e.y < 422) showBrowser();
-      else if (e.y >= 426 && e.y < 514) showOtp();
-      else if (e.y >= 518 && e.y < 606) showTools();
+      if (e.y >= 150 && e.y < 238) showNetworkTools();
+      else if (e.y >= 242 && e.y < 330) showWiFi();
+      else if (e.y >= 334 && e.y < 422) showBluetooth();
+      else if (e.y >= 426 && e.y < 514) showBrowser();
+      else if (e.y >= 518 && e.y < 606) showOtp();
       else if (e.y >= 610 && e.y < 698) showSystem();
+      return;
+    }
+
+    if (page_ == Page::NetworkTools) {
+      if (e.y >= 150 && e.y < 228) showPingTool();
+      else if (e.y >= 240 && e.y < 318) showDnsTool();
+      else if (e.y >= 330 && e.y < 408) showLanScan();
+      else if (e.y >= 420 && e.y < 498) showApiTester();
+      else if (e.y >= 510 && e.y < 588) showMqtt();
+      else if (e.y >= 600 && e.y < 678) showWakeOnLan();
+      return;
+    }
+
+    if (page_ == Page::PingTool) {
+      if (e.y >= 145 && e.y < 255) {
+        showKeyboard(InputTarget::PingHost, "Ping target", pingHost_, false);
+      } else if (e.y >= 276 && e.y < 376) {
+        showAppLoading("Ping", String("Testing ") + pingHost_, 55);
+        PingResult r = networkTools_.ping(pingHost_, 2);
+        if (r.ok) pingResultText_ = r.ip.toString() + "  /  " + String(r.averageMs, 1) + " ms";
+        else pingResultText_ = r.error;
+        showPingTool();
+      }
+      return;
+    }
+
+    if (page_ == Page::DnsTool) {
+      if (e.y >= 145 && e.y < 255) {
+        showKeyboard(InputTarget::DnsHost, "Hostname", dnsHost_, false);
+      } else if (e.y >= 276 && e.y < 376) {
+        IPAddress ip;
+        dnsResultText_ = networkTools_.dnsLookup(dnsHost_, ip) ? ip.toString() : String("Lookup failed");
+        M5.Display.fillRect(18, 397, 504, 220, TFT_WHITE);
+        UiTheme::card(18, 397, 504, 220);
+        UiTheme::label("RESULT", 34, 415);
+        UiTheme::value(dnsResultText_, 34, 456, false);
+        UiTheme::detail("Uses the DNS server supplied by the active Wi-Fi network.", 34, 515);
+        display_.partialRefresh(18, 397, 504, 220);
+      }
+      return;
+    }
+
+    if (page_ == Page::LanScan) {
+      if (e.y >= 145 && e.y < 237) {
+        showAppLoading("LAN Scan", "Checking common services on .1 - .64", 45);
+        lanHosts_ = networkTools_.quickLanScan(1, 64);
+        showLanScan();
+      }
+      return;
+    }
+
+    if (page_ == Page::ApiTester) {
+      if (e.y >= 145 && e.y < 250) {
+        showKeyboard(InputTarget::ApiUrl, "HTTP / API URL", apiUrl_, false);
+      } else if (e.y >= 268 && e.y < 360) {
+        if (e.x < 178) {
+          if (apiMethod_ == "GET") apiMethod_ = "POST";
+          else if (apiMethod_ == "POST") apiMethod_ = "PUT";
+          else apiMethod_ = "GET";
+          M5.Display.fillRect(18, 268, 160, 92, TFT_WHITE);
+          UiTheme::card(18, 268, 160, 92, true);
+          UiTheme::value(apiMethod_, 67, 300, false);
+          UiTheme::detail("Tap method", 49, 335);
+          display_.partialRefresh(18, 268, 160, 92);
+        } else if (e.x < 350) {
+          showKeyboard(InputTarget::ApiBody, "JSON / request body", apiBody_, false);
+        } else {
+          showAppLoading("API Tester", String(apiMethod_) + " request", 60);
+          apiResult_ = networkTools_.httpRequest(apiMethod_, apiUrl_, apiBody_);
+          showApiTester();
+        }
+      }
+      return;
+    }
+
+    if (page_ == Page::Mqtt) {
+      if (e.y >= 145 && e.y < 223) {
+        showKeyboard(InputTarget::MqttHost, "MQTT broker host", mqttHost_, false);
+      } else if (e.y >= 235 && e.y < 313) {
+        showKeyboard(InputTarget::MqttTopic, "MQTT topic", mqttTopic_, false);
+      } else if (e.y >= 325 && e.y < 403) {
+        showKeyboard(InputTarget::MqttPayload, "MQTT payload", mqttPayload_, false);
+      } else if (e.y >= 430 && e.y < 525) {
+        if (e.x < 178) {
+          if (networkTools_.mqttConnected()) {
+            networkTools_.mqttDisconnect();
+            mqttStatus_ = "Disconnected";
+          } else {
+            mqttStatus_ = networkTools_.mqttConnect(mqttHost_, 1883) ? "Connected" : String("Connect failed / state ") + networkTools_.mqttState();
+          }
+        } else if (e.x < 350) {
+          mqttStatus_ = networkTools_.mqttSubscribe(mqttTopic_) ? String("Subscribed: ") + mqttTopic_ : String("Subscribe failed");
+        } else {
+          mqttStatus_ = networkTools_.mqttPublish(mqttTopic_, mqttPayload_) ? String("Published") : String("Publish failed");
+        }
+        showMqtt();
+      }
+      return;
+    }
+
+    if (page_ == Page::WakeOnLan) {
+      if (e.y >= 145 && e.y < 255) {
+        showKeyboard(InputTarget::WolMac, "Wake-on-LAN MAC", wolMac_, false);
+      } else if (e.y >= 276 && e.y < 376) {
+        wolStatus_ = networkTools_.wakeOnLan(wolMac_) ? "Magic packet sent" : "Send failed / invalid MAC";
+        M5.Display.fillRect(18, 397, 504, 210, TFT_WHITE);
+        UiTheme::card(18, 397, 504, 210);
+        UiTheme::label("STATUS", 34, 415);
+        UiTheme::value(wolStatus_, 34, 456, false);
+        UiTheme::detail("UDP broadcast on the current subnet, port 9.", 34, 510);
+        UiTheme::detail("The target machine must have Wake-on-LAN enabled.", 34, 546);
+        display_.partialRefresh(18, 397, 504, 210);
+      }
       return;
     }
 

@@ -30,7 +30,11 @@ bool WiFiManager::connect(const String& ssid, const String& password, bool saveN
   uint32_t start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < 9000) delay(100);
   if (WiFi.status() == WL_CONNECTED) {
-    if (saveNetwork) { cfg_.upsertNetwork(ssid, password, 100); cfg_.save(); }
+    if (saveNetwork) {
+      cfg_.upsertNetwork(ssid, password, 100);
+      cfg_.save();
+      cfg_.exportWifiTextToSd();
+    }
     startMdns();
     syncClock();
     return true;

@@ -2151,8 +2151,8 @@ void UiManager::showClassicHid() {
   M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
   M5.Display.drawString("BLE HID Host", 44, 136);
   M5.Display.setFont(&fonts::FreeSans9pt7b);
-  M5.Display.drawString(hidInput_.statusText(), 44, 170);
-  M5.Display.drawString("Mouse / Keyboard service 0x1812", 44, 200);
+  M5.Display.drawString(classicHidStatus_.length() ? classicHidStatus_ : hidInput_.statusText(), 44, 170);
+  M5.Display.drawString("Mouse / Keyboard service 0x1812 / BLE HID", 44, 200);
 
   M5.Display.fillRect(392, 140, 96, 54, TFT_WHITE);
   M5.Display.drawRect(392, 140, 96, 54, TFT_BLACK);
@@ -4660,6 +4660,12 @@ void UiManager::loop() {
     lastFocusUiRefresh_ = millis();
     drawFocusLiveArea();
     display_.partialRefresh(18, 145, 504, 350);
+  }
+
+  if (page_ == Page::ClassicSki && skiRunning_ && millis() - classicLastGameTick_ > 650UL) {
+    classicLastGameTick_ = millis();
+    classicStepSki();
+    showClassicSki();
   }
 
   if (page_ == Page::Otp && otpSecret_.length()) {

@@ -380,10 +380,15 @@ void UiManager::showBluetooth() {
 
 
 String UiManager::bleManufacturerHex(const String& bytes) const {
+  return bytesHex(bytes, 18);
+}
+
+
+String UiManager::bytesHex(const String& bytes, size_t maxBytes) const {
   static const char* hex = "0123456789ABCDEF";
   String out;
-  size_t limit = bytes.length() > 18 ? 18 : bytes.length();
-  out.reserve(limit * 3);
+  size_t limit = bytes.length() > maxBytes ? maxBytes : bytes.length();
+  out.reserve(limit * 3 + 4);
   for (size_t i = 0; i < limit; ++i) {
     uint8_t b = static_cast<uint8_t>(bytes[i]);
     if (i) out += ' ';
@@ -392,6 +397,58 @@ String UiManager::bleManufacturerHex(const String& bytes) const {
   }
   if (bytes.length() > limit) out += " ...";
   return out;
+}
+
+void UiManager::readBleGatt(size_t index) {
+  gattRows_.clear();
+  if (index >= bleScan_.size()) return;
+
+  const BleScanEntry target = bleScan_[index];
+  showAppLoading("BLE GATT", "Connecting to " + target.address, 45);
+
+  BLEClient* client = BLEDevice::createClient();
+  if (!client) {
+    gattRows_.push_back("Unable to create BLE client");
+    return;
+  }
+
+  bool connected = client->connect(BLEAddress(target.address.c_str()));
+  if (!connected) {
+    gattRows_.push_back("Connection failed");
+    delete client;
+    return;
+  }
+
+  std::map<std::string, BLERemoteService*>* services = client->getServices();
+  if (!services) {
+    gattRows_.push_back("No GATT services discovered");
+  } else {
+    for (auto& svcPair : *services) {
+      BLERemoteService* svc = svcPair.second;
+      if (!svc) continue;
+      std::map<std::string, BLERemoteCharacteristic*>* chars = svc->getCharacteristics();
+      if (!chars) continue;
+
+      for (auto& chPair : *chars) {
+        BLERemoteCharacteristic* ch = chPair.second;
+        if (!ch || !ch->canRead()) continue;
+
+        std::string raw = ch->readValue();
+        String value;
+        value.reserve(raw.length());
+        for (size_t i = 0; i < raw.length() && i < 24; ++i) value += static_cast<char>(raw[i]);
+        String rawArduino(raw.c_str(), raw.length());
+        String row = String(ch->getUUID().toString().c_str()) + " = " + bytesHex(rawArduino, 12);
+        gattRows_.push_back(row);
+        if (gattRows_.size() >= 6) break;
+      }
+      if (gattRows_.size() >= 6) break;
+    }
+  }
+
+  client->disconnect();
+  delete client;
+  if (gattRows_.empty()) gattRows_.push_back("No readable characteristics");
 }
 
 void UiManager::showBleDetail(size_t index) {
@@ -405,16 +462,28 @@ void UiManager::showBleDetail(size_t index) {
   UiTheme::detail(d.name.length() ? d.name : d.address, 20, 116);
 
   settingRow(150, "Address", d.address);
-  settingRow(242, "Signal", String(d.rssi) + " dBm");
-  settingRow(334, "TX Power", d.hasTxPower ? String(d.txPower) + " dBm" : String("Not advertised"));
-  settingRow(426, "Service UUID", d.serviceUuid.length() ? d.serviceUuid : String("Not advertised"));
-  settingRow(518, "Manufacturer", d.manufacturerHex.length() ? d.manufacturerHex : String("No manufacturer data"));
+  settingRow(232, "Signal", String(d.rssi) + " dBm");
+  settingRow(314, "Beacon", d.beaconType.length() ? d.beaconType : String("Generic BLE advertising"));
+  settingRow(396, "Service UUID", d.serviceUuid.length() ? d.serviceUuid : String("Not advertised"));
+  settingRow(478, "Manufacturer", d.manufacturerHex.length() ? d.manufacturerHex : String("No manufacturer data"));
 
-  UiTheme::card(18, 630, 504, 150);
-  UiTheme::label("USEFUL FOR", 34, 649);
-  UiTheme::detail("Beacon checks / RSSI positioning / identifying BLE sensors.", 34, 687);
-  UiTheme::detail("PaperOS only reads advertising data on this screen.", 34, 722);
-  UiTheme::detail("No pairing, connection or writes are performed.", 34, 757);
+  UiTheme::card(18, 574, 504, 92, true);
+  UiTheme::value("READ GATT", 194, 606, false);
+  UiTheme::detail("Connect and read characteristics marked readable", 96, 642);
+
+  UiTheme::card(18, 684, 504, 158);
+  UiTheme::label("GATT RESULT", 34, 702);
+  if (gattRows_.empty()) {
+    UiTheme::detail("Tap READ GATT for connectable BLE sensors/devices.", 34, 742);
+    UiTheme::detail("Beacon-only devices may reject connections.", 34, 776);
+  } else {
+    size_t shown = gattRows_.size() > 3 ? 3 : gattRows_.size();
+    for (size_t i = 0; i < shown; ++i) {
+      String row = gattRows_[i];
+      if (row.length() > 64) row = row.substring(0, 61) + "...";
+      UiTheme::detail(row, 34, 734 + static_cast<int>(i) * 30);
+    }
+  }
 
   bottomNav(4);
   commitPage();

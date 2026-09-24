@@ -2644,9 +2644,15 @@ void UiManager::classicInitSolitaire() {
   solSelectedType_ = -1; solSelectedPile_ = -1; solScore_ = 0;
 
   std::vector<ClassicCard> deck;
-  for (uint8_t suit=0; suit<4; ++suit)
-    for (uint8_t rank=1; rank<=13; ++rank)
-      deck.push_back({rank,suit,false});
+  for (uint8_t suit=0; suit<4; ++suit) {
+    for (uint8_t rank=1; rank<=13; ++rank) {
+      ClassicCard card;
+      card.rank=rank;
+      card.suit=suit;
+      card.faceUp=false;
+      deck.push_back(card);
+    }
+  }
 
   for (int i=(int)deck.size()-1; i>0; --i) {
     int j = esp_random() % (i+1);

@@ -99,6 +99,7 @@ void UiManager::drawBatteryLiveArea() {
 
 void UiManager::begin() {
   display_.setProfile(static_cast<uint8_t>(config_.get().displayProfile));
+  UiTheme::setStyle(static_cast<uint8_t>(config_.get().uiStyle));
   showHome(false);
 }
 
@@ -231,48 +232,30 @@ void UiManager::navigateBack() {
 void UiManager::showQuickPanel() {
   quickPanelOpen_ = true;
 
-  M5.Display.fillRect(0, 0, UiTheme::ScreenW, 620, TFT_WHITE);
-  M5.Display.drawRoundRect(6, 6, UiTheme::ScreenW - 12, 604, 18, TFT_BLACK);
+  // E-paper cannot perform GPU blur. Dither the already-rendered page to
+  // create a frosted/dimmed depth layer, then place a floating sheet above it.
+  UiTheme::ditherOverlay(0, 0, UiTheme::ScreenW, UiTheme::ScreenH);
+  UiTheme::shadowCard(10, 10, 520, 610, 7);
+  M5.Display.fillRoundRect(218, 594, 104, 6, 3, TFT_BLACK);
 
-  UiTheme::title("Quick Settings", 24, 24);
-  UiTheme::detail("Swipe up to close", 26, 65);
+  UiTheme::title("Quick Settings", 28, 28);
+  UiTheme::detail("PaperOS Control Center  /  swipe up to close", 30, 69);
 
-  UiTheme::card(18, 96, 246, 112, wifi_.radioEnabled());
-  UiTheme::label("WI-FI", 34, 112);
-  UiTheme::value(wifi_.radioEnabled() ? "ON" : "OFF", 34, 148, false);
-  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Radio / network"), 34, 183);
+  UiTheme::iconButton(22, 104, 238, 106, "WF", wifi_.radioEnabled() ? "Wi-Fi ON" : "Wi-Fi OFF", wifi_.radioEnabled());
+  UiTheme::iconButton(280, 104, 238, 106, "BT", bluetoothActive_ ? "Bluetooth ON" : "Bluetooth OFF", bluetoothActive_);
 
-  UiTheme::card(276, 96, 246, 112, bluetoothActive_);
-  UiTheme::label("BLUETOOTH", 292, 112);
-  UiTheme::value(bluetoothActive_ ? "ON" : "OFF", 292, 148, false);
-  UiTheme::detail("BLE radio", 292, 183);
+  UiTheme::iconButton(22, 226, 238, 106, "EPD", String("Display ") + display_.profileLabel(), false);
+  UiTheme::iconButton(280, 226, 238, 106, "NTP", wifi_.timeSynced() ? "Time synced" : "Sync time", false);
 
-  UiTheme::card(18, 222, 246, 112);
-  UiTheme::label("EPD QUALITY", 34, 238);
-  UiTheme::value(display_.profileLabel(), 34, 274, false);
-  UiTheme::detail("Tap to cycle", 34, 309);
+  UiTheme::iconButton(22, 348, 238, 106, String(power_.batteryPercent()) + "%", "Battery statistics", false);
+  UiTheme::iconButton(280, 348, 238, 106, "Zz", "Standby", true);
 
-  UiTheme::card(276, 222, 246, 112);
-  UiTheme::label("TIME", 292, 238);
-  UiTheme::value(wifi_.timeSynced() ? "SYNCED" : "RTC", 292, 274, false);
-  UiTheme::detail("Tap for NTP sync", 292, 309);
+  UiTheme::card(22, 470, 496, 100);
+  UiTheme::label("ACTIVE PAGE BELOW", 40, 487);
+  UiTheme::detail("The dotted layer simulates frosted glass on monochrome e-paper.", 40, 522);
+  UiTheme::detail(String("Theme: ") + UiTheme::styleName() + "  /  pull-up to dismiss", 40, 550);
 
-  UiTheme::card(18, 348, 246, 112, true);
-  UiTheme::label("BATTERY", 34, 364);
-  UiTheme::value(String(power_.batteryPercent()) + "%", 34, 400, false);
-  UiTheme::detail(String(power_.batteryMillivolts()) + " mV / statistics", 34, 435);
-
-  UiTheme::card(276, 348, 246, 112, true);
-  UiTheme::label("STANDBY", 292, 364);
-  UiTheme::value("SLEEP", 292, 400, false);
-  UiTheme::detail("Deep sleep / touch wake", 292, 435);
-
-  UiTheme::card(18, 476, 504, 106);
-  UiTheme::label("GESTURES", 34, 492);
-  UiTheme::detail("Top -> down: open  /  Bottom -> up: close", 34, 528);
-  UiTheme::detail("Lists: swipe up/down to scroll  /  status arrow: Back", 34, 557);
-
-  display_.partialRefresh(0, 0, UiTheme::ScreenW, 620);
+  display_.partialRefresh(0, 0, UiTheme::ScreenW, 630);
 }
 
 void UiManager::closeQuickPanel() {

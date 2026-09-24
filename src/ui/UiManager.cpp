@@ -513,31 +513,54 @@ void UiManager::showGeneral() {
 
 void UiManager::showWiFi() {
   page_ = Page::WiFi;
-  wifiScan_.clear();
   preparePage();
   statusBar();
 
   UiTheme::title("Wi-Fi Analyzer", 18, 76);
-  UiTheme::detail(wifi_.isConnected() ? WiFi.SSID() : String("Not connected"), 20, 116);
+  UiTheme::detail(wifi_.radioEnabled() ? (wifi_.isConnected() ? WiFi.SSID() : String("Not connected")) : String("Wi-Fi radio OFF"), 20, 116);
 
   UiTheme::card(18, 145, 504, 118, true);
   UiTheme::label("CURRENT NETWORK", 34, 161);
-  String current = wifi_.isConnected() ? WiFi.SSID() : String("PaperOS-Setup");
+  String current = wifi_.isConnected() ? WiFi.SSID() : (wifi_.radioEnabled() ? String("PaperOS-Setup") : String("Wi-Fi disabled"));
   if (current.length() > 23) current = current.substring(0, 23);
   UiTheme::value(current, 34, 197, false);
   String networkDetail = wifi_.isConnected()
     ? wifi_.ip().toString() + "  /  CH " + String(WiFi.channel())
-    : String("Tap a network below to connect");
+    : String("Tap here to rescan / toggle from Quick Settings");
   UiTheme::detail(networkDetail, 34, 235);
-  UiTheme::pill(wifi_.isConnected() ? String(WiFi.RSSI()) + " dBm" : "OFFLINE", 392, 160, false);
+  UiTheme::pill(wifi_.isConnected() ? String(WiFi.RSSI()) + " dBm" : (wifi_.radioEnabled() ? "OFFLINE" : "RADIO OFF"), 382, 160, false);
 
   UiTheme::label("NEARBY NETWORKS", 20, 286);
   UiTheme::card(18, 310, 504, 466);
-  UiTheme::value("Scanning...", 44, 354, false);
-  UiTheme::detail("SSID / signal / channel / security", 44, 398);
-  M5.Display.drawRoundRect(44, 448, 438, 18, 9, TFT_BLACK);
-  M5.Display.fillRoundRect(47, 451, 250, 12, 6, TFT_BLACK);
-  UiTheme::detail("Tap a result to join it.", 44, 493);
+
+  if (!wifi_.radioEnabled()) {
+    UiTheme::value("Wi-Fi radio is OFF", 44, 354, false);
+    UiTheme::detail("Swipe down from the top to enable Wi-Fi.", 44, 398);
+  } else if (wifiScan_.empty()) {
+    UiTheme::value(wifiScanRunning_ ? "Scanning..." : "No networks cached", 44, 354, false);
+    UiTheme::detail("SSID / signal / channel / security", 44, 398);
+    if (wifiScanRunning_) {
+      M5.Display.drawRoundRect(44, 448, 438, 18, 9, TFT_BLACK);
+      M5.Display.fillRoundRect(47, 451, 250, 12, 6, TFT_BLACK);
+    }
+  } else {
+    const int visible = 5;
+    int maxOffset = max(0, static_cast<int>(wifiScan_.size()) - visible);
+    wifiScroll_ = constrain(wifiScroll_, 0, maxOffset);
+    int shown = min(visible, static_cast<int>(wifiScan_.size()) - wifiScroll_);
+
+    for (int row = 0; row < shown; ++row) {
+      const WiFiScanEntry& entry = wifiScan_[wifiScroll_ + row];
+      String title = entry.ssid.length() ? entry.ssid : String("<hidden>");
+      if (title.length() > 24) title = title.substring(0, 24);
+      String detail = String(entry.rssi) + " dBm  /  CH " + String(entry.channel) + "  /  " +
+                      (entry.encrypted ? "SECURE" : "OPEN");
+      settingsRow(311 + row * 88, "WF", title, detail, true);
+    }
+
+    UiTheme::detail(String(wifiScroll_ + 1) + "-" + String(wifiScroll_ + shown) + " / " + String(wifiScan_.size()) +
+                    "  -  swipe up/down", 44, 754);
+  }
 
   UiTheme::card(18, 792, 504, 58);
   UiTheme::detail(wifiStatusMessage_.length() ? wifiStatusMessage_ : String("Saved networks reconnect automatically."), 34, 811);
@@ -545,18 +568,20 @@ void UiManager::showWiFi() {
   bottomNav(4);
   commitPage();
 
-  WiFi.scanDelete();
-  WiFi.scanNetworks(true, true);
+  if (wifi_.radioEnabled() && wifiScan_.empty() && !wifiScanRunning_) {
+    WiFi.scanDelete();
+    WiFi.scanNetworks(true, true);
+    wifiScanRunning_ = true;
+  }
 }
 
 void UiManager::showBluetooth() {
   page_ = Page::Bluetooth;
-  bleScan_.clear();
   preparePage();
   statusBar();
 
   UiTheme::title("BLE Inspector", 18, 76);
-  UiTheme::detail("Bluetooth Low Energy scanner", 20, 116);
+  UiTheme::detail("Bluetooth LE scanner / beacon / GATT", 20, 116);
 
   if (!bluetoothActive_) {
     BLEDevice::init("PaperOS");
@@ -565,14 +590,36 @@ void UiManager::showBluetooth() {
 
   UiTheme::card(18, 145, 504, 112, true);
   UiTheme::label("SCANNER", 34, 161);
-  UiTheme::value("Ready", 34, 197, false);
-  UiTheme::detail("Tap SCAN, then tap a device for technical details.", 34, 232);
+  UiTheme::value(bleScan_.empty() ? "Ready" : String(bleScan_.size()) + " devices", 34, 197, false);
+  UiTheme::detail("Tap SCAN, then swipe the results and open a device.", 34, 232);
   UiTheme::pill("SCAN", 430, 160, true);
 
   UiTheme::label("NEARBY BLE DEVICES", 20, 282);
   UiTheme::card(18, 306, 504, 470);
-  UiTheme::value("No scan yet", 44, 350, false);
-  UiTheme::detail("Shows name/address, RSSI, UUID and manufacturer bytes.", 44, 392);
+
+  if (bleScan_.empty()) {
+    UiTheme::value("No scan yet", 44, 350, false);
+    UiTheme::detail("Name / manufacturer / RSSI / beacon type.", 44, 392);
+  } else {
+    const int visible = 5;
+    int maxOffset = max(0, static_cast<int>(bleScan_.size()) - visible);
+    bleScroll_ = constrain(bleScroll_, 0, maxOffset);
+    int shown = min(visible, static_cast<int>(bleScan_.size()) - bleScroll_);
+
+    for (int row = 0; row < shown; ++row) {
+      const BleScanEntry& entry = bleScan_[bleScroll_ + row];
+      String title = entry.name.length() ? entry.name : entry.address;
+      if (title.length() > 24) title = title.substring(0, 24);
+      String detail = entry.manufacturerName.length() ? entry.manufacturerName : String(entry.rssi) + " dBm";
+      if (entry.manufacturerName.length()) detail += " / " + String(entry.rssi) + " dBm";
+      if (entry.beaconType.length()) detail += " / " + entry.beaconType;
+      if (detail.length() > 48) detail = detail.substring(0, 48);
+      settingsRow(307 + row * 88, "BT", title, detail, true);
+    }
+
+    UiTheme::detail(String(bleScroll_ + 1) + "-" + String(bleScroll_ + shown) + " / " + String(bleScan_.size()) +
+                    "  -  swipe up/down", 44, 754);
+  }
 
   UiTheme::card(18, 792, 504, 58);
   UiTheme::detail("Advertising is passive; GATT Reader connects only when requested.", 34, 811);
@@ -582,6 +629,36 @@ void UiManager::showBluetooth() {
 }
 
 
+
+String UiManager::bleManufacturerName(const String& bytes) const {
+  if (bytes.length() < 2) return "";
+  uint16_t id = static_cast<uint8_t>(bytes[0]) |
+                (static_cast<uint16_t>(static_cast<uint8_t>(bytes[1])) << 8);
+  switch (id) {
+    case 0x0002: return "Intel";
+    case 0x0006: return "Microsoft";
+    case 0x000D: return "Texas Instruments";
+    case 0x000F: return "Broadcom";
+    case 0x003A: return "Panasonic";
+    case 0x0046: return "MediaTek";
+    case 0x004C: return "Apple";
+    case 0x0057: return "Harman";
+    case 0x0059: return "Nordic Semiconductor";
+    case 0x005D: return "Realtek";
+    case 0x0065: return "HP";
+    case 0x0067: return "GN Audio";
+    case 0x0068: return "General Motors";
+    case 0x006B: return "Polar";
+    case 0x0075: return "Samsung";
+    case 0x0078: return "Nike";
+    case 0x00E0: return "Google";
+    default: {
+      char buf[24];
+      snprintf(buf, sizeof(buf), "Company ID 0x%04X", id);
+      return String(buf);
+    }
+  }
+}
 
 String UiManager::bleManufacturerHex(const String& bytes) const {
   return bytesHex(bytes, 18);
@@ -1577,59 +1654,73 @@ bool UiManager::isTextFile(const String& name) const {
 
 void UiManager::showFiles(const String& path) {
   page_ = Page::Files;
-  currentFilePath_ = storage_.validPath(path) ? path : String("/PaperOS");
-  fileEntries_.clear();
+  String nextPath = storage_.validPath(path) ? path : String("/PaperOS");
+  bool pathChanged = nextPath != currentFilePath_;
+
+  if (pathChanged || fileEntries_.empty()) {
+    currentFilePath_ = nextPath;
+    fileScroll_ = 0;
+    fileEntries_.clear();
+
+    if (storage_.available()) {
+      if (currentFilePath_ != "/PaperOS") {
+        FileEntry up;
+        up.name = "..";
+        up.directory = true;
+        fileEntries_.push_back(up);
+      }
+
+      File root = SD.open(currentFilePath_);
+      for (File f = root.openNextFile(); f; f = root.openNextFile()) {
+        FileEntry e;
+        e.name = String(f.name());
+        int slash = e.name.lastIndexOf('/');
+        if (slash >= 0) e.name = e.name.substring(slash + 1);
+        e.directory = f.isDirectory();
+        e.size = f.size();
+        fileEntries_.push_back(e);
+        f.close();
+        if (fileEntries_.size() >= 160) break;
+      }
+      root.close();
+    }
+  } else {
+    currentFilePath_ = nextPath;
+  }
 
   preparePage();
   statusBar();
   UiTheme::title("Files", 18, 78);
   UiTheme::detail(currentFilePath_, 20, 119);
 
-  // Build the entire directory page off-screen and commit it once.
   if (!storage_.available()) {
     UiTheme::card(18, 160, 504, 260, true);
     UiTheme::value("microSD required", 40, 205, true);
     UiTheme::detail("Insert a card to browse local files.", 40, 270);
-    UiTheme::detail("Browser storage functions also depend on microSD.", 40, 304);
+    UiTheme::detail("Storage tools and backup also depend on microSD.", 40, 304);
+  } else if (fileEntries_.empty()) {
+    UiTheme::card(18, 160, 504, 220);
+    UiTheme::value("Empty folder", 40, 205, true);
+    UiTheme::detail("Upload files from paperos.local.", 40, 270);
   } else {
-    int row = 0;
-    if (currentFilePath_ != "/PaperOS") {
-      FileEntry up;
-      up.name = "..";
-      up.directory = true;
-      fileEntries_.push_back(up);
-      UiTheme::card(18, 150, 504, 70);
-      UiTheme::value("..", 34, 164, false);
-      UiTheme::detail("Parent folder", 34, 197);
-      UiTheme::chevron(491, 174);
-      ++row;
-    }
+    const int visible = 8;
+    int maxOffset = max(0, static_cast<int>(fileEntries_.size()) - visible);
+    fileScroll_ = constrain(fileScroll_, 0, maxOffset);
+    int shown = min(visible, static_cast<int>(fileEntries_.size()) - fileScroll_);
 
-    File root = SD.open(currentFilePath_);
-    for (File f = root.openNextFile(); f && row < 8; f = root.openNextFile()) {
-      FileEntry e;
-      e.name = String(f.name());
-      int slash = e.name.lastIndexOf('/');
-      if (slash >= 0) e.name = e.name.substring(slash + 1);
-      e.directory = f.isDirectory();
-      e.size = f.size();
-      fileEntries_.push_back(e);
-
+    for (int row = 0; row < shown; ++row) {
+      const FileEntry& e = fileEntries_[fileScroll_ + row];
       int y = 150 + row * 82;
       UiTheme::card(18, y, 504, 70);
-      UiTheme::value((e.directory ? "[DIR] " : "") + e.name, 34, y + 13, false);
-      UiTheme::detail(e.directory ? "Folder" : String((uint32_t)e.size) + " bytes", 34, y + 46);
+      String title = (e.directory ? "[DIR] " : "") + e.name;
+      if (title.length() > 34) title = title.substring(0, 31) + "...";
+      UiTheme::value(title, 34, y + 13, false);
+      UiTheme::detail(e.name == ".." ? "Parent folder" : (e.directory ? "Folder" : String((uint32_t)e.size) + " bytes"), 34, y + 46);
       UiTheme::chevron(491, y + 25);
-      ++row;
-      f.close();
     }
-    root.close();
 
-    if (fileEntries_.empty()) {
-      UiTheme::card(18, 160, 504, 220);
-      UiTheme::value("Empty folder", 40, 205, true);
-      UiTheme::detail("Upload files from paperos.local.", 40, 270);
-    }
+    UiTheme::detail(String(fileScroll_ + 1) + "-" + String(fileScroll_ + shown) + " / " + String(fileEntries_.size()) +
+                    "  -  swipe", 350, 822);
   }
 
   bottomNav(2);
@@ -1637,6 +1728,12 @@ void UiManager::showFiles(const String& path) {
 }
 
 void UiManager::showFilePreview(const String& fullPath, const String& name, uint64_t size) {
+  bool newFile = currentPreviewPath_ != fullPath;
+  currentPreviewPath_ = fullPath;
+  currentPreviewName_ = name;
+  currentPreviewSize_ = size;
+  if (newFile) textScroll_ = 0;
+
   page_ = Page::FileView;
   preparePage();
   statusBar();
@@ -1647,12 +1744,14 @@ void UiManager::showFilePreview(const String& fullPath, const String& name, uint
   UiTheme::card(18, 150, 504, 690);
 
   if (!isTextFile(name)) {
-    UiTheme::value("Preview unavailable", 40, 205, true);
-    UiTheme::detail("Binary/media files can be downloaded from paperos.local.", 40, 270);
+    UiTheme::value("Preview type pending", 40, 205, true);
+    UiTheme::detail("Images/PDF are handled by the Reader tools added in 0.1.9.", 40, 270);
   } else {
     File f = SD.open(fullPath, FILE_READ);
     String content;
     if (f) {
+      size_t safeOffset = min<size_t>(textScroll_, f.size());
+      f.seek(safeOffset);
       while (f.available() && content.length() < 1800) content += (char)f.read();
       f.close();
     }
@@ -1660,9 +1759,10 @@ void UiManager::showFilePreview(const String& fullPath, const String& name, uint
     M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
     M5.Display.setTextWrap(true, true);
     M5.Display.setCursor(34, 178);
-    M5.Display.print(content);
+    M5.Display.print(content.length() ? content : String("[end of file]"));
     M5.Display.setTextWrap(false);
     UiTheme::resetFont();
+    UiTheme::detail(String("Offset ") + textScroll_ + " / " + String((uint32_t)size) + "  -  swipe up/down", 34, 812);
   }
 
   bottomNav(2);

@@ -751,17 +751,8 @@ void UiManager::showNotes() {
   UiTheme::title("Notes", 18, 78);
   UiTheme::detail("Stored on microSD", 20, 119);
 
-  // Show the complete app shell immediately; SD enumeration happens after.
-  UiTheme::card(18, 150, 504, 690);
-  UiTheme::label("LOADING NOTES", 40, 180);
-  UiTheme::value("Reading microSD...", 40, 220, false);
-  M5.Display.drawRoundRect(40, 282, 460, 18, 9, TFT_BLACK);
-  M5.Display.fillRoundRect(43, 285, 240, 12, 6, TFT_BLACK);
-  bottomNav(1);
-  commitPage();
-
-  M5.Display.fillRect(18, 150, 504, 690, TFT_WHITE);
-
+  // Auto-display is disabled: microSD is read while the previous physical
+  // frame remains visible, then this complete page is committed once.
   if (!storage_.available()) {
     UiTheme::card(18, 160, 504, 260, true);
     UiTheme::value("microSD required", 40, 205, true);
@@ -798,7 +789,8 @@ void UiManager::showNotes() {
     }
   }
 
-  display_.partialRefresh(18, 150, 504, 690);
+  bottomNav(1);
+  commitPage();
 }
 
 void UiManager::showNote(size_t index) {
@@ -870,16 +862,7 @@ void UiManager::showFiles(const String& path) {
   UiTheme::title("Files", 18, 78);
   UiTheme::detail(currentFilePath_, 20, 119);
 
-  UiTheme::card(18, 150, 504, 690);
-  UiTheme::label("LOADING FILES", 40, 180);
-  UiTheme::value("Reading microSD...", 40, 220, false);
-  M5.Display.drawRoundRect(40, 282, 460, 18, 9, TFT_BLACK);
-  M5.Display.fillRoundRect(43, 285, 280, 12, 6, TFT_BLACK);
-  bottomNav(2);
-  commitPage();
-
-  M5.Display.fillRect(18, 150, 504, 690, TFT_WHITE);
-
+  // Build the entire directory page off-screen and commit it once.
   if (!storage_.available()) {
     UiTheme::card(18, 160, 504, 260, true);
     UiTheme::value("microSD required", 40, 205, true);
@@ -926,7 +909,8 @@ void UiManager::showFiles(const String& path) {
     }
   }
 
-  display_.partialRefresh(18, 150, 504, 690);
+  bottomNav(2);
+  commitPage();
 }
 
 void UiManager::showFilePreview(const String& fullPath, const String& name, uint64_t size) {

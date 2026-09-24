@@ -81,25 +81,26 @@ bool StorageManager::formatCard(const String& typeRaw) {
   mounted_ = false;
   delay(80);
 
-  SdCardFactory factory;
-  SdCard* card = factory.newCard(SdSpiConfig(PIN_SD_CS, SHARED_SPI, SD_SCK_MHZ(16), &SPI));
-  if (!card || card->errorCode()) {
-    mounted_ = SD.begin(PIN_SD_CS, SPI, 25000000);
-    return false;
-  }
-
-  alignas(4) uint8_t sectorBuffer[512];
   bool ok = false;
+  {
+    SdCardFactory factory;
+    SdCard* card = factory.newCard(SdSpiConfig(PIN_SD_CS, SHARED_SPI, SD_SCK_MHZ(16), &SPI));
+    if (!card || card->errorCode()) {
+      mounted_ = SD.begin(PIN_SD_CS, SPI, 25000000);
+      return false;
+    }
 
-  if (type == "fat" || type == "fat32") {
-    FatFormatter formatter;
-    ok = formatter.format(card, sectorBuffer, nullptr);
-  } else if (type == "exfat") {
-    ExFatFormatter formatter;
-    ok = formatter.format(card, sectorBuffer, nullptr);
-  } else {
-    FsFormatter formatter;
-    ok = formatter.format(card, sectorBuffer, nullptr);
+    alignas(4) uint8_t sectorBuffer[512];
+    if (type == "fat" || type == "fat32") {
+      FatFormatter formatter;
+      ok = formatter.format(card, sectorBuffer, nullptr);
+    } else if (type == "exfat") {
+      ExFatFormatter formatter;
+      ok = formatter.format(card, sectorBuffer, nullptr);
+    } else {
+      FsFormatter formatter;
+      ok = formatter.format(card, sectorBuffer, nullptr);
+    }
   }
 
   delay(120);

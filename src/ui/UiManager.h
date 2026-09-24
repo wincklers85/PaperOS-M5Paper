@@ -33,6 +33,7 @@ class UiManager {
   void showThermo();
   void showSolar();
   void showWiFi();
+  void showWifiAudit();
   void showBluetooth();
   void showGeneral();
   void showLabs();
@@ -60,7 +61,7 @@ class UiManager {
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, Labs, HidLab, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -74,6 +75,7 @@ class UiManager {
     int32_t rssi = 0;
     int32_t channel = 0;
     bool encrypted = true;
+    int authMode = 0;
   };
 
   struct BleScanEntry {

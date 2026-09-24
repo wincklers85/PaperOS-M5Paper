@@ -503,6 +503,7 @@ int UiManager::wheelItemCount() const {
     case Page::NetworkTools: return 6;
     case Page::Labs: return 6;
     case Page::WiFi: return 1 + static_cast<int>(wifiScan_.size());
+    case Page::Bluetooth: return static_cast<int>(bleScan_.size());
     case Page::ClassicDesktop: return 9;
     default: return 0;
   }
@@ -547,6 +548,9 @@ void UiManager::drawWheelFocus() {
       if (item < wifiScroll_ || item >= wifiScroll_+5) return;
       x=20;y=309+(item-wifiScroll_)*88;w=500;h=82;
     }
+  } else if (page_ == Page::Bluetooth) {
+    if (idx < bleScroll_ || idx >= bleScroll_+5) return;
+    x=20;y=305+(idx-bleScroll_)*88;w=500;h=82;
   } else if (page_ == Page::ClassicDesktop) {
     int col=idx%3,row=idx/3;
     x=50+col*154;y=174+row*152;w=108;h=98;
@@ -589,6 +593,9 @@ void UiManager::handleWheelNavigate(int direction) {
     int item=wheelFocusIndex_-1;
     if (item < wifiScroll_) wifiScroll_=item;
     if (item >= wifiScroll_+5) wifiScroll_=item-4;
+  } else if (page_ == Page::Bluetooth) {
+    if (wheelFocusIndex_ < bleScroll_) bleScroll_=wheelFocusIndex_;
+    if (wheelFocusIndex_ >= bleScroll_+5) bleScroll_=wheelFocusIndex_-4;
   }
 
   renderPage(page_);
@@ -696,6 +703,11 @@ void UiManager::activateWheelFocus() {
       wifiStatusMessage_=ok?String("Connected to ")+entry.ssid:String("Connection failed: ")+entry.ssid;
       showWiFi();
     }
+    return;
+  }
+
+  if (page_ == Page::Bluetooth) {
+    if (idx>=0 && idx<static_cast<int>(bleScan_.size())) showBleDetail(static_cast<size_t>(idx));
     return;
   }
 

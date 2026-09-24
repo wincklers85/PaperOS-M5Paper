@@ -213,6 +213,9 @@ async function device(){
         '<button id="devHome">Home</button><button id="devApps">Apps</button><button id="devRefresh">Full refresh</button>'+
         '<button id="devSleep">Sleep</button><button id="devReboot" class="danger">Reboot</button>'+
       '</div><div class="submetric">Deep sleep turns off Wi-Fi, so remote wake is intentionally unavailable.</div></section>'+
+      '<section class="card wide"><h3>Launch native app</h3><div class="toolbar">'+
+        '<button id="devBattery">Battery</button><button id="devClock">Clock</button><button id="devFocus">Focus</button><button id="devFun">Fun</button>'+
+      '</div><div class="submetric">These open the real buffered native screen on the M5Paper.</div></section>'+
       '<section class="card"><h3>Device</h3><div class="metric">'+esc(s.batteryPercent+'%')+'</div><div class="submetric">'+esc(s.deviceName)+' · '+esc(s.version)+'</div></section>'+
       '<section class="card full"><h3>Firmware OTA</h3>'+
         '<p class="submetric">Upload a compiled firmware .bin. PaperOS validates the update through the ESP32 Update API and reboots only after a successful write.</p>'+
@@ -222,6 +225,10 @@ async function device(){
   $('#devHome').onclick=()=>act('/api/device/home','Home opened');
   $('#devApps').onclick=()=>act('/api/device/apps','Apps opened');
   $('#devRefresh').onclick=()=>act('/api/device/refresh','Display refreshed');
+  $('#devBattery').onclick=()=>act('/api/device/battery','Battery opened');
+  $('#devClock').onclick=()=>act('/api/device/clock','Clock opened');
+  $('#devFocus').onclick=()=>act('/api/device/focus','Focus opened');
+  $('#devFun').onclick=()=>act('/api/device/fun','Fun opened');
   $('#devSleep').onclick=()=>{if(confirm('Put PaperOS into deep sleep?'))act('/api/device/sleep','Sleep requested')};
   $('#devReboot').onclick=()=>{if(confirm('Reboot PaperOS now?'))act('/api/device/reboot','Reboot requested')};
   $('#otaButton').onclick=ota;

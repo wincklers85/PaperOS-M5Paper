@@ -3068,7 +3068,7 @@ void UiManager::loop() {
         BLEScan* scanner = BLEDevice::getScan();
         scanner->setActiveScan(true);
         BLEScanResults results = scanner->start(3, false);
-        int total = min(results.getCount(), 40);
+        int total = results.getCount();
 
         for (int i = 0; i < total; ++i) {
           BLEAdvertisedDevice d = results.getDevice(i);

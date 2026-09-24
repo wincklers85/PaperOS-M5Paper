@@ -25,7 +25,7 @@ bool HidInputService::begin() {
 
   BLESecurity* security = new BLESecurity();
   security->setCapability(ESP_IO_CAP_NONE);
-  security->setAuthenticationMode(true, false, true);
+  security->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
 
   active_ = true;
   return true;
@@ -128,8 +128,8 @@ bool HidInputService::connect(size_t index) {
       BLERemoteDescriptor* ref = c->getDescriptor(BLEUUID((uint16_t)0x2908));
       bool inputReport = true;
       if (ref) {
-        String rv = ref->readValue();
-        if (rv.length() >= 2) inputReport = ((uint8_t)rv[1] == 1);
+        std::string rawRef = ref->readValue();
+        if (rawRef.size() >= 2) inputReport = ((uint8_t)rawRef[1] == 1);
       }
       if (inputReport) {
         c->registerForNotify(notifyCallback);

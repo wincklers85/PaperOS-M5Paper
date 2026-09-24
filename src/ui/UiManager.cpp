@@ -4227,30 +4227,58 @@ void UiManager::classicHandleKey(const HidKeyEvent& key) {
 }
 
 void UiManager::classicProcessHidInput() {
-  bool classic = page_ == Page::ClassicDesktop || page_ == Page::ClassicTerminal ||
-                 page_ == Page::ClassicHid || page_ == Page::ClassicSki ||
-                 page_ == Page::ClassicSolitaire;
-  if (!classic || !hidInput_.active()) return;
+  if (!hidInput_.active()) return;
+  const bool classic=isClassicPage() && page_!=Page::ClassicSplash;
 
   HidKeyEvent key;
-  while (hidInput_.popKey(key)) classicHandleKey(key);
+  while (hidInput_.popKey(key)) {
+    if (locked_) {
+      if (key.keycode==0x28) armUnlock();
+      continue;
+    }
+
+    if (classic) {
+      classicHandleKey(key);
+      continue;
+    }
+
+    if (key.keycode==0x52) handleWheelNavigate(-1);       // Up
+    else if (key.keycode==0x51) handleWheelNavigate(1);  // Down
+    else if (key.keycode==0x28) activateWheelFocus();    // Enter
+    else if (key.keycode==0x29) navigateBack();          // Esc
+  }
 
   HidMouseEvent mouse;
   bool moved=false;
   while (hidInput_.popMouse(mouse)) {
-    classicMouseX_ = constrain(classicMouseX_ + (int)mouse.dx * 2, 0, 539);
-    classicMouseY_ = constrain(classicMouseY_ + (int)mouse.dy * 2, 0, 959);
-    bool down=(mouse.buttons & 1U)!=0;
-    bool click=down && !(classicMouseButtons_ & 1U);
+    const uint8_t oldButtons=classicMouseButtons_;
+    const bool leftClick=(mouse.buttons&0x01U) && !(oldButtons&0x01U);
+    const bool wheelClick=(mouse.buttons&0x04U) && !(oldButtons&0x04U);
     classicMouseButtons_=mouse.buttons;
-    moved = moved || mouse.dx || mouse.dy;
-    if (click) {
-      classicHandlePointer(classicMouseX_, classicMouseY_, true);
-      moved=false;
+
+    if (wheelClick) {
+      if (locked_) armUnlock();
+      else activateWheelFocus();
+    }
+
+    if (mouse.wheel) {
+      handleWheelNavigate(mouse.wheel>0 ? -1 : 1);
+    }
+
+    if (locked_) continue;
+
+    if (classic) {
+      classicMouseX_=constrain(classicMouseX_+(int)mouse.dx*2,0,539);
+      classicMouseY_=constrain(classicMouseY_+(int)mouse.dy*2,0,959);
+      moved = moved || mouse.dx || mouse.dy;
+      if (leftClick) {
+        classicHandlePointer(classicMouseX_,classicMouseY_,true);
+        moved=false;
+      }
     }
   }
 
-  if (moved && millis()-classicLastPointerRefresh_ > 170) {
+  if (classic && moved && millis()-classicLastPointerRefresh_>170) {
     classicLastPointerRefresh_=millis();
     renderPage(page_);
   }
@@ -4277,7 +4305,25 @@ void UiManager::openAppIndex(int index) {
 void UiManager::loop() {
   M5.update();
   networkTools_.loop();
+
+  if (power_.consumeLockRequest() && !locked_) {
+    showLockScreen();
+  }
+
   classicProcessHidInput();
+
+  if (locked_) {
+    if (M5.BtnB.wasClicked()) {
+      armUnlock();
+      return;
+    }
+
+    auto lockTouch=touch_.poll();
+    if (lockTouch.released && lockWakeArmed_ && lockTouch.gesture==TouchGesture::SwipeRight) {
+      unlockToMenu();
+    }
+    return;
+  }
 
   if (M5.BtnC.wasHold()) {
     power_.sleepNow();
@@ -4285,11 +4331,13 @@ void UiManager::loop() {
   }
   if (M5.BtnA.wasClicked()) {
     power_.markActivity();
+    wheelFocusVisible_=false;
     showHome();
     return;
   }
   if (M5.BtnB.wasClicked()) {
     power_.markActivity();
+    wheelFocusVisible_=false;
     showApps();
     return;
   }
@@ -4298,9 +4346,24 @@ void UiManager::loop() {
 
   if (e.active) power_.markActivity();
 
+  if (e.released && notificationPanelOpen_) {
+    if (e.gesture==TouchGesture::SwipeDown) closeNotificationCenter();
+    else if (e.gesture==TouchGesture::SwipeUp) {
+      notificationScroll_=constrain(notificationScroll_+2,0,max(0,(int)phoneLink_.notificationCount()-5));
+      showNotificationCenter();
+    } else if (e.clicked) handleNotificationPanelTap(e.x,e.y);
+    return;
+  }
+
   if (e.released && quickPanelOpen_) {
     if (e.gesture == TouchGesture::SwipeUp) closeQuickPanel();
     else if (e.clicked) handleQuickPanelTap(e.x, e.y);
+    return;
+  }
+
+  if (e.released && e.gesture==TouchGesture::SwipeUp && e.startY>820) {
+    power_.markActivity();
+    showNotificationCenter();
     return;
   }
 
@@ -4312,12 +4375,14 @@ void UiManager::loop() {
 
   if (e.released && (e.gesture == TouchGesture::SwipeUp || e.gesture == TouchGesture::SwipeDown)) {
     power_.markActivity();
+    wheelFocusVisible_=false;
     handleScrollGesture(e.gesture);
     return;
   }
 
   if (e.released && e.gesture == TouchGesture::SwipeRight && e.startX < 80) {
     power_.markActivity();
+    wheelFocusVisible_=false;
     navigateBack();
     return;
   }

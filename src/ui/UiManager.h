@@ -133,6 +133,9 @@ class UiManager {
   int fileScroll_ = 0;
   int textScroll_ = 0;
   int phoneScroll_ = 0;
+  int browserTextScroll_ = 0;
+  int browserLinkScroll_ = 0;
+  uint8_t lanScanSegment_ = 0;
   int comingNav_ = 4;
   String comingTitle_;
 

@@ -3978,7 +3978,10 @@ void UiManager::showFilePreview(const String& fullPath, const String& name, uint
     File imageFile = SD.open(fullPath, FILE_READ);
     if (imageFile && !imageFile.isDirectory()) {
       if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
-        ok = M5.Display.drawJpg(&imageFile, 42, 205, 454, 550);
+        // Ask the decoder to downsample large camera photos before rendering.
+        // This avoids expanding a multi-megapixel image at its full dimensions
+        // on the original ESP32's limited directly mapped PSRAM.
+        ok = M5.Display.drawJpg(&imageFile, 42, 205, 454, 550, 0, 0, JPEG_DIV_MAX);
       } else if (lower.endsWith(".png")) {
         ok = M5.Display.drawPng(&imageFile, 42, 205, 454, 550);
       } else if (lower.endsWith(".bmp")) {
@@ -5632,8 +5635,4 @@ void UiManager::loop() {
   }
 
   if (millis() - lastDeepClean_ > 25UL * 60UL * 1000UL && page_ == Page::Home) {
-    showHome(true);
-  }
-}
-
-}
+    showHome(true

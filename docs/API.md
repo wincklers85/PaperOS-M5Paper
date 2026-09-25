@@ -1,4 +1,4 @@
-# PaperOS REST API — 0.1.9-alpha
+# PaperOS REST API — 0.3.1-alpha
 
 All authenticated endpoints use the same-origin `paperos` HttpOnly session cookie. API token support is reserved for a later hardening release.
 
@@ -32,6 +32,9 @@ Implemented endpoints:
 - `POST /api/device/reboot`
 - `POST /api/ota`
 
+## System status
+
+`GET /api/system/status` reports live device telemetry. `psramFree` is the currently free directly addressable PSRAM; `psramUsableBytes` is the directly usable region reported by the ESP32 runtime; `psramInstalledBytes` is the physical capacity on the original M5Paper (8 MiB). `psramTotal` is retained as a compatibility alias for `psramUsableBytes`. Classic ESP32 maps up to 4 MiB into its normal address space; PaperOS does not yet use Himem paging for the remaining installed PSRAM.
 
 ## Battery / Power Center
 
@@ -60,4 +63,3 @@ Authenticated endpoints:
 - `POST /api/phone/start` — start BLE Phone Link advertising.
 
 The BLE GATT protocol and example commands are documented in [PHONE_LINK.md](PHONE_LINK.md).
-

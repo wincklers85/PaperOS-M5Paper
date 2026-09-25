@@ -187,7 +187,7 @@ async function dashboard(){
       metricCard('Network',w.connected?'Online':'Setup AP',w.connected?esc(w.ssid):'PaperOS-Setup','Wi-Fi')+
       metricCard('Storage',s.sdMounted?bytes(s.sdFree):'No SD',s.sdMounted?'Free on microSD':'SD-backed apps unavailable','microSD')+
       metricCard('Heap',bytes(s.heapFree),bytes(s.heapMin)+' minimum','Memory')+
-      metricCard('PSRAM',bytes(s.psramFree),bytes(s.psramTotal)+' total','Memory')+
+      metricCard('PSRAM',bytes(s.psramFree),bytes(s.psramUsableBytes||s.psramTotal)+' usable / '+bytes(s.psramInstalledBytes||s.psramTotal)+' installed','Memory')+
       metricCard('Web console','paperos.local',esc(s.ip),'Local access')+
       '<section class="card full"><h3>Quick actions</h3><div class="toolbar">'+
         '<button id="qaHome">Show Home</button><button id="qaApps">Show Apps</button>'+
@@ -492,7 +492,7 @@ async function systemPage(){
     '<div class="section-head"><div><h2>System monitor</h2><p>Live ESP32 and PaperOS diagnostics.</p></div><button id="sysRefresh">Refresh</button></div>'+
     '<div class="grid">'+
       metricCard('Heap',bytes(s.heapFree),bytes(s.heapMin)+' minimum','RAM')+
-      metricCard('PSRAM',bytes(s.psramFree),bytes(s.psramTotal)+' total','PSRAM')+
+      metricCard('PSRAM',bytes(s.psramFree),bytes(s.psramUsableBytes||s.psramTotal)+' usable / '+bytes(s.psramInstalledBytes||s.psramTotal)+' installed','PSRAM')+
       metricCard('Battery',s.batteryPercent+'%',s.batteryMv+' mV','Power')+
       metricCard('Uptime',uptime(s.uptimeMs),'Since last boot','System')+
       '<section class="card half"><h3>Network</h3><div class="card-line"><span>SSID</span><strong>'+esc(w.ssid)+'</strong></div><div class="card-line"><span>IP</span><strong class="code">'+esc(w.ip)+'</strong></div><div class="card-line"><span>MAC</span><strong class="code">'+esc(s.mac)+'</strong></div><div class="card-line"><span>RSSI</span><strong>'+esc(String(w.rssi))+' dBm</strong></div></section>'+

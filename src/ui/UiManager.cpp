@@ -1080,7 +1080,7 @@ void UiManager::showGeneral() {
   settingsRow(150, "IN", "Info", String("PaperOS ") + VERSION, false);
   settingsRow(240, "HW", "Modello", "M5Stack M5Paper original", false);
   settingsRow(330, "CPU", "Processore", "ESP32-D0WDQ6-V3 / 240 MHz", false);
-  settingsRow(420, "RM", "Memoria", String(ESP.getPsramSize() / 1048576.0, 0) + " MB PSRAM", false);
+  settingsRow(420, "RM", "Memoria", String(ESP.getPsramSize() / 1048576.0, 0) + " MB usable / " + String(PSRAM_INSTALLED_BYTES / 1048576U) + " MB installed PSRAM", false);
   settingsRow(510, "FL", "Flash", "16 MB", false);
   settingsRow(600, "DP", "Display", "540 x 960 e-paper / 4.7 inch", false);
   settingsRow(690, "WL", "Software", "Created by WinLabs Solutions", false);

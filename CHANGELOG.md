@@ -9,6 +9,7 @@ All notable changes follow Semantic Versioning.
 - Fixed the SD Recovery source code to compile with the classic ESP32 C++ toolchain, based on the compile log from the target build.
 - Updated build, release, security and device-test documentation to reflect the 0.3.1-alpha codebase and the 0.3.2-alpha stabilization gate.
 - Corrected SD tests for the no-write-on-boot behavior and documented the recovery-format and same-card-save limits.
+- System information now distinguishes directly usable PSRAM from the 8 MB physically installed on the original M5Paper.
 
 ## [0.3.1-alpha] - 2026-09-25
 

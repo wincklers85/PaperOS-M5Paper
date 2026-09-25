@@ -1,6 +1,10 @@
 # Hardware — original M5Paper only
 
-PaperOS 0.1.x targets the first-generation M5Stack M5Paper with classic ESP32, 16 MB flash, 8 MB PSRAM, IT8951 e-paper controller, GT911 touch controller, RTC and microSD.
+PaperOS targets the first-generation M5Stack M5Paper with classic ESP32, 16 MB flash, 8 MB PSRAM, IT8951 e-paper controller, GT911 touch controller, RTC and microSD.
+
+## PSRAM reporting
+
+The original M5Paper has 8 MB of physical PSRAM. The classic ESP32 maps at most 4 MB into its normal address space, which is what ordinary pointers and the current Arduino PSRAM allocator use. The remaining memory requires the ESP-IDF Himem paging API; PaperOS does not currently use Himem. The device UI and Web Console therefore show both the directly usable amount reported by `ESP.getPsramSize()` and the board's installed 8 MB capacity. This is expected and does not indicate missing memory.
 
 ## Shared SPI bus
 

@@ -38,7 +38,7 @@
 - password-protected responsive Web UI
 - first-boot browser-assisted wizard
 - microSD layout and scrollable file manager: list, upload, download, create folder, rename, copy and delete; native text, JPEG/PNG/BMP and PDF-Lite readers
-- SD Recovery app with a read-only FAT32 deleted-entry scan, on-device previews for JPEG/PNG/BMP/text candidates and authenticated browser export with an explicit risk confirmation; FAT32 only, contiguous best-effort recovery. Boot does not create folders or append logs to the SD, so the card can be scanned before PaperOS writes to it.
+- SD Recovery app with a FAT32 deleted-entry scan, on-device previews for JPEG/PNG/BMP/text candidates and authenticated browser export. Optional same-card save requires two confirmations, stages the entire candidate in PSRAM, and is limited to 1 MiB; its write can still overwrite other deleted data. NTFS and APFS recovery are unsupported. Boot does not create folders or append logs to the SD, so the card can be scanned before PaperOS writes to it.
 - Notes on microSD with browser editing, categories, favorite and autosave
 - settings persistence in LittleFS with atomic `.tmp` / `.bak` recovery
 - system status REST API
@@ -79,7 +79,7 @@ During first boot, join the `PaperOS-Setup` Wi-Fi network and open `http://192.1
 
 ## Phone and SD recovery limits
 
-Phone Link can display iOS notifications provided by ANCS. Placing calls and composing SMS requires a separately installed iPhone companion that implements PaperOS's BLE command bridge; this repository does not include an iOS app. SD Recovery currently reads FAT32 directory entries only and is best-effort: it may miss files, and fragmented files may be incomplete. It streams exports to an authenticated browser and never writes recovered data to the source card. Stop using the card after deletion because normal filesystem activity can overwrite recoverable sectors.
+Phone Link can display iOS notifications provided by ANCS. Placing calls and composing SMS requires a separately installed iPhone companion that implements PaperOS's BLE command bridge; this repository does not include an iOS app. SD Recovery scans FAT32 directory entries only and is best-effort: it may miss files, and fragmented files may be incomplete. NTFS and APFS are not supported by the recovery scanner. Browser export is the safest destination. The optional same-card save stages files up to 1 MiB in PSRAM before writing to `/PaperOS/Recovery`, but its allocation can still overwrite other deleted files. Stop using the card after deletion because normal filesystem activity can overwrite recoverable sectors.
 
 ## GPIO Port map
 

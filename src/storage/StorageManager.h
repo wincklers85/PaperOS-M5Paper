@@ -37,6 +37,7 @@ class StorageManager {
   size_t recoveredFileCount() const { return recoveredFiles_.size(); }
   const RecoveredSdFile* recoveredFile(size_t index) const;
   size_t readRecoveredFile(size_t index, uint32_t offset, uint8_t* buffer, size_t length);
+  bool saveRecoveredFileToSource(size_t index, bool confirmed, String& destination, String& status);
   String recoveryStatus() const { return recoveryStatus_; }
   fs::FS& fs() { return SD; }
  private:

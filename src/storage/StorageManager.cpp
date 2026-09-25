@@ -395,4 +395,55 @@ size_t StorageManager::readRecoveredFile(size_t index, uint32_t offset, uint8_t*
   return written;
 }
 
+bool StorageManager::saveRecoveredFileToSource(size_t index, bool confirmed, String& destination, String& status) {
+  static constexpr uint32_t kMaxSameCardRestoreBytes = 1024U * 1024U;
+  const RecoveredSdFile* file = recoveredFile(index);
+  if (!confirmed) { status = "Explicit same-card write confirmation required"; return false; }
+  if (!mounted_ || !file) { status = "SD card or recovery candidate is unavailable"; return false; }
+  if (!file->size || file->size > kMaxSameCardRestoreBytes) {
+    status = "Same-card restore is limited to files up to 1 MiB; export to another device instead";
+    return false;
+  }
+
+  // Read the entire candidate before any filesystem write can reuse its source clusters.
+  uint8_t* staged = static_cast<uint8_t*>(ps_malloc(file->size));
+  if (!staged) { status = "Not enough PSRAM; export to another device instead"; return false; }
+  size_t read = readRecoveredFile(index, 0, staged, file->size);
+  if (read != file->size) {
+    free(staged);
+    status = "Could not read the complete candidate; SD was not written";
+    return false;
+  }
+
+  if (!SD.exists("/PaperOS") && !SD.mkdir("/PaperOS")) {
+    free(staged);
+    status = "Could not create /PaperOS; SD write failed";
+    return false;
+  }
+  if (!SD.exists("/PaperOS/Recovery") && !SD.mkdir("/PaperOS/Recovery")) {
+    free(staged);
+    status = "Could not create /PaperOS/Recovery; SD write failed";
+    return false;
+  }
+  destination = uniqueDestination("/PaperOS/Recovery", file->name);
+  File out = SD.open(destination, FILE_WRITE);
+  if (!out) {
+    free(staged);
+    status = "Could not open the recovery destination on the SD";
+    return false;
+  }
+  size_t written = out.write(staged, file->size);
+  out.flush();
+  out.close();
+  free(staged);
+  if (written != file->size) {
+    SD.remove(destination);
+    destination = "";
+    status = "Write was incomplete; partial destination removed where possible";
+    return false;
+  }
+  status = "Saved to the same SD. Other deleted data may have been overwritten.";
+  return true;
+}
+
 }

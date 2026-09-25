@@ -1,4 +1,4 @@
-# PaperOS REST API — 0.3.1-alpha
+# PaperOS REST API — 0.3.2-alpha
 
 All authenticated endpoints use the same-origin `paperos` HttpOnly session cookie. API token support is reserved for a later hardening release.
 

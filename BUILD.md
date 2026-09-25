@@ -1,4 +1,4 @@
-# BUILD — PaperOS 0.3.1-alpha
+# BUILD — PaperOS 0.3.2-alpha
 
 ## Requirements
 

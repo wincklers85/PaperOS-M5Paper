@@ -1,4 +1,4 @@
-# 0.3.1-alpha test matrix
+# 0.3.2-alpha test matrix
 
 ## Build
 - `pio run -e m5paper`

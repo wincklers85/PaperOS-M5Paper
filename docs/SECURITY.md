@@ -1,6 +1,6 @@
 # Security notes
 
-0.3.1-alpha is intended for trusted LAN development and hardware validation.
+0.3.2-alpha is intended for trusted LAN development and hardware validation.
 
 Implemented:
 - salted SHA-256 admin-password verifier rather than clear-text admin password storage

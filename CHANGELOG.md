@@ -2,19 +2,21 @@
 
 All notable changes follow Semantic Versioning.
 
-## [Unreleased] — stabilization work toward 0.3.2-alpha
+## [Unreleased]
+
+## [0.3.2-alpha] - 2026-09-25
 
 ### Build and validation
 - CI now checks Web UI JavaScript syntax alongside repository preflight, firmware compilation and LittleFS packaging.
 - Fixed the SD Recovery source code to compile with the classic ESP32 C++ toolchain, based on the compile log from the target build.
-- Updated build, release, security and device-test documentation to reflect the 0.3.1-alpha codebase and the 0.3.2-alpha stabilization gate.
+- Versioned this published preview as 0.3.2-alpha; hardware validation remains open.
 - Corrected SD tests for the no-write-on-boot behavior and documented the recovery-format and same-card-save limits.
 - System information now distinguishes directly usable PSRAM from the 8 MB physically installed on the original M5Paper.
 - Storage settings now include explicit SD mount/unmount controls; unmount clears cached recovery candidates before card removal.
 - Added a two-step Settings reset for preferences only or the PaperOS SD folder plus preferences.
 - Added a device power-off action to Quick Settings and a boot splash with staged progress updates.
 - Phone Link now reports distinct BLE/ANCS connection failures and points to the nRF Connect pairing flow.
-- The current recovery scan still searches FAT32 deleted directory entries; full-volume sector carving remains a required follow-up before describing it as sector-by-sector recovery.
+- Added asynchronous read-only full-volume sector scanning and carving for JPEG, PNG, BMP, PDF and printable text, with progress, cancel, authenticated export and write blocking. Contiguous-file assumptions and device validation remain limitations.
 
 ## [0.3.1-alpha] - 2026-09-25
 

@@ -2,7 +2,7 @@
 
 **Target:** first-generation M5Stack M5Paper with classic ESP32. M5Paper S3 is not supported by this roadmap.
 
-**Current baseline:** 0.3.1-alpha on `main` (2026-09-25). The repository already contains the core device UI, Web UI, file manager, Notes, Wi-Fi tools, BLE/Phone Link, NFC Lab, GPIO/serial/network tools, Classic Desktop, and constrained readers. This roadmap focuses on finishing, validating, and documenting them rather than treating already-shipped work as future work.
+**Current baseline:** 0.3.2-alpha on `main` (2026-09-25). The repository already contains the core device UI, Web UI, file manager, Notes, Wi-Fi tools, BLE/Phone Link, NFC Lab, GPIO/serial/network tools, Classic Desktop, and constrained readers. This roadmap focuses on finishing, validating, and documenting them rather than treating already-shipped work as future work.
 
 A feature is complete only when its backend and UI work together, CI passes, and its acceptance checks are recorded. Hardware-dependent features remain provisional until tested on an original M5Paper.
 

@@ -20,9 +20,9 @@ bool StorageManager::begin() {
 
 bool StorageManager::mount() {
   if (mounted_) return true;
-  bool ok = begin();
-  if (ok) ensureLayout();
-  return ok;
+  // Mount must remain metadata-neutral; do not create folders on a card just
+  // reinserted for browsing or recovery.
+  return begin();
 }
 
 void StorageManager::unmount() {
@@ -126,7 +126,8 @@ bool StorageManager::removePath(const String& path) {
 }
 
 bool StorageManager::clearPaperOSContents() {
-  if (!mounted_ || !SD.exists("/PaperOS")) return false;
+  if (!mounted_) return false;
+  if (!SD.exists("/PaperOS")) return true;
   File root = SD.open("/PaperOS");
   if (!root || !root.isDirectory()) { if (root) root.close(); return false; }
   std::vector<String> children;

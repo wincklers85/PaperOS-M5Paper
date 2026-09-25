@@ -217,15 +217,24 @@ void PhoneLinkService::ancsTask() {
 }
 
 bool PhoneLinkService::setupAncs() {
-  if (!ancsClient_ || !ancsClient_->isConnected()) return false;
+  if (!ancsClient_ || !ancsClient_->isConnected()) {
+    ancsStatus_ = "BLE link dropped before ANCS setup";
+    return false;
+  }
 
   BLERemoteService* ancs = ancsClient_->getService(BLEUUID(ANCS_SERVICE_UUID));
-  if (!ancs) return false;
+  if (!ancs) {
+    ancsStatus_ = "Apple ANCS service unavailable; verify iPhone pairing";
+    return false;
+  }
 
   auto* source = ancs->getCharacteristic(BLEUUID(ANCS_NOTIFICATION_SOURCE_UUID));
   ancsControlPoint_ = ancs->getCharacteristic(BLEUUID(ANCS_CONTROL_POINT_UUID));
   auto* data = ancs->getCharacteristic(BLEUUID(ANCS_DATA_SOURCE_UUID));
-  if (!source || !ancsControlPoint_ || !data) return false;
+  if (!source || !ancsControlPoint_ || !data) {
+    ancsStatus_ = "ANCS service found but required characteristics are missing";
+    return false;
+  }
 
   source->registerForNotify(notificationSourceCallback);
   data->registerForNotify(dataSourceCallback);
@@ -362,6 +371,7 @@ bool PhoneLinkService::sendCommand(const String& command) {
 String PhoneLinkService::statusText() const {
   if (!active_) return "Phone Link stopped";
   if (ancsReady_) return "iPhone ANCS connected";
+  if (ancsStatus_.length()) return ancsStatus_;
   if (bonded_) return "Bonded / waiting for ANCS";
   if (connected_) return "Connected / pairing";
   return ancsStatus_.length() ? ancsStatus_ : "Advertising PaperOS; connect with nRF Connect";

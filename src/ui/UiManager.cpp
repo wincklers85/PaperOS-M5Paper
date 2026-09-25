@@ -214,6 +214,8 @@ void UiManager::renderPage(Page target) {
     case Page::StorageTools: showStorageTools(); break;
     case Page::StorageFormat: showStorageFormat(); break;
     case Page::RecoveryHelp: showRecoveryHelp(); break;
+    case Page::RecoveryPreview: showRecoveryPreview(selectedRecoveryIndex_); break;
+    case Page::RecoveryConfirm: showRecoveryConfirm(); break;
     case Page::PhoneLink: showPhoneLink(); break;
     case Page::Phone: showPhone(); break;
     case Page::GpioLab: showGpioLab(); break;
@@ -516,7 +518,7 @@ bool UiManager::isClassicPage() const {
 int UiManager::wheelItemCount() const {
   switch (page_) {
     case Page::Home: return 8;
-    case Page::Apps: return 17;
+    case Page::Apps: return 18;
     case Page::Settings: return 10;
     case Page::Files: return static_cast<int>(fileEntries_.size());
     case Page::Tools: return 6;
@@ -545,7 +547,7 @@ void UiManager::drawWheelFocus() {
     };
     x=rects[idx][0];y=rects[idx][1];w=rects[idx][2];h=rects[idx][3];
   } else if (page_ == Page::Apps) {
-    if (idx < 16) {
+    if (idx < 17) {
       int col=idx%4,row=idx/4;
       x=16+col*128; y=152+row*116; w=124; h=112;
     } else { x=16;y=744;w=508;h=108; }
@@ -657,7 +659,7 @@ void UiManager::activateWheelFocus() {
   }
 
   if (page_ == Page::Apps) {
-    if(idx<16) openAppIndex(idx); else showClassicSplash();
+    if(idx<17) openAppIndex(idx); else showClassicSplash();
     return;
   }
 
@@ -767,6 +769,9 @@ void UiManager::handleScrollGesture(TouchGesture gesture) {
     int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - 3);
     phoneScroll_ = constrain(phoneScroll_ + delta * 2, 0, maxOffset);
     showPhone();
+  } else if (page_ == Page::RecoveryHelp) {
+    fileScroll_ = constrain(fileScroll_ + delta * 3, 0, max(0, static_cast<int>(storage_.recoveredFileCount()) - 4));
+    showRecoveryHelp();
   } else if (page_ == Page::Browser && browserPage_.ok) {
     browserTextScroll_ = max(0, browserTextScroll_ + delta * 850);
     browserLinkScroll_ = max(0, browserLinkScroll_ + delta * 2);
@@ -824,26 +829,26 @@ void UiManager::showApps() {
   UiTheme::title("Apps", 18, 76);
   UiTheme::detail("PaperOS tools  /  touch an app to open", 20, 116);
 
-  const char* names[16] = {
+  const char* names[17] = {
     "Notes", "Files", "Calculator",
     "Wi-Fi", "Bluetooth", "Browser",
     "Battery", "Clock", "Focus",
     "OTP", "Network", "Settings",
-    "System", "Labs", "Phone Link", "Phone"
+    "System", "Labs", "Phone Link", "Phone", "Recovery"
   };
-  const char* glyphs[16] = {
+  const char* glyphs[17] = {
     "NT", "FL", "CAL",
     "WF", "BT", "WEB",
     "BAT", "CK", "25",
     "OTP", "NET", "ST",
-    "SYS", "LAB", "PH", "TEL"
+    "SYS", "LAB", "PH", "TEL", "SD"
   };
 
   const int tileW = 120;
   const int tileH = 108;
   const int startY = 154;
   const int pitchY = 116;
-  for (int i = 0; i < 16; ++i) {
+  for (int i = 0; i < 17; ++i) {
     int col = i % 4;
     int row = i / 4;
     int x = 16 + col * 128;
@@ -2235,30 +2240,139 @@ void UiManager::showRecoveryHelp() {
   page_ = Page::RecoveryHelp;
   preparePage();
   statusBar();
-  UiTheme::title("SD Data Recovery", 18, 76);
-  UiTheme::detail("Protect deleted data before attempting recovery", 20, 116);
+  UiTheme::title("SD Recovery", 18, 76);
+  UiTheme::detail("Read-only FAT32 scan / best-effort file export", 20, 116);
 
-  UiTheme::card(18, 145, 504, 132, true);
-  UiTheme::label("IF YOU JUST DELETED A FILE", 34, 162);
-  UiTheme::value("Stop using the SD card now", 34, 199, false);
-  UiTheme::detail("Power off PaperOS and remove the card.", 34, 239);
+  UiTheme::shadowCard(18, 145, 504, 94, 4);
+  UiTheme::label("DELETED FILE SCAN", 34, 160);
+  UiTheme::detail("FAT32 only / does not write to the SD card", 34, 197);
+  UiTheme::pill("SCAN", 430, 159, true);
 
-  UiTheme::card(18, 300, 504, 190);
-  UiTheme::label("WHY PAPEROS CANNOT SAFELY RESTORE IT IN PLACE", 34, 318);
-  UiTheme::detail("FAT/exFAT may reuse the deleted file's sectors immediately.", 34, 360);
-  UiTheme::detail("Writing a recovered copy back to this same card can overwrite", 34, 394);
-  UiTheme::detail("the data you are trying to save. A format makes recovery harder.", 34, 428);
-  UiTheme::detail("PaperOS does not claim to recover fragmented or overwritten data.", 34, 462);
+  UiTheme::card(18, 254, 504, 452);
+  UiTheme::label("FOUND CANDIDATES", 34, 270);
+  UiTheme::detail(String(storage_.recoveredFileCount()) + " file(s)  /  swipe to browse", 34, 302);
+  const size_t count = storage_.recoveredFileCount();
+  fileScroll_ = constrain(fileScroll_, 0, max(0, static_cast<int>(count) - 4));
+  if (!count) {
+    String scanStatus = storage_.recoveryStatus().length() ? storage_.recoveryStatus() : String("Tap SCAN to check the card");
+    if (scanStatus.length() > 40) scanStatus = scanStatus.substring(0, 37) + "...";
+    UiTheme::value(scanStatus, 34, 354, false);
+    UiTheme::detail("Only FAT32 deleted entries are listed by this first version.", 34, 402);
+  } else {
+    const size_t shown = min<size_t>(4, count - static_cast<size_t>(fileScroll_));
+    for (size_t i = 0; i < shown; ++i) {
+      const size_t idx = static_cast<size_t>(fileScroll_) + i;
+      const RecoveredSdFile* f = storage_.recoveredFile(idx);
+      if (!f) continue;
+      const int y = 324 + static_cast<int>(i) * 86;
+      UiTheme::value(String(idx + 1) + ". " + f->name, 34, y, false);
+      UiTheme::detail(String(f->size / 1024) + " KB  /  " + (f->fatChainAvailable ? "FAT chain hint" : "contiguous guess"), 34, y + 34);
+      if (i + 1 < shown) M5.Display.drawFastHLine(34, y + 64, 454, TFT_BLACK);
+    }
+  }
 
-  UiTheme::card(18, 514, 504, 206);
-  UiTheme::label("SAFEST RECOVERY", 34, 532);
-  UiTheme::detail("1. Keep the card out of PaperOS; do not format it.", 34, 574);
-  UiTheme::detail("2. Use a computer and card reader with a recovery tool.", 34, 608);
-  UiTheme::detail("3. Save recovered files to a different drive, never this SD.", 34, 642);
-  UiTheme::detail("If the card is failing, make an image before scanning it.", 34, 676);
+  UiTheme::card(18, 724, 504, 126);
+  UiTheme::label("EXPORT TO A COMPUTER", 34, 740);
+  UiTheme::detail("Sign in to the Web Console, then open /recovery", 34, 776);
+  UiTheme::detail("Download recovered files there; never save them to this SD.", 34, 810);
+  String status = storage_.recoveryStatus();
+  if (status.length() > 58) status = status.substring(0, 55) + "...";
+  UiTheme::detail(status, 34, 842);
+  bottomNav(4);
+  commitPage();
+}
 
-  UiTheme::iconButton(18, 744, 504, 78, "FMT", "Format SD (erases everything)", false);
-  UiTheme::detail("Formatting cannot recover deleted files.", 34, 842);
+void UiManager::showRecoveryPreview(size_t index) {
+  const RecoveredSdFile* file = storage_.recoveredFile(index);
+  if (!file) { showRecoveryHelp(); return; }
+  selectedRecoveryIndex_ = index;
+  page_ = Page::RecoveryPreview;
+  preparePage();
+  statusBar();
+  UiTheme::title(file->name, 18, 76);
+  UiTheme::detail(String(file->size) + " bytes / candidate data preview", 20, 116);
+  UiTheme::card(18, 145, 504, 570, true);
+  String upper = file->name;
+  upper.toUpperCase();
+  const bool jpeg = upper.endsWith(".JPG") || upper.endsWith(".JPEG");
+  const bool png = upper.endsWith(".PNG");
+  const bool bmp = upper.endsWith(".BMP");
+  const bool text = upper.endsWith(".TXT") || upper.endsWith(".MD") || upper.endsWith(".CSV") ||
+                    upper.endsWith(".JSON") || upper.endsWith(".LOG");
+  if (jpeg || png || bmp) {
+    const size_t maxPreview = 2U * 1024U * 1024U;
+    if (file->size > maxPreview) {
+      UiTheme::value("Image too large for on-device preview", 38, 210, false);
+    } else {
+      uint8_t* bytes = static_cast<uint8_t*>(ps_malloc(file->size));
+      if (!bytes) {
+        UiTheme::value("Not enough memory for preview", 38, 210, false);
+      } else {
+        size_t got = storage_.readRecoveredFile(index, 0, bytes, file->size);
+        if (got == file->size) {
+          if (jpeg) M5.Display.drawJpg(bytes, got, 38, 170, 464, 520);
+          else if (png) M5.Display.drawPng(bytes, got, 38, 170, 464, 520);
+          else M5.Display.drawBmp(bytes, got, 38, 170, 464, 520);
+        } else {
+          UiTheme::value("Preview read failed", 38, 210, false);
+        }
+        free(bytes);
+      }
+    }
+  } else if (text) {
+    char bytes[769];
+    size_t got = storage_.readRecoveredFile(index, 0, reinterpret_cast<uint8_t*>(bytes), sizeof(bytes) - 1);
+    bytes[got] = 0;
+    String preview;
+    for (size_t i = 0; i < got && preview.length() < 680; ++i) {
+      const uint8_t ch = static_cast<uint8_t>(bytes[i]);
+      if (ch == '\n' || ch == '\r' || ch == '\t' || ch >= 32) preview += static_cast<char>(ch);
+    }
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+    M5.Display.setTextWrap(true, true);
+    M5.Display.setCursor(36, 178);
+    M5.Display.print(preview);
+    UiTheme::resetFont();
+  } else {
+    UiTheme::value("No on-device preview for this type", 38, 210, false);
+    UiTheme::detail("Use Export to open or save it on a computer.", 38, 252);
+  }
+  UiTheme::card(18, 744, 504, 78);
+  UiTheme::value("EXPORT FILE", 182, 762, false);
+  UiTheme::detail("Opens a risk confirmation first", 125, 794);
+  UiTheme::detail("Preview may be incomplete if sectors were reused or the file was fragmented.", 26, 838);
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showRecoveryConfirm() {
+  page_ = Page::RecoveryConfirm;
+  preparePage();
+  statusBar();
+  const RecoveredSdFile* file = storage_.recoveredFile(selectedRecoveryIndex_);
+  UiTheme::title("Recover file?", 18, 76);
+  UiTheme::detail(file ? file->name : "File no longer available", 20, 116);
+  UiTheme::card(18, 150, 504, 440, true);
+  UiTheme::label("POSSIBLE RISKS", 36, 172);
+  UiTheme::detail("The directory entry survived, but some file data may", 36, 218);
+  UiTheme::detail("already have been reused. Fragmented files can export", 36, 254);
+  UiTheme::detail("incomplete or damaged. Previewing does not verify every byte.", 36, 290);
+  UiTheme::detail("PaperOS will stream the file to your signed-in browser.", 36, 350);
+  UiTheme::detail("It will not write a recovered copy onto this SD card.", 36, 386);
+  if (recoveryExportConfirmed_) {
+    UiTheme::card(34, 436, 472, 112);
+    UiTheme::label("NEXT", 50, 451);
+    UiTheme::detail("On a computer/phone, sign in to Web Console and open:", 50, 484);
+    UiTheme::value("http://paperos.local/recovery", 50, 516, false);
+    UiTheme::detail("Then select the candidate and download it to that device.", 36, 568);
+    UiTheme::iconButton(18, 744, 246, 78, "OK", "Return to preview", false);
+    UiTheme::iconButton(276, 744, 246, 78, "LIST", "Back to results", false);
+  } else {
+    UiTheme::detail("Continue only if you accept these limitations.", 36, 520);
+    UiTheme::iconButton(18, 744, 246, 78, "YES", "Continue to export", true);
+    UiTheme::iconButton(276, 744, 246, 78, "NO", "Cancel", false);
+  }
   bottomNav(4);
   commitPage();
 }
@@ -4481,6 +4595,7 @@ void UiManager::openAppIndex(int index) {
   else if (index == 13) showLabs();
   else if (index == 14) showPhoneLink();
   else if (index == 15) showPhone();
+  else if (index == 16) showRecoveryHelp();
 }
 
 void UiManager::loop() {
@@ -4622,7 +4737,7 @@ void UiManager::loop() {
     if (page_ == Page::Apps) {
       const int startY = 154;
       const int pitchY = 116;
-      if (e.y >= startY && e.y < startY + 4 * pitchY && e.x >= 16) {
+      if (e.y >= startY && e.y < startY + 5 * pitchY && e.x >= 16) {
         int row = (e.y - startY) / pitchY;
         int col = (e.x - 16) / 128;
         int localX = (e.x - 16) % 128;
@@ -4764,6 +4879,20 @@ void UiManager::loop() {
         phoneLink_.clearNotifications();
         phoneAppStatus_ = "Notification list cleared";
         showPhone();
+      }
+      return;
+    }
+
+    if (page_ == Page::RecoveryHelp) {
+      if (e.y >= 145 && e.y < 252) {
+        showAppLoading("SD Recovery", "Scanning deleted FAT32 entries (read only)...", 45);
+        storage_.scanDeletedFiles();
+        fileScroll_ = 0;
+        showRecoveryHelp();
+      } else if (e.y >= 324 && e.y < 668 && storage_.recoveredFileCount()) {
+        size_t row = (e.y - 324) / 86;
+        size_t index = static_cast<size_t>(fileScroll_) + row;
+        if (index < storage_.recoveredFileCount()) showRecoveryPreview(index);
       }
       return;
     }
@@ -5105,10 +5234,37 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::RecoveryHelp) {
-      if (e.y >= 744 && e.y < 822) {
-        formatConfirmArmed_ = false;
-        pendingFormatType_ = "";
-        showStorageFormat();
+      if (e.y >= 145 && e.y < 252) {
+        showAppLoading("SD Recovery", "Scanning deleted FAT32 entries (read only)...", 45);
+        storage_.scanDeletedFiles();
+        fileScroll_ = 0;
+        showRecoveryHelp();
+      } else if (e.y >= 324 && e.y < 668 && storage_.recoveredFileCount()) {
+        size_t row = (e.y - 324) / 86;
+        size_t index = static_cast<size_t>(fileScroll_) + row;
+        if (index < storage_.recoveredFileCount()) showRecoveryPreview(index);
+      }
+      return;
+    }
+
+    if (page_ == Page::RecoveryPreview) {
+      if (e.y >= 744 && e.y < 832) {
+        recoveryExportConfirmed_ = false;
+        page_ = Page::RecoveryConfirm;
+        showRecoveryConfirm();
+      }
+      return;
+    }
+
+    if (page_ == Page::RecoveryConfirm) {
+      if (e.y >= 744 && e.y < 832) {
+        if (recoveryExportConfirmed_) {
+          if (e.x < 270) showRecoveryPreview(selectedRecoveryIndex_);
+          else showRecoveryHelp();
+        } else if (e.x < 270) {
+          recoveryExportConfirmed_ = true;
+          showRecoveryConfirm();
+        } else showRecoveryPreview(selectedRecoveryIndex_);
       }
       return;
     }

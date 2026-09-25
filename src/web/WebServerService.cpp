@@ -27,6 +27,17 @@ async function setupDevice(){const status=document.getElementById('status');stat
 </script></body></html>
 )paperosportal";
 
+static const char kRecoveryPortal[] PROGMEM = R"paperosrecover(
+<!doctype html><html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111315"><title>PaperOS SD Recovery</title>
+<style>:root{font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#151719;background:#eef0ed}*{box-sizing:border-box}body{margin:0;padding:24px}main{max-width:920px;margin:auto;background:#fff;border:1px solid #d9ddd8;border-radius:22px;padding:clamp(20px,4vw,36px);box-shadow:0 20px 60px #11131518}.brand{font-weight:800;font-size:20px;margin-bottom:26px}.mark{display:inline-grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#111315;color:#fff;margin-right:9px}h1{font-size:34px;letter-spacing:-.04em;margin:6px 0}p{color:#626a65;line-height:1.5}.warning{padding:16px;background:#fff6df;border:1px solid #ead7a2;border-radius:14px;margin:20px 0}.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:20px 0}button{border:0;background:#111315;color:white;border-radius:11px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer}.secondary{background:#eef0ed;color:#151719}.status{color:#59615c}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}.file{border:1px solid #d9ddd8;border-radius:15px;padding:16px}.file h2{font-size:18px;margin:0 0 5px}.meta{color:#69716c;font-size:13px}.preview{min-height:70px;margin:12px 0;display:grid;place-items:center;background:#f4f5f3;border-radius:10px;overflow:hidden}.preview img{max-width:100%;max-height:260px;object-fit:contain}.preview pre{max-height:180px;overflow:auto;white-space:pre-wrap;font-size:12px;padding:10px;width:100%;margin:0}.actions{display:flex;gap:8px}.empty{padding:22px;background:#f5f6f4;border-radius:12px;color:#626a65}</style>
+<body><main><div class="brand"><span class="mark">P</span>PaperOS <span style="font-weight:500;color:#69716c">/ SD Recovery</span></div><div class="eyebrow">READ-ONLY SCAN</div><h1>Deleted files</h1><p>Candidate files found in deleted FAT32 directory entries. Preview images and text before exporting.</p><div class="warning"><b>Recovery limits:</b> sectors may have been reused, and fragmented files may be incomplete. PaperOS never writes recovered data to this SD. Downloads go to this browser's device.</div><div class="toolbar"><button onclick="scan()">Scan SD card</button><span id="status" class="status">Loading scan results…</span></div><div id="files" class="grid"></div></main>
+<script>
+async function scan(){document.getElementById('status').textContent='Scanning; keep the device powered on…';try{let r=await fetch('/api/recovery/scan',{method:'POST'});let d=await r.json();document.getElementById('status').textContent=d.status;await load()}catch(e){document.getElementById('status').textContent='Scan failed. Keep this page open and retry.'}}
+async function load(){try{let r=await fetch('/api/recovery/files');let d=await r.json();document.getElementById('status').textContent=d.status;let root=document.getElementById('files');root.replaceChildren();if(!d.files.length){root.innerHTML='<div class="empty">No candidate files yet. Start a scan, or there may be no surviving deleted entries.</div>';return}for(let f of d.files){let el=document.createElement('article');el.className='file';let title=document.createElement('h2');title.textContent=f.name;let meta=document.createElement('div');meta.className='meta';meta.textContent=(f.size/1024).toFixed(1)+' KB · '+(f.preview?'Preview available':'download only');let prev=document.createElement('div');prev.className='preview';if(f.kind==='image'){let im=document.createElement('img');im.src='/api/recovery/preview?index='+f.index;prev.append(im)}else if(f.kind==='text'){let pre=document.createElement('pre');let tx=await fetch('/api/recovery/preview?index='+f.index);pre.textContent=await tx.text();prev.append(pre)}else{prev.textContent='No preview for this file type'}let actions=document.createElement('div');actions.className='actions';let dl=document.createElement('button');dl.textContent='Recover to this device';dl.onclick=()=>{if(confirm('The recovered content may be damaged or incomplete if its sectors were reused or it was fragmented. PaperOS will download it to this browser device and will not write to the SD. Continue?'))location.href='/api/recovery/download?index='+f.index};actions.append(dl);el.append(title,meta,prev,actions);root.append(el)}}catch(e){document.getElementById('status').textContent='Sign in to Web Console, then reload this page.'}}
+load();
+</script></body></html>
+)paperosrecover";
+
 String WebServerService::newToken() { char b[33]; for(int i=0;i<32;i++) b[i]="0123456789abcdef"[esp_random()&15]; b[32]=0; return String(b); }
 String WebServerService::body() { return server_.arg("plain"); }
 void WebServerService::sendJson(int code,const String& json) { server_.send(code,"application/json",json); }
@@ -57,6 +68,30 @@ void WebServerService::routes() {
   server_.onNotFound([this](){ if(wifi_.setupApActive()){ server_.sendHeader("Location","http://192.168.4.1/",true); server_.send(302,"text/plain",""); } else server_.send(404,"application/json","{\"error\":\"not_found\"}"); });
 
   server_.on("/api/setup/status",HTTP_GET,[this](){ sendJson(200,String("{\"setupComplete\":")+(config_.get().setupComplete?"true":"false")+"}"); });
+  server_.on("/recovery",HTTP_GET,[this](){ if(!authorized()){server_.send(401,"text/plain","Sign in to the PaperOS Web Console first.");return;} server_.send_P(200,"text/html; charset=utf-8",kRecoveryPortal); });
+  server_.on("/api/recovery/scan",HTTP_POST,[this](){ if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;} bool ok=storage_.scanDeletedFiles(); DynamicJsonDocument d(512); d["ok"]=ok; d["status"]=storage_.recoveryStatus(); d["count"]=storage_.recoveredFileCount(); String o; serializeJson(d,o); sendJson(ok?200:415,o); });
+  server_.on("/api/recovery/files",HTTP_GET,[this](){
+    if(!authorized()){sendJson(401,"{\"error\":\"unauthorized\"}");return;}
+    DynamicJsonDocument d(8192); d["status"]=storage_.recoveryStatus(); JsonArray files=d.createNestedArray("files");
+    for(size_t i=0;i<storage_.recoveredFileCount();++i){
+      const RecoveredSdFile* f=storage_.recoveredFile(i); if(!f)continue;
+      JsonObject x=files.createNestedObject(); x["index"]=i; x["name"]=f->name; x["size"]=f->size;
+      String n=f->name; n.toLowerCase(); String kind="other";
+      if(n.endsWith(".jpg")||n.endsWith(".jpeg")||n.endsWith(".png")||n.endsWith(".bmp")) kind="image";
+      else if(n.endsWith(".txt")||n.endsWith(".md")||n.endsWith(".csv")||n.endsWith(".json")||n.endsWith(".log")) kind="text";
+      x["kind"]=kind; x["preview"]=kind!="other";
+    }
+    String o; serializeJson(d,o); sendJson(200,o);
+  });
+  server_.on("/api/recovery/preview",HTTP_GET,[this](){
+    if(!authorized()){server_.send(401);return;} int index=server_.arg("index").toInt(); const RecoveredSdFile* f=index>=0?storage_.recoveredFile(index):nullptr; if(!f){server_.send(404);return;}
+    String n=f->name; n.toLowerCase(); const bool text=n.endsWith(".txt")||n.endsWith(".md")||n.endsWith(".csv")||n.endsWith(".json")||n.endsWith(".log"); const bool image=n.endsWith(".jpg")||n.endsWith(".jpeg")||n.endsWith(".png")||n.endsWith(".bmp"); if(!text&&!image){server_.send(415);return;}
+    const String mime=n.endsWith(".png")?"image/png":(n.endsWith(".bmp")?"image/bmp":(n.endsWith(".jpg")||n.endsWith(".jpeg")?"image/jpeg":"text/plain; charset=utf-8")); server_.setContentLength(f->size); server_.send(200,mime,""); uint8_t b[1024]; uint32_t off=0; while(off<f->size){size_t got=storage_.readRecoveredFile(index,off,b,min((uint32_t)sizeof(b),f->size-off)); if(!got)break; server_.sendContent((const char*)b,got); off+=got;}
+  });
+  server_.on("/api/recovery/download",HTTP_GET,[this](){
+    if(!authorized()){server_.send(401);return;} int index=server_.arg("index").toInt(); const RecoveredSdFile* f=index>=0?storage_.recoveredFile(index):nullptr; if(!f){server_.send(404);return;}
+    server_.sendHeader("Content-Disposition",String("attachment; filename=\"")+f->name+"\""); server_.setContentLength(f->size); server_.send(200,"application/octet-stream",""); uint8_t b[1024]; uint32_t off=0; while(off<f->size){size_t got=storage_.readRecoveredFile(index,off,b,min((uint32_t)sizeof(b),f->size-off)); if(!got)break; server_.sendContent((const char*)b,got); off+=got;}
+  });
   server_.on("/api/setup",HTTP_POST,[this](){
     if(config_.get().setupComplete){sendJson(403,"{\"error\":\"already_configured\"}");return;}
     DynamicJsonDocument d(4096); if(deserializeJson(d,body())){sendJson(400,"{\"error\":\"invalid_json\"}");return;}

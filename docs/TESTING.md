@@ -28,10 +28,11 @@
 - open a JPEG/PNG/BMP from SD repeatedly; verify the UI does not freeze and RAM returns after closing previews
 - Settings > Reset: confirm settings-only reset preserves SD contents; confirm content reset removes only `/PaperOS` and resets preferences
 - note create/edit/autosave/delete survives reboot
-- FAT32 recovery scan leaves source sectors unchanged until an explicit save is selected
-- preview supported JPEG/PNG/BMP/text candidates and export to the browser device
+- run a complete sector scan on a disposable FAT32 card; verify progress, stop/cancel, JPEG/PNG/BMP/PDF/text signature handling and unchanged source sectors
+- verify PaperOS file, upload, Notes and format writes are rejected while sector scanning is active
+- preview supported JPEG/PNG/BMP/text candidates and export both directory-entry and raw-carved candidates to the browser device
 - same-card restore: use only a disposable test card; verify two confirmations, 1 MiB cap and `/PaperOS/Recovery` destination
-- verify unsupported formats produce a clear status (NTFS, APFS and exFAT recovery)
+- verify unsupported/unmounted formats report limits clearly; test NTFS/APFS metadata recovery as unsupported and raw scans only when the SD driver exposes readable sectors
 
 ## Power / OTA
 - Quick Settings > Power Off shows the power-off screen and shuts the original M5Paper down when running from battery; verify USB-powered behavior separately

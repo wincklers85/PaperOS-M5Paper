@@ -11,6 +11,9 @@ struct RecoveredSdFile {
   uint32_t firstCluster = 0;
   uint32_t size = 0;
   bool fatChainAvailable = false;
+  bool rawCarved = false;
+  bool rawDeletedSpaceVerified = false;
+  uint64_t rawStartByte = 0;
 };
 
 class StorageManager {
@@ -37,6 +40,11 @@ class StorageManager {
   String filesystemHint() const;
   bool validPath(const String& path) const;
   bool scanDeletedFiles();
+  bool startRecoveryScan();
+  void cancelRecoveryScan();
+  void loop();
+  bool recoveryScanning() const { return recoveryScanning_; }
+  uint8_t recoveryProgress() const { return recoveryProgress_; }
   size_t recoveredFileCount() const { return recoveredFiles_.size(); }
   const RecoveredSdFile* recoveredFile(size_t index) const;
   size_t readRecoveredFile(size_t index, uint32_t offset, uint8_t* buffer, size_t length);
@@ -57,8 +65,29 @@ class StorageManager {
   uint32_t recoveryCursorOffset_ = 0;
   uint32_t recoveryCursorCluster_ = 0;
   std::vector<uint32_t> recoveryVisitedDirs_;
+  enum class CarveMode : uint8_t { None, Jpeg, Png, Pdf, Bmp, Text };
+  bool recoveryScanning_ = false;
+  bool recoveryFatEntriesScanned_ = false;
+  uint8_t recoveryProgress_ = 0;
+  uint32_t recoveryScanLba_ = 0;
+  uint32_t recoveryTotalSectors_ = 0;
+  uint32_t recoveryProgressMark_ = 0;
+  size_t recoveryFatCandidateCount_ = 0;
+  CarveMode recoveryCarveMode_ = CarveMode::None;
+  uint64_t recoveryCarveStart_ = 0;
+  uint32_t recoveryCarveLength_ = 0;
+  uint32_t recoveryCarveExpected_ = 0;
+  uint8_t recoveryCarveHeader_[8] = {};
+  uint8_t recoveryCarveHeaderCount_ = 0;
+  uint16_t recoveryTextNewlines_ = 0;
+  uint8_t recoveryTail_[12] = {};
+  uint8_t recoveryTailCount_ = 0;
   bool readSector(uint32_t sector, uint8_t* buffer);
   bool parseRecoveryVolume();
+  void processRecoverySector(uint32_t lba, const uint8_t* sector);
+  void processRecoveryByte(uint8_t value, uint64_t absoluteOffset);
+  void finishRawCandidate(uint32_t size, const char* extension);
+  void resetCarver();
   void scanDirectory(uint32_t firstCluster, uint8_t depth);
   uint32_t fatEntry(uint32_t cluster);
   void ensureLayout();

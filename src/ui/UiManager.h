@@ -59,6 +59,7 @@ class UiManager {
   void showStorageTools();
   void showStorageFormat();
   void showRecoveryHelp();
+  void refreshRecoveryProgress();
   void showRecoveryPreview(size_t index);
   void showRecoveryConfirm();
   void showPhoneLink();
@@ -142,6 +143,8 @@ class UiManager {
   uint32_t lastBatteryUiRefresh_ = 0;
   uint32_t lastClockPageRefresh_ = 0;
   uint32_t lastFocusUiRefresh_ = 0;
+  uint32_t lastRecoveryUiRefresh_ = 0;
+  String lastRecoveryUiStatus_;
   uint64_t lastOtpStep_ = 0;
   bool hasRenderedPage_ = false;
   Page lastRenderedPage_ = Page::Home;

@@ -26,6 +26,7 @@ bool StorageManager::mount() {
 }
 
 void StorageManager::unmount() {
+  recoveryScanning_ = false;
   recoveredFiles_.clear();
   recoveryVisitedDirs_.clear();
   recoveryCursorFile_ = static_cast<size_t>(-1);
@@ -98,10 +99,12 @@ String StorageManager::listJson(const String& path) {
 }
 
 bool StorageManager::makeDir(const String& path) {
+  if (recoveryScanning_) return false;
   return mounted_ && validPath(path) && (SD.exists(path) || SD.mkdir(path));
 }
 
 bool StorageManager::removePath(const String& path) {
+  if (recoveryScanning_) return false;
   if (!mounted_ || !validPath(path) || path == "/" || path == "/PaperOS") return false;
   File f = SD.open(path);
   if (!f) return false;
@@ -126,6 +129,7 @@ bool StorageManager::removePath(const String& path) {
 }
 
 bool StorageManager::clearPaperOSContents() {
+  if (recoveryScanning_) return false;
   if (!mounted_) return false;
   if (!SD.exists("/PaperOS")) return true;
   File root = SD.open("/PaperOS");
@@ -143,10 +147,12 @@ bool StorageManager::clearPaperOSContents() {
 }
 
 bool StorageManager::renamePath(const String& from, const String& to) {
+  if (recoveryScanning_) return false;
   return mounted_ && validPath(from) && validPath(to) && SD.rename(from, to);
 }
 
 bool StorageManager::copyFile(const String& from, const String& to) {
+  if (recoveryScanning_) return false;
   if (!mounted_ || !validPath(from) || !validPath(to) || from == to) return false;
   if (SD.exists(to)) return false;
   File src = SD.open(from, FILE_READ);
@@ -159,6 +165,7 @@ bool StorageManager::copyFile(const String& from, const String& to) {
 }
 
 bool StorageManager::copyPath(const String& from, const String& to) {
+  if (recoveryScanning_) return false;
   if (!mounted_ || !validPath(from) || !validPath(to) || from == "/" || from == to) return false;
   if (to.startsWith(from + "/")) return false;
   File src = SD.open(from);
@@ -196,6 +203,7 @@ bool StorageManager::copyPath(const String& from, const String& to) {
 }
 
 bool StorageManager::movePath(const String& from, const String& to) {
+  if (recoveryScanning_) return false;
   if (!mounted_ || !validPath(from) || !validPath(to) || from == "/" || from == to) return false;
   if (to.startsWith(from + "/")) return false;
   if (SD.exists(to)) return false;
@@ -205,6 +213,7 @@ bool StorageManager::movePath(const String& from, const String& to) {
 }
 
 bool StorageManager::formatCard(const String& typeRaw) {
+  if (recoveryScanning_) return false;
   recoveredFiles_.clear();
   recoveryCursorFile_ = static_cast<size_t>(-1);
   String type = typeRaw;
@@ -379,21 +388,230 @@ void StorageManager::scanDirectory(uint32_t firstCluster, uint8_t depth) {
 }
 
 bool StorageManager::scanDeletedFiles() {
+  return startRecoveryScan();
+}
+
+bool StorageManager::startRecoveryScan() {
+  if (!mounted_) { recoveryStatus_ = "Insert and mount an SD card first"; return false; }
+  if (recoveryScanning_) return true;
+
   recoveredFiles_.clear();
   recoveryCursorFile_ = static_cast<size_t>(-1);
-  recoveryStatus_ = "Scanning FAT32 directory entries (read only)...";
-  if (!mounted_) { recoveryStatus_ = "Insert and mount a FAT32 SD card first"; return false; }
-  if (!parseRecoveryVolume()) return false;
-  recoveryStatus_ = recoveredFiles_.empty()
-    ? "Scan complete: no recoverable FAT32 entries found"
-    : String("Scan complete: ") + recoveredFiles_.size() + " candidate file(s); fragmented files may be incomplete";
+  recoveryProgress_ = 0;
+  recoveryProgressMark_ = 0;
+  recoveryScanLba_ = 0;
+  recoveryFatEntriesScanned_ = parseRecoveryVolume();
+  recoveryFatCandidateCount_ = recoveredFiles_.size();
+  resetCarver();
+
+  const uint64_t sectors = SD.cardSize() / 512ULL;
+  if (!sectors) { recoveryStatus_ = "SD card reported zero readable sectors"; return false; }
+  recoveryTotalSectors_ = static_cast<uint32_t>(min<uint64_t>(sectors, 0xFFFFFFFFULL));
+  recoveryScanning_ = true;
+  recoveryStatus_ = recoveryFatEntriesScanned_
+    ? "Starting read-only raw sector scan; FAT candidates retained"
+    : "Starting read-only raw sector scan; no supported FAT directory found";
   return true;
+}
+
+void StorageManager::cancelRecoveryScan() {
+  if (!recoveryScanning_) return;
+  recoveryScanning_ = false;
+  resetCarver();
+  recoveryStatus_ = String("Scan stopped at ") + recoveryProgress_ + "% — " + recoveredFiles_.size() + " candidate(s) kept";
+}
+
+void StorageManager::resetCarver() {
+  recoveryCarveMode_ = CarveMode::None;
+  recoveryCarveStart_ = 0;
+  recoveryCarveLength_ = 0;
+  recoveryCarveExpected_ = 0;
+  recoveryCarveHeaderCount_ = 0;
+  recoveryTextNewlines_ = 0;
+  recoveryTailCount_ = 0;
+  memset(recoveryTail_, 0, sizeof(recoveryTail_));
+}
+
+void StorageManager::finishRawCandidate(uint32_t size, const char* extension) {
+  bool freeClusterVerified = false;
+  if (recoveryFatEntriesScanned_) {
+    const uint64_t lba = recoveryCarveStart_ / 512ULL;
+    const uint64_t dataEnd = (uint64_t)recoveryDataStart_ + (uint64_t)recoveryDataClusters_ * recoverySectorsPerCluster_;
+    if (lba < recoveryDataStart_ || lba >= dataEnd) { resetCarver(); return; }
+    const uint32_t cluster = static_cast<uint32_t>((lba - recoveryDataStart_) / recoverySectorsPerCluster_) + 2;
+    if (fatEntry(cluster) != 0) { resetCarver(); return; }
+    for (size_t i = 0; i < recoveryFatCandidateCount_; ++i) {
+      if (i < recoveredFiles_.size() && !recoveredFiles_[i].rawCarved && recoveredFiles_[i].firstCluster == cluster) {
+        resetCarver(); return;
+      }
+    }
+    freeClusterVerified = true;
+  }
+  if (size >= 32 && recoveredFiles_.size() < 128) {
+    char name[32];
+    const size_t serial = recoveredFiles_.size() - recoveryFatCandidateCount_ + 1;
+    snprintf(name, sizeof(name), "CARVED_%03u.%s", static_cast<unsigned>(serial), extension);
+    RecoveredSdFile file;
+    file.name = name;
+    file.size = size;
+    file.rawCarved = true;
+    file.rawDeletedSpaceVerified = freeClusterVerified;
+    file.rawStartByte = recoveryCarveStart_;
+    recoveredFiles_.push_back(file);
+  }
+  resetCarver();
+}
+
+void StorageManager::processRecoveryByte(uint8_t value, uint64_t absoluteOffset) {
+  auto tailEndsWith = [this, value](const uint8_t* pattern, uint8_t length) {
+    if (recoveryTailCount_ + 1 < length) return false;
+    const uint8_t oldNeeded = length - 1;
+    for (uint8_t i = 0; i < oldNeeded; ++i) {
+      const int tailIndex = static_cast<int>(recoveryTailCount_) - oldNeeded + i;
+      if (tailIndex < 0 || recoveryTail_[tailIndex] != pattern[i]) return false;
+    }
+    return value == pattern[length - 1];
+  };
+  static const uint8_t pngSignature[8] = {0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A};
+  static const uint8_t pngEnd[12] = {0x00,0x00,0x00,0x00,'I','E','N','D',0xAE,0x42,0x60,0x82};
+  static const uint8_t pdfStart[5] = {'%','P','D','F','-'};
+  static const uint8_t pdfEnd[5] = {'%','%','E','O','F'};
+  auto pushTail = [this, value]() {
+    if (recoveryTailCount_ < sizeof(recoveryTail_)) recoveryTail_[recoveryTailCount_++] = value;
+    else { memmove(recoveryTail_, recoveryTail_ + 1, sizeof(recoveryTail_) - 1); recoveryTail_[sizeof(recoveryTail_) - 1] = value; }
+  };
+
+  // Printable runs can begin at the '%' in PDF or the "BM" in a bitmap.
+  // Give file signatures precedence over the text-run heuristic.
+  if (recoveryCarveMode_ == CarveMode::Text && tailEndsWith(pdfStart, sizeof(pdfStart))) {
+    if (recoveryCarveLength_ >= 128 && recoveryTextNewlines_ >= 2) finishRawCandidate(recoveryCarveLength_, "TXT");
+    else resetCarver();
+    recoveryCarveMode_ = CarveMode::Pdf; recoveryCarveStart_ = absoluteOffset - 4; recoveryCarveLength_ = 5;
+    pushTail();
+    return;
+  }
+  if (recoveryCarveMode_ == CarveMode::Text && recoveryTailCount_ && recoveryTail_[recoveryTailCount_ - 1] == 'B' && value == 'M') {
+    if (recoveryCarveLength_ >= 128 && recoveryTextNewlines_ >= 2) finishRawCandidate(recoveryCarveLength_, "TXT");
+    else resetCarver();
+    recoveryCarveMode_ = CarveMode::Bmp; recoveryCarveStart_ = absoluteOffset - 1; recoveryCarveLength_ = 2; recoveryCarveHeaderCount_ = 0;
+    pushTail();
+    return;
+  }
+
+  if (recoveryCarveMode_ == CarveMode::Jpeg) {
+    ++recoveryCarveLength_;
+    const bool ended = recoveryTailCount_ && recoveryTail_[recoveryTailCount_ - 1] == 0xFF && value == 0xD9;
+    if (ended && recoveryCarveLength_ <= 32U * 1024U * 1024U) finishRawCandidate(recoveryCarveLength_, "JPG");
+    else if (recoveryCarveLength_ > 32U * 1024U * 1024U) resetCarver();
+  } else if (recoveryCarveMode_ == CarveMode::Png) {
+    ++recoveryCarveLength_;
+    if (tailEndsWith(pngEnd, sizeof(pngEnd))) finishRawCandidate(recoveryCarveLength_, "PNG");
+    else if (recoveryCarveLength_ > 32U * 1024U * 1024U) resetCarver();
+  } else if (recoveryCarveMode_ == CarveMode::Pdf) {
+    ++recoveryCarveLength_;
+    if (tailEndsWith(pdfEnd, sizeof(pdfEnd))) finishRawCandidate(recoveryCarveLength_, "PDF");
+    else if (recoveryCarveLength_ > 32U * 1024U * 1024U) resetCarver();
+  } else if (recoveryCarveMode_ == CarveMode::Bmp) {
+    ++recoveryCarveLength_;
+    if (recoveryCarveHeaderCount_ < sizeof(recoveryCarveHeader_)) {
+      recoveryCarveHeader_[recoveryCarveHeaderCount_++] = value;
+      if (recoveryCarveHeaderCount_ == 6) {
+        recoveryCarveExpected_ = (uint32_t)recoveryCarveHeader_[0] |
+          ((uint32_t)recoveryCarveHeader_[1] << 8) | ((uint32_t)recoveryCarveHeader_[2] << 16) |
+          ((uint32_t)recoveryCarveHeader_[3] << 24);
+        if (recoveryCarveExpected_ < 54 || recoveryCarveExpected_ > 32U * 1024U * 1024U) resetCarver();
+      }
+    }
+    if (recoveryCarveMode_ == CarveMode::Bmp && recoveryCarveExpected_ && recoveryCarveLength_ >= recoveryCarveExpected_)
+      finishRawCandidate(recoveryCarveExpected_, "BMP");
+  } else if (recoveryCarveMode_ == CarveMode::Text) {
+    const bool printable = value == '\n' || value == '\r' || value == '\t' || (value >= 32 && value <= 126);
+    if (!printable) {
+      if (recoveryCarveLength_ >= 128 && recoveryTextNewlines_ >= 2)
+        finishRawCandidate(recoveryCarveLength_, "TXT");
+      else resetCarver();
+    } else {
+      ++recoveryCarveLength_;
+      if (value == '\n') ++recoveryTextNewlines_;
+      if (recoveryCarveLength_ >= 8192) {
+        if (recoveryTextNewlines_ >= 2) finishRawCandidate(recoveryCarveLength_, "TXT");
+        else resetCarver();
+      }
+    }
+  } else {
+    bool started = false;
+    if (recoveryTailCount_ && recoveryTail_[recoveryTailCount_ - 1] == 0xFF && value == 0xD8) {
+      recoveryCarveMode_ = CarveMode::Jpeg; recoveryCarveStart_ = absoluteOffset - 1; recoveryCarveLength_ = 2; started = true;
+    } else if (tailEndsWith(pngSignature, sizeof(pngSignature))) {
+      recoveryCarveMode_ = CarveMode::Png; recoveryCarveStart_ = absoluteOffset - 7; recoveryCarveLength_ = 8; started = true;
+    } else if (tailEndsWith(pdfStart, sizeof(pdfStart))) {
+      recoveryCarveMode_ = CarveMode::Pdf; recoveryCarveStart_ = absoluteOffset - 4; recoveryCarveLength_ = 5; started = true;
+    } else if (recoveryTailCount_ && recoveryTail_[recoveryTailCount_ - 1] == 'B' && value == 'M') {
+      recoveryCarveMode_ = CarveMode::Bmp; recoveryCarveStart_ = absoluteOffset - 1; recoveryCarveLength_ = 2; recoveryCarveHeaderCount_ = 0; started = true;
+    }
+    if (!started && (value == '\n' || value == '\r' || value == '\t' || (value >= 32 && value <= 126))) {
+      recoveryCarveMode_ = CarveMode::Text; recoveryCarveStart_ = absoluteOffset; recoveryCarveLength_ = 1;
+      recoveryTextNewlines_ = value == '\n' ? 1 : 0;
+    }
+  }
+
+  pushTail();
+}
+
+void StorageManager::processRecoverySector(uint32_t lba, const uint8_t* sector) {
+  const uint64_t base = (uint64_t)lba * 512ULL;
+  for (uint16_t i = 0; i < 512; ++i) processRecoveryByte(sector[i], base + i);
+}
+
+void StorageManager::loop() {
+  if (!recoveryScanning_) return;
+  if (!mounted_) { recoveryScanning_ = false; recoveryStatus_ = "SD unmounted; scan stopped"; return; }
+  uint8_t sector[512];
+  // Bound each pass so Wi-Fi, touch and the web server keep responding.
+  for (uint8_t n = 0; n < 24 && recoveryScanLba_ < recoveryTotalSectors_; ++n, ++recoveryScanLba_) {
+    if (!readSector(recoveryScanLba_, sector)) {
+      recoveryScanning_ = false;
+      resetCarver();
+      recoveryStatus_ = String("Sector read failed at LBA ") + recoveryScanLba_ + "; partial candidates kept";
+      return;
+    }
+    processRecoverySector(recoveryScanLba_, sector);
+  }
+  const uint8_t progress = recoveryTotalSectors_ ? static_cast<uint8_t>((uint64_t)recoveryScanLba_ * 100ULL / recoveryTotalSectors_) : 100;
+  if (progress != recoveryProgressMark_) {
+    recoveryProgressMark_ = progress;
+    recoveryProgress_ = progress;
+    recoveryStatus_ = String("Raw scan ") + progress + "% — sector " + recoveryScanLba_ + " / " + recoveryTotalSectors_ + " — " + recoveredFiles_.size() + " candidate(s)";
+  }
+  if (recoveryScanLba_ >= recoveryTotalSectors_) {
+    if (recoveryCarveMode_ == CarveMode::Text && recoveryCarveLength_ >= 128 && recoveryTextNewlines_ >= 2)
+      finishRawCandidate(recoveryCarveLength_, "TXT");
+    else resetCarver();
+    recoveryScanning_ = false;
+    recoveryProgress_ = 100;
+    recoveryStatus_ = String("Sector scan complete — ") + recoveredFiles_.size() + " candidate(s); raw files assume contiguous data and may be incomplete";
+  }
 }
 
 size_t StorageManager::readRecoveredFile(size_t index, uint32_t offset, uint8_t* output, size_t length) {
   const RecoveredSdFile* file = recoveredFile(index);
   if (!file || !output || offset >= file->size || !mounted_) return 0;
   size_t wanted = min(length, (size_t)(file->size - offset));
+  if (file->rawCarved) {
+    size_t written = 0;
+    uint8_t sector[512];
+    uint64_t absolute = file->rawStartByte + offset;
+    while (written < wanted) {
+      uint32_t lba = static_cast<uint32_t>(absolute / 512ULL);
+      size_t inSector = static_cast<size_t>(absolute % 512ULL);
+      if (!readSector(lba, sector)) break;
+      size_t count = min(wanted - written, static_cast<size_t>(512 - inSector));
+      memcpy(output + written, sector + inSector, count);
+      written += count;
+      absolute += count;
+    }
+    return written;
+  }
   size_t written = 0;
   const uint32_t clusterBytes = (uint32_t)recoverySectorsPerCluster_ * 512U;
   uint32_t cluster = file->firstCluster;
@@ -438,6 +656,7 @@ bool StorageManager::saveRecoveredFileToSource(size_t index, bool confirmed, Str
   static constexpr uint32_t kMaxSameCardRestoreBytes = 1024U * 1024U;
   const RecoveredSdFile* file = recoveredFile(index);
   if (!confirmed) { status = "Explicit same-card write confirmation required"; return false; }
+  if (recoveryScanning_) { status = "Stop the sector scan before writing to the SD"; return false; }
   if (!mounted_ || !file) { status = "SD card or recovery candidate is unavailable"; return false; }
   if (!file->size || file->size > kMaxSameCardRestoreBytes) {
     status = "Same-card restore is limited to files up to 1 MiB; export to another device instead";

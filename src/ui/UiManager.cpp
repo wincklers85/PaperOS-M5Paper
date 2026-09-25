@@ -2307,23 +2307,29 @@ void UiManager::showRecoveryHelp() {
   preparePage();
   statusBar();
   UiTheme::title("SD Recovery", 18, 76);
-  UiTheme::detail("FAT32 scan / best-effort recovery", 20, 116);
+  UiTheme::detail("Read-only raw sector scan / FAT32 metadata", 20, 116);
 
-  UiTheme::shadowCard(18, 145, 504, 94, 4);
-  UiTheme::label("DELETED FILE SCAN", 34, 160);
-  UiTheme::detail("FAT32 only / NTFS and APFS are unsupported", 34, 197);
-  UiTheme::pill("SCAN", 430, 159, true);
+  UiTheme::card(18, 145, 504, 94, true);
+  UiTheme::label(storage_.recoveryScanning() ? "RAW SECTOR SCAN" : "SECTOR SCAN", 34, 159);
+  String scanStatus = storage_.recoveryStatus().length() ? storage_.recoveryStatus() : String("Ready to scan every readable sector");
+  if (scanStatus.length() > 52) scanStatus = scanStatus.substring(0, 49) + "...";
+  UiTheme::detail(scanStatus, 34, 193);
+  UiTheme::pill(storage_.recoveryScanning() ? "STOP" : "SCAN", 432, 158, true);
+  M5.Display.drawRect(34, 214, 470, 10, TFT_BLACK);
+  const int fill = static_cast<int>(468UL * storage_.recoveryProgress() / 100UL);
+  if (fill > 0) M5.Display.fillRect(35, 215, fill, 8, TFT_BLACK);
 
   UiTheme::card(18, 254, 504, 452);
-  UiTheme::label("FOUND CANDIDATES", 34, 270);
+  UiTheme::label("RECOVERED CANDIDATES", 34, 270);
   UiTheme::detail(String(storage_.recoveredFileCount()) + " file(s)  /  swipe to browse", 34, 302);
   const size_t count = storage_.recoveredFileCount();
   fileScroll_ = constrain(fileScroll_, 0, max(0, static_cast<int>(count) - 4));
   if (!count) {
-    String scanStatus = storage_.recoveryStatus().length() ? storage_.recoveryStatus() : String("Tap SCAN to check the card");
-    if (scanStatus.length() > 40) scanStatus = scanStatus.substring(0, 37) + "...";
-    UiTheme::value(scanStatus, 34, 354, false);
-    UiTheme::detail("Only FAT32 deleted entries are listed by this first version.", 34, 402);
+    UiTheme::value(storage_.recoveryScanning() ? "Scan in progress" : "No candidates yet", 34, 354, false);
+    UiTheme::detail("JPEG, PNG, BMP, PDF and text signatures are carved.", 34, 402);
+    UiTheme::detail("Raw results lose original names and assume contiguous data.", 34, 438);
+    UiTheme::detail("Fragmented / overwritten files may be damaged or missed.", 34, 474);
+    UiTheme::detail("NTFS/APFS metadata recovery is not included.", 34, 510);
   } else {
     const size_t shown = min<size_t>(4, count - static_cast<size_t>(fileScroll_));
     for (size_t i = 0; i < shown; ++i) {
@@ -2332,20 +2338,39 @@ void UiManager::showRecoveryHelp() {
       if (!f) continue;
       const int y = 324 + static_cast<int>(i) * 86;
       UiTheme::value(String(idx + 1) + ". " + f->name, 34, y, false);
-      UiTheme::detail(String(f->size / 1024) + " KB  /  " + (f->fatChainAvailable ? "FAT chain hint" : "contiguous guess"), 34, y + 34);
+      String source = f->rawCarved ? (f->rawDeletedSpaceVerified ? "Free FAT cluster / raw carve" : "Raw signature / contiguous guess") : (f->fatChainAvailable ? "FAT chain hint" : "FAT contiguous guess");
+      UiTheme::detail(String(f->size / 1024) + " KB  /  " + source, 34, y + 34);
       if (i + 1 < shown) M5.Display.drawFastHLine(34, y + 64, 454, TFT_BLACK);
     }
   }
 
   UiTheme::card(18, 724, 504, 126);
   UiTheme::label("EXPORT TO A COMPUTER", 34, 740);
-  UiTheme::detail("Sign in to the Web Console, then open /recovery", 34, 776);
-  UiTheme::detail("Export safely, or use the website's risky same-card save (files up to 1 MiB).", 34, 810);
-  String status = storage_.recoveryStatus();
-  if (status.length() > 58) status = status.substring(0, 55) + "...";
-  UiTheme::detail(status, 34, 842);
+  UiTheme::detail("Open the authenticated Web Console > /recovery", 34, 776);
+  UiTheme::detail("Do not save onto the source card during the scan.", 34, 810);
+  UiTheme::detail("Keep the device powered; full-card scans can take hours.", 26, 842);
   bottomNav(4);
+  lastRecoveryUiStatus_ = storage_.recoveryStatus();
+  lastRecoveryUiRefresh_ = millis();
   commitPage();
+}
+
+void UiManager::refreshRecoveryProgress() {
+  String status = storage_.recoveryStatus();
+  if (status == lastRecoveryUiStatus_ || millis() - lastRecoveryUiRefresh_ < 900) return;
+  if (!storage_.recoveryScanning()) { showRecoveryHelp(); return; }
+  lastRecoveryUiStatus_ = status;
+  lastRecoveryUiRefresh_ = millis();
+  UiTheme::card(18, 145, 504, 94, true);
+  UiTheme::label(storage_.recoveryScanning() ? "RAW SECTOR SCAN" : "SECTOR SCAN", 34, 159);
+  String shown = status;
+  if (shown.length() > 52) shown = shown.substring(0, 49) + "...";
+  UiTheme::detail(shown, 34, 193);
+  UiTheme::pill(storage_.recoveryScanning() ? "STOP" : "SCAN", 432, 158, true);
+  M5.Display.drawRect(34, 214, 470, 10, TFT_BLACK);
+  const int fill = static_cast<int>(468UL * storage_.recoveryProgress() / 100UL);
+  if (fill > 0) M5.Display.fillRect(35, 215, fill, 8, TFT_BLACK);
+  display_.partialRefresh(18, 145, 504, 94);
 }
 
 void UiManager::showRecoveryPreview(size_t index) {
@@ -3106,6 +3131,11 @@ void UiManager::classicTerminalExecute(const String& commandRaw) {
     if (a.size() < 3) { classicTerminalPrint("Usage: copy <source> <destination>"); return; }
     String from = resolve(a[1]), to = resolve(a[2]);
     classicTerminalPrint(storage_.copyPath(from, to) ? "Copied" : "copy failed");
+    return;
+  }
+
+  if ((cmd == "touch" || cmd == "write" || cmd == "append") && storage_.recoveryScanning()) {
+    classicTerminalPrint("SD sector scan active; writes are blocked until it stops.");
     return;
   }
 
@@ -4754,7 +4784,7 @@ void UiManager::loop() {
 
   auto e = touch_.poll();
 
-  if (e.active) power_.markActivity();
+  if (e.active || storage_.recoveryScanning()) power_.markActivity();
 
   if (e.released && notificationPanelOpen_) {
     if (e.gesture==TouchGesture::SwipeDown) closeNotificationCenter();
@@ -5059,9 +5089,8 @@ void UiManager::loop() {
 
     if (page_ == Page::RecoveryHelp) {
       if (e.y >= 145 && e.y < 252) {
-        showAppLoading("SD Recovery", "Scanning deleted FAT32 entries (read only)...", 45);
-        storage_.scanDeletedFiles();
-        fileScroll_ = 0;
+        if (storage_.recoveryScanning()) storage_.cancelRecoveryScan();
+        else { fileScroll_ = 0; storage_.startRecoveryScan(); }
         showRecoveryHelp();
       } else if (e.y >= 324 && e.y < 668 && storage_.recoveredFileCount()) {
         size_t row = (e.y - 324) / 86;
@@ -5282,6 +5311,11 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::StorageTools) {
+      if (storage_.recoveryScanning() && e.y >= 266 && e.y < 590) {
+        storageStatus_ = "Stop the read-only sector scan before writing to the SD.";
+        showStorageTools();
+        return;
+      }
       if (e.y >= 145 && e.y < 255) {
         if (storage_.available()) {
           storage_.unmount();
@@ -5451,9 +5485,8 @@ void UiManager::loop() {
 
     if (page_ == Page::RecoveryHelp) {
       if (e.y >= 145 && e.y < 252) {
-        showAppLoading("SD Recovery", "Scanning deleted FAT32 entries (read only)...", 45);
-        storage_.scanDeletedFiles();
-        fileScroll_ = 0;
+        if (storage_.recoveryScanning()) storage_.cancelRecoveryScan();
+        else { fileScroll_ = 0; storage_.startRecoveryScan(); }
         showRecoveryHelp();
       } else if (e.y >= 324 && e.y < 668 && storage_.recoveredFileCount()) {
         size_t row = (e.y - 324) / 86;
@@ -5717,6 +5750,8 @@ void UiManager::loop() {
       showWiFi();
     }
   }
+
+  if (page_ == Page::RecoveryHelp) refreshRecoveryProgress();
 
   if (page_ == Page::Battery && millis() - lastBatteryUiRefresh_ > 30000UL) {
     lastBatteryUiRefresh_ = millis();

@@ -38,7 +38,7 @@
 - password-protected responsive Web UI
 - first-boot browser-assisted wizard
 - microSD layout and scrollable file manager: list, upload, download, create folder, rename, copy and delete; native text, JPEG/PNG/BMP and PDF-Lite readers
-- SD Recovery app with a FAT32 deleted-entry scan, on-device previews for JPEG/PNG/BMP/text candidates and authenticated browser export. Optional same-card save requires two confirmations, stages the entire candidate in PSRAM, and is limited to 1 MiB; its write can still overwrite other deleted data. NTFS and APFS recovery are unsupported. Boot does not create folders or append logs to the SD, so the card can be scanned before PaperOS writes to it.
+- SD Recovery combines FAT32 deleted-directory entries with an asynchronous, read-only, sector-by-sector carver for JPEG, PNG, BMP, PDF and printable text runs. It reports progress, can be stopped, previews supported images/text and exports through the authenticated browser. Raw carving loses names/folders, assumes contiguous file data and may return fragments or false positives; when FAT32 is recognized, candidate starts are checked against free clusters. SD writes are blocked during scanning. Optional same-card save still needs two confirmations, stages the full candidate and is capped at 1 MiB. NTFS/APFS metadata recovery is unsupported.
 - Notes on microSD with browser editing, categories, favorite and autosave
 - settings persistence in LittleFS with atomic `.tmp` / `.bak` recovery
 - system status REST API
@@ -118,7 +118,7 @@ The original M5Paper USB-C connector is wired through a CP2104/CH9102 USB-to-ser
 - **SD formatting** supports one whole-card FAT/exFAT PaperOS volume. Multi-partition mounting/editing is intentionally not exposed yet.
 - **Battery current in mA** is unavailable without an external current monitor.
 - **Wi-Fi Audit** is diagnostic only: no deauth, credential capture, password cracking or access bypass.
-- Solar/Termo controls, on-device text editing, reorderable Home widgets, raw sector-by-sector recovery, NTFS/APFS recovery and a packaged phone companion app remain deferred. Home currently supports two persistent file/folder shortcuts.
+- Solar/Termo controls, on-device text editing, reorderable Home widgets, NTFS/APFS metadata recovery, fragmented-file reconstruction, on-device text editing and a packaged phone companion app remain deferred. The raw carver is implemented but still needs disposable-card hardware validation. Home currently supports two persistent file/folder shortcuts.
 
 See [ROADMAP.md](ROADMAP.md).
 

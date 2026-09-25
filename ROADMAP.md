@@ -13,8 +13,8 @@ A feature is complete only when its backend and UI work together, CI passes, and
 - [ ] Run a clean firmware and LittleFS build from documented instructions.
 - [ ] Test first flash and first-boot setup on the original M5Paper, including setup AP from an iPhone.
 - [ ] Verify portrait orientation, touch mapping, physical buttons, Wi-Fi reconnect, RTC, battery display and microSD read/write.
-- [ ] Test SD mount/unmount, image previews, reset modes, Home file shortcuts, long-press file actions and hardware power-off on the original M5Paper.
-- [ ] Replace the current FAT32 deleted-directory-entry lookup with a bounded, progress-reporting sector scan before calling SD Recovery a sector-by-sector carver.
+- [ ] Test SD mount/unmount, image previews, raw recovery on disposable cards, reset modes, Home file shortcuts, long-press file actions and hardware power-off on the original M5Paper.
+- [x] Add an asynchronous read-only full-card sector scan with progress, cancel, JPEG/PNG/BMP/PDF/text carving, authenticated export and write blocking while scanning. Raw recovery still assumes contiguous data and needs hardware validation.
 - [ ] Record whether iPhone Phone Link completes GATT bonding and ANCS setup with the documented nRF Connect flow; keep failure reasons visible.
 - [ ] Implement and validate an actual BLE file-transfer protocol and compatible receiver before enabling Bluetooth file sharing.
 - [ ] Add USB mass-storage support only with a documented external USB host controller; the original M5Paper USB-C port is not a host.

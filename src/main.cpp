@@ -59,6 +59,7 @@ void setup() {
 void loop() {
   wifiManager.loop();
   webServer.loop();
+  storageManager.loop();
   uiManager.loop();
   powerManager.loop();
   delay(5);

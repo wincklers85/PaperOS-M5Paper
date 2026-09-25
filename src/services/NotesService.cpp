@@ -41,6 +41,7 @@ String NotesService::get(const String& id) {
 }
 
 bool NotesService::save(const String& id, const String& json) {
+  if (storage_.recoveryScanning()) return false;
   if (!storage_.available()) return false;
   if (!SD.exists("/PaperOS")) SD.mkdir("/PaperOS");
   if (!SD.exists("/PaperOS/Notes")) SD.mkdir("/PaperOS/Notes");
@@ -53,6 +54,7 @@ bool NotesService::save(const String& id, const String& json) {
 }
 
 bool NotesService::remove(const String& id) {
+  if (storage_.recoveryScanning()) return false;
   if (!storage_.available()) return false;
   String p="/PaperOS/Notes/"+sanitizeId(id)+".json"; return !SD.exists(p) || SD.remove(p);
 }

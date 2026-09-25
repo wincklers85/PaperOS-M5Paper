@@ -75,7 +75,7 @@ class UiManager {
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, LockScreen, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, ResetSettings, RecoveryHelp, RecoveryPreview, RecoveryConfirm, PhoneLink, Phone, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, FileContext, FileSend, UsbStorage, LockScreen, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, ResetSettings, RecoveryHelp, RecoveryPreview, RecoveryConfirm, PhoneLink, Phone, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -122,6 +122,7 @@ class UiManager {
     PhoneMessage,
     ManualTime,
     PhoneCommand,
+    FileRename,
     ClassicTerminal
   };
 
@@ -168,6 +169,10 @@ class UiManager {
   String fileClipboardName_;
   bool fileClipboardCut_ = false;
   String fileStatus_;
+  String contextFilePath_;
+  String contextFileName_;
+  bool contextFileDirectory_ = false;
+  bool deleteConfirmArmed_ = false;
   int textScroll_ = 0;
   int phoneScroll_ = 0;
   int browserTextScroll_ = 0;
@@ -311,6 +316,9 @@ class UiManager {
   void showComingSoon(const String& title, int activeNav = 4);
   void showNote(size_t index);
   void showFilePreview(const String& fullPath, const String& name, uint64_t size);
+  void showFileContext();
+  void showFileSend();
+  void showUsbStorage();
   void handleBottomNav(int x);
   void openAppIndex(int index);
   String parentPath(const String& path) const;

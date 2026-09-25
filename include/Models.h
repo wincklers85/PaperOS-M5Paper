@@ -36,6 +36,7 @@ struct AppConfig {
   uint32_t scheduledWakeMinutes = 0;
 
   std::vector<WiFiCredential> wifiNetworks;
+  std::vector<String> homeShortcuts;
 };
 
 }

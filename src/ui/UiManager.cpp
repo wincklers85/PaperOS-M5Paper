@@ -189,6 +189,9 @@ void UiManager::renderPage(Page target) {
       else showNotes();
       break;
     case Page::Files: showFiles(currentFilePath_); break;
+    case Page::FileContext: showFileContext(); break;
+    case Page::FileSend: showFileSend(); break;
+    case Page::UsbStorage: showUsbStorage(); break;
     case Page::LockScreen: showLockScreen(); break;
     case Page::FileView:
       if (currentPreviewPath_.length()) showFilePreview(currentPreviewPath_, currentPreviewName_, currentPreviewSize_);
@@ -822,8 +825,17 @@ void UiManager::showHome(bool forceClean) {
   homeCard(276, 442, 246, 108, "SYSTEM", String(ESP.getFreeHeap() / 1024) + " KB free", "Diagnostics", true);
 
   UiTheme::label("MODULES", 20, 574);
-  homeCard(18, 604, 246, 102, "TERMO", "Coming Soon", "Heating dashboard", true);
-  homeCard(276, 604, 246, 102, "SOLAR", "Coming Soon", "Energy dashboard", true);
+  const auto& shortcuts = config_.get().homeShortcuts;
+  auto drawShortcut = [&](int x, size_t i, const char* fallback) {
+    if (i < shortcuts.size() && storage_.exists(shortcuts[i])) {
+      String path = shortcuts[i]; int slash = path.lastIndexOf('/');
+      String name = slash >= 0 ? path.substring(slash + 1) : path;
+      String label = name.length() > 14 ? name.substring(0, 14) : name;
+      homeCard(x, 604, 246, 102, "HOME SHORTCUT", label, path.length() > 27 ? "Tap to open  /  ..." + path.substring(path.length()-22) : "Tap to open  /  " + path, true);
+    } else homeCard(x, 604, 246, 102, fallback, "Coming Soon", "Tap a file > Create link", true);
+  };
+  drawShortcut(18, 0, "WIDGET 1");
+  drawShortcut(276, 1, "WIDGET 2");
 
   UiTheme::card(18, 720, 504, 130);
   UiTheme::label("WEB CONSOLE", 34, 737);
@@ -1904,6 +1916,15 @@ void UiManager::handleKeyboardTap(int x, int y) {
 void UiManager::finishKeyboard() {
   InputTarget target = inputTarget_;
   inputTarget_ = InputTarget::None;
+
+  if (target == InputTarget::FileRename) {
+    String parent = parentPath(contextFilePath_);
+    String newPath = joinPath(parent, inputValue_);
+    fileStatus_ = storage_.renamePath(contextFilePath_, newPath) ? "Renamed" : "Rename failed";
+    fileEntries_.clear();
+    showFiles(currentFilePath_);
+    return;
+  }
 
   if (target == InputTarget::WiFiPassword) {
     String ssid = selectedWifiSsid_;
@@ -3887,14 +3908,15 @@ void UiManager::showFiles(const String& path) {
   UiTheme::detail("PaperOS + full microSD", 20, 111);
 
   const bool inPaperOs = currentFilePath_.startsWith("/PaperOS");
-  UiTheme::iconButton(18, 137, 246, 72, "P", inPaperOs ? "PaperOS  /  OPEN" : "PaperOS", false);
-  UiTheme::iconButton(276, 137, 246, 72, "SD", !inPaperOs ? "SD Card /  /  OPEN" : "SD Card /", false);
+  UiTheme::iconButton(18, 137, 164, 72, "P", inPaperOs ? "PaperOS" : "PaperOS", false);
+  UiTheme::iconButton(189, 137, 164, 72, "SD", !inPaperOs ? "SD Card /" : "SD Card", false);
+  UiTheme::iconButton(360, 137, 162, 72, "USB", "USB OTG", false);
   if (inPaperOs) {
-    M5.Display.drawRoundRect(20, 139, 242, 68, 18, TFT_BLACK);
-    M5.Display.drawRoundRect(21, 140, 240, 66, 17, TFT_BLACK);
+    M5.Display.drawRoundRect(20, 139, 160, 68, 18, TFT_BLACK);
+    M5.Display.drawRoundRect(21, 140, 158, 66, 17, TFT_BLACK);
   } else {
-    M5.Display.drawRoundRect(278, 139, 242, 68, 18, TFT_BLACK);
-    M5.Display.drawRoundRect(279, 140, 240, 66, 17, TFT_BLACK);
+    M5.Display.drawRoundRect(191, 139, 160, 68, 18, TFT_BLACK);
+    M5.Display.drawRoundRect(192, 140, 158, 66, 17, TFT_BLACK);
   }
 
   UiTheme::card(18, 220, 504, 54);
@@ -3948,6 +3970,50 @@ void UiManager::showFiles(const String& path) {
   UiTheme::detail(status, 28, 836);
 
   bottomNav(2);
+  commitPage();
+}
+
+void UiManager::showFileContext() {
+  page_ = Page::FileContext; preparePage(); statusBar();
+  UiTheme::title("File actions", 18, 78);
+  UiTheme::detail(contextFileName_, 20, 118);
+  const char* labels[9] = {"Apri", "Apri editor", "Copia", "Taglia", deleteConfirmArmed_ ? "Conferma elimina" : "Elimina", "Rinomina", "Invia", "Home link", "Chiudi"};
+  const char* glyphs[9] = {"OPEN", "EDIT", "CP", "CUT", "DEL", "REN", "SEND", "HOME", "BACK"};
+  for (int i=0;i<9;i++) {
+    int x=(i%3)*180+8, y=150+(i/3)*120;
+    UiTheme::iconButton(x,y,164,104,glyphs[i],labels[i],deleteConfirmArmed_ && i==4);
+  }
+  UiTheme::detail("Tieni premuto un elemento per riaprire questo menu", 22, 536);
+  commitPage();
+}
+
+void UiManager::showFileSend() {
+  page_ = Page::FileSend; preparePage(); statusBar();
+  UiTheme::title("Send file", 18, 78);
+  UiTheme::detail(contextFileName_, 20, 118);
+  UiTheme::iconButton(18,160,504,102,"Wi-Fi","paperos.local download",true);
+  UiTheme::iconButton(18,290,504,102,"BT","Bluetooth companion",false);
+  UiTheme::iconButton(18,420,504,102,"SD","Another SD folder",true);
+  UiTheme::card(18,550,504,180);
+  UiTheme::label("TRANSFER STATUS",34,568);
+  String status=fileStatus_.length()?fileStatus_:"Wi-Fi: authenticated download from File Manager.";
+  M5.Display.setFont(&fonts::FreeMono9pt7b); M5.Display.setTextColor(TFT_BLACK,TFT_WHITE); M5.Display.setTextWrap(true,true); M5.Display.setCursor(34,610); M5.Display.print(status); M5.Display.setTextWrap(false); UiTheme::resetFont();
+  UiTheme::detail("Back returns to the selected file",34,704);
+  commitPage();
+}
+
+void UiManager::showUsbStorage() {
+  page_ = Page::UsbStorage; preparePage(); statusBar();
+  UiTheme::title("USB storage",18,78);
+  UiTheme::detail("OTG host status",20,118);
+  UiTheme::card(18,160,504,300,true);
+  UiTheme::value("Host controller unavailable",38,204,true);
+  UiTheme::detail("Original M5Paper uses ESP32-D0WDQ6.",38,270);
+  UiTheme::detail("Its USB-C port is for serial / power,",38,306);
+  UiTheme::detail("not USB mass-storage host / OTG.",38,342);
+  UiTheme::detail("A MAX3421E USB-host module and wiring",38,390);
+  UiTheme::detail("are required before USB files can be mounted.",38,426);
+  UiTheme::iconButton(18,500,504,90,"SD","Return to SD card",true);
   commitPage();
 }
 
@@ -4717,6 +4783,19 @@ void UiManager::loop() {
     return;
   }
 
+  if (e.released && e.gesture == TouchGesture::LongPress && page_ == Page::Files && e.startY >= 284 && e.startY < 284 + 6 * 72) {
+    size_t idx = static_cast<size_t>(fileScroll_) + static_cast<size_t>((e.startY - 284) / 72);
+    if (idx < fileEntries_.size() && fileEntries_[idx].name != "..") {
+      const FileEntry& entry = fileEntries_[idx];
+      contextFilePath_ = joinPath(currentFilePath_, entry.name);
+      contextFileName_ = entry.name;
+      contextFileDirectory_ = entry.directory;
+      deleteConfirmArmed_ = false;
+      showFileContext();
+    }
+    return;
+  }
+
   if (e.released && (e.gesture == TouchGesture::SwipeUp || e.gesture == TouchGesture::SwipeDown)) {
     power_.markActivity();
     wheelFocusVisible_=false;
@@ -4774,8 +4853,12 @@ void UiManager::loop() {
         if (e.x < 270) showSettings();
         else showSystem();
       } else if (e.y >= 604 && e.y < 706) {
-        if (e.x < 270) showThermo();
-        else showSolar();
+        const auto& shortcuts = config_.get().homeShortcuts;
+        size_t slot = e.x < 270 ? 0 : 1;
+        if (slot < shortcuts.size() && storage_.exists(shortcuts[slot])) {
+          if (storage_.isDirectory(shortcuts[slot])) showFiles(shortcuts[slot]);
+          else { File f = SD.open(shortcuts[slot], FILE_READ); uint64_t z = f ? f.size() : 0; if (f) f.close(); int slash = shortcuts[slot].lastIndexOf('/'); showFilePreview(shortcuts[slot], slash >= 0 ? shortcuts[slot].substring(slash+1) : shortcuts[slot], z); }
+        } else showFiles();
       } else if (e.y >= 720 && e.y < 850) {
         showSettings();
       }
@@ -4805,6 +4888,47 @@ void UiManager::loop() {
       return;
     }
 
+    if (page_ == Page::FileContext) {
+      if (e.y >= 150 && e.y < 150 + 3 * 120) {
+        int row = (e.y - 150) / 120;
+        int col = e.x / 180;
+        if (col > 2) col = 2;
+        int action = row * 3 + col;
+        if (action == 0 || action == 1) {
+          if (contextFileDirectory_) showFiles(contextFilePath_);
+          else {
+            File f = SD.open(contextFilePath_, FILE_READ); uint64_t size = f ? f.size() : 0; if (f) f.close();
+            showFilePreview(contextFilePath_, contextFileName_, size);
+          }
+        } else if (action == 2) {
+          fileClipboardPath_ = contextFilePath_; fileClipboardName_ = contextFileName_; fileClipboardCut_ = false;
+          fileStatus_ = "Copied: " + contextFileName_; showFiles(currentFilePath_);
+        } else if (action == 3) {
+          fileClipboardPath_ = contextFilePath_; fileClipboardName_ = contextFileName_; fileClipboardCut_ = true;
+          fileStatus_ = "Cut: " + contextFileName_; showFiles(currentFilePath_);
+        } else if (action == 4) {
+          if (!deleteConfirmArmed_) { deleteConfirmArmed_ = true; showFileContext(); }
+          else { bool ok = storage_.removePath(contextFilePath_); fileStatus_ = ok ? "Deleted: " + contextFileName_ : "Delete failed"; fileEntries_.clear(); showFiles(currentFilePath_); }
+        } else if (action == 5) {
+          String name = contextFileName_; showKeyboard(InputTarget::FileRename, "Rename file", name, false);
+        } else if (action == 6) showFileSend();
+        else if (action == 7) {
+          auto& paths = config_.edit().homeShortcuts;
+          for (size_t i=0;i<paths.size();++i) if (paths[i] == contextFilePath_) { paths.erase(paths.begin()+i); config_.save(); fileStatus_="Home shortcut removed"; showFiles(currentFilePath_); return; }
+          if (paths.size() >= 2) paths.erase(paths.begin());
+          paths.push_back(contextFilePath_); config_.save(); fileStatus_="Added to Home"; showFiles(currentFilePath_);
+        } else if (action == 8) showFiles(currentFilePath_);
+      }
+      return;
+    }
+    if (page_ == Page::FileSend) {
+      if (e.y >= 160 && e.y < 275) { fileStatus_="Wi-Fi download: sign in at paperos.local, then open Files."; showFileSend(); }
+      else if (e.y >= 290 && e.y < 405) { fileStatus_="BLE phone bridge carries commands/notifications; file transfer needs a compatible receiver app."; showFileSend(); }
+      else if (e.y >= 420 && e.y < 535) { fileClipboardPath_=contextFilePath_; fileClipboardName_=contextFileName_; fileClipboardCut_=false; fileStatus_="Copied; browse another SD folder and tap Paste."; showFiles(currentFilePath_); }
+      return;
+    }
+    if (page_ == Page::UsbStorage) { showFiles(currentFilePath_); return; }
+
     if (page_ == Page::Files) {
       if (e.y >= 220 && e.y < 274 && e.x >= 390) {
         showStorageTools();
@@ -4814,7 +4938,9 @@ void UiManager::loop() {
         fileSelectionMode_ = false;
         selectedFilePath_ = "";
         fileStatus_ = "";
-        showFiles(e.x < 270 ? "/PaperOS" : "/");
+        if (e.x < 184) showFiles("/PaperOS");
+        else if (e.x < 356) showFiles("/");
+        else showUsbStorage();
         return;
       }
 

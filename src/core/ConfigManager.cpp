@@ -68,6 +68,12 @@ bool ConfigManager::loadFromPath(const char* path) {
     c.priority = n["priority"] | 0;
     if (c.ssid.length()) config_.wifiNetworks.push_back(c);
   }
+  config_.homeShortcuts.clear();
+  for (JsonVariant item : doc["homeShortcuts"].as<JsonArray>()) {
+    String path = item.as<String>();
+    if (path.length() && path[0] == '/' && path.length() <= 240 && config_.homeShortcuts.size() < 4)
+      config_.homeShortcuts.push_back(path);
+  }
   return true;
 }
 
@@ -93,6 +99,8 @@ bool ConfigManager::save() {
     o["password"] = n.password;
     o["priority"] = n.priority;
   }
+  JsonArray shortcuts = doc.createNestedArray("homeShortcuts");
+  for (const auto& path : config_.homeShortcuts) shortcuts.add(path);
 
   File tmp = LittleFS.open(TMP_PATH, FILE_WRITE);
   if (!tmp) return false;

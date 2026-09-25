@@ -26,7 +26,7 @@
 - frosted/depth Quick Settings overlay designed for monochrome e-paper
 - optional **PN532 NFC Lab** on Port C UART (G18/G19) with module diagnostics and ISO14443A UID scanning
 - **Classic Desktop / Windows 3.11 mode** with startup splash, Program Manager, ROOT Terminal, BLE mouse/keyboard, Ski and Solitaire
-- full microSD root browsing plus native File Manager Cut / Copy / Paste
+- full microSD root browsing plus native File Manager Cut / Copy / Paste, long-press context actions, persistent Home file/folder shortcuts and a USB source status screen
 - bottom-up Notification Center with ANCS calls/messages/mail, phone connection state and companion-supplied phone battery
 - BLE mouse-wheel menu navigation with visible focus and wheel-click OK/Enter
 - reusable on-screen touch keyboard with pressed-key feedback and SHOW/HIDE for passwords
@@ -77,9 +77,9 @@ BLE Inspector also recognises common iBeacon/Eddystone advertising markers and o
 
 During first boot, join the `PaperOS-Setup` Wi-Fi network and open `http://192.168.4.1`. The hostname `http://paperos.local` is available after PaperOS has joined the same local Wi-Fi network as the browser. If the emergency setup page says the Web UI files are missing, connect over USB and upload LittleFS with `pio run -e m5paper -t uploadfs`.
 
-## Phone and SD recovery limits
+## Phone, USB and SD recovery limits
 
-Phone Link can display iOS notifications provided by ANCS. Placing calls and composing SMS requires a separately installed iPhone companion that implements PaperOS's BLE command bridge; this repository does not include an iOS app. SD Recovery scans FAT32 directory entries only and is best-effort: it may miss files, and fragmented files may be incomplete. NTFS and APFS are not supported by the recovery scanner. Browser export is the safest destination. The optional same-card save stages files up to 1 MiB in PSRAM before writing to `/PaperOS/Recovery`, but its allocation can still overwrite other deleted files. Stop using the card after deletion because normal filesystem activity can overwrite recoverable sectors.
+Phone Link can display iOS notifications provided by ANCS. Placing calls and composing SMS requires a separately installed iPhone companion that implements PaperOS's BLE command bridge; this repository does not include an iOS app. The File Manager transfer menu offers Wi-Fi download through the authenticated Web Console; the current BLE phone bridge does not implement binary file transfer. On-device USB shows host availability, but the original M5Paper has no onboard USB host controller; USB storage needs external host hardware. SD Recovery currently scans FAT32 deleted directory entries only, not every raw sector, and remains best-effort: it may miss files, and fragmented files may be incomplete. NTFS and APFS are not supported by the recovery scanner. Browser export is the safest destination. The optional same-card save stages files up to 1 MiB in PSRAM before writing to `/PaperOS/Recovery`, but its allocation can still overwrite other deleted files. Stop using the card after deletion because normal filesystem activity can overwrite recoverable sectors.
 
 ## GPIO Port map
 
@@ -118,7 +118,7 @@ The original M5Paper USB-C connector is wired through a CP2104/CH9102 USB-to-ser
 - **SD formatting** supports one whole-card FAT/exFAT PaperOS volume. Multi-partition mounting/editing is intentionally not exposed yet.
 - **Battery current in mA** is unavailable without an external current monitor.
 - **Wi-Fi Audit** is diagnostic only: no deauth, credential capture, password cracking or access bypass.
-- Solar/Termo controls, an on-device notes editor, reorderable Home widgets and a packaged phone companion app remain deferred.
+- Solar/Termo controls, on-device text editing, reorderable Home widgets, raw sector-by-sector recovery, NTFS/APFS recovery and a packaged phone companion app remain deferred. Home currently supports two persistent file/folder shortcuts.
 
 See [ROADMAP.md](ROADMAP.md).
 

@@ -13,9 +13,11 @@ A feature is complete only when its backend and UI work together, CI passes, and
 - [ ] Run a clean firmware and LittleFS build from documented instructions.
 - [ ] Test first flash and first-boot setup on the original M5Paper, including setup AP from an iPhone.
 - [ ] Verify portrait orientation, touch mapping, physical buttons, Wi-Fi reconnect, RTC, battery display and microSD read/write.
-- [ ] Test SD mount/unmount, image previews, reset modes and hardware power-off on the original M5Paper.
+- [ ] Test SD mount/unmount, image previews, reset modes, Home file shortcuts, long-press file actions and hardware power-off on the original M5Paper.
 - [ ] Replace the current FAT32 deleted-directory-entry lookup with a bounded, progress-reporting sector scan before calling SD Recovery a sector-by-sector carver.
 - [ ] Record whether iPhone Phone Link completes GATT bonding and ANCS setup with the documented nRF Connect flow; keep failure reasons visible.
+- [ ] Implement and validate an actual BLE file-transfer protocol and compatible receiver before enabling Bluetooth file sharing.
+- [ ] Add USB mass-storage support only with a documented external USB host controller; the original M5Paper USB-C port is not a host.
 - [ ] Fix issues found during the user's installation and record the tested board/revision.
 - [ ] Confirm the boot/recovery path when the microSD is absent or unreadable.
 - [ ] Update version-stale BUILD, RELEASE, API, TESTING, SECURITY and hardware documentation to describe 0.3.1+ accurately.
@@ -110,7 +112,7 @@ PaperOS 1.0.0 can ship when all of these are true:
 
 ## Scope and hardware limits
 
-- USB-C on the original M5Paper is a USB-to-serial bridge, not native USB HID. The BadUSB Lab is a script library; direct HID execution through the built-in port is not promised.
+- USB-C on the original M5Paper is a USB-to-serial bridge, not a USB host port. USB mass-storage needs an external host controller. It is not native USB HID. The BadUSB Lab is a script library; direct HID execution through the built-in port is not promised.
 - Battery current and exact charge state are unavailable from the original board without an external sensor.
 - Web Reader does not run JavaScript or complex browser content. HTTPS certificate-validation limits must be disclosed until resolved.
 - MQTT security capabilities must be stated accurately; do not present an unencrypted local connection as secure.

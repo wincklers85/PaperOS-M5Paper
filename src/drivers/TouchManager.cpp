@@ -44,7 +44,9 @@ TouchEvent TouchManager::poll() {
   const int ay = std::abs(e.dy);
   const uint32_t elapsed = millis() - startedMs_;
 
-  if (ax < 28 && ay < 28 && elapsed < 900) {
+  if (ax < 28 && ay < 28 && elapsed >= 700) {
+    e.gesture = TouchGesture::LongPress;
+  } else if (ax < 28 && ay < 28 && elapsed < 900) {
     e.clicked = true;
     e.gesture = TouchGesture::Tap;
   } else if (ay >= 60 && ay > ax) {

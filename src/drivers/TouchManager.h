@@ -9,7 +9,8 @@ enum class TouchGesture : uint8_t {
   SwipeUp,
   SwipeDown,
   SwipeLeft,
-  SwipeRight
+  SwipeRight,
+  LongPress
 };
 
 struct TouchEvent {

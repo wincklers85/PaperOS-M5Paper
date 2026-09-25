@@ -32,7 +32,9 @@ void setup() {
   displayManager.begin();
   displayManager.splash();
 
+  displayManager.splashProgress(12, "Inizializzazione archivio interno");
   if (!configManager.begin()) Serial.println("[PaperOS] LittleFS/config init failed");
+  displayManager.splashProgress(30, "Caricamento impostazioni");
   bool sdOk = storageManager.begin();
   if (sdOk) {
     if (SD.exists("/PaperOS/Config/wifi_networks.txt")) configManager.importWifiTextFromSd();
@@ -43,11 +45,15 @@ void setup() {
   logger.info(String("Boot ") + NAME + " " + VERSION);
   if (!sdOk) logger.warn("microSD not mounted; SD-backed features disabled");
 
+  displayManager.splashProgress(52, "Avvio rete e servizi");
   wifiManager.begin();
   powerManager.markActivity();
-  uiManager.begin();
+  displayManager.splashProgress(74, "Avvio Web Console");
   webServer.begin();
   logger.info(String("Web UI: http://") + wifiManager.ip().toString());
+  displayManager.splashProgress(100, "Avvio completato");
+  delay(120);
+  uiManager.begin();
 }
 
 void loop() {

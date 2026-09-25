@@ -212,6 +212,7 @@ void UiManager::renderPage(Page target) {
     case Page::General: showGeneral(); break;
     case Page::DateTime: showDateTime(); break;
     case Page::StorageTools: showStorageTools(); break;
+    case Page::ResetSettings: showResetSettings(); break;
     case Page::StorageFormat: showStorageFormat(); break;
     case Page::RecoveryHelp: showRecoveryHelp(); break;
     case Page::RecoveryPreview: showRecoveryPreview(selectedRecoveryIndex_); break;
@@ -277,10 +278,12 @@ void UiManager::showQuickPanel() {
   UiTheme::iconButton(22, 348, 238, 106, String(power_.batteryPercent()) + "%", "Battery statistics", false);
   UiTheme::iconButton(280, 348, 238, 106, "LOCK", "Blocca", true);
 
-  UiTheme::card(22, 470, 496, 100);
-  UiTheme::label("DISPLAY CLEANUP", 40, 487);
-  UiTheme::detail("Tap here for a full white refresh to clear ghosting.", 40, 522);
-  UiTheme::detail("Swipe up anywhere to return to the open app.", 40, 550);
+  UiTheme::iconButton(22, 470, 496, 92, "OFF", "Spegni dispositivo", false);
+
+  UiTheme::card(22, 580, 496, 100);
+  UiTheme::label("DISPLAY CLEANUP", 40, 598);
+  UiTheme::detail("Tap here for a full white refresh to clear ghosting.", 40, 622);
+  UiTheme::detail("Swipe up anywhere to return to the open app.", 40, 650);
 
   display_.pageRefresh();
 }
@@ -339,6 +342,16 @@ void UiManager::handleQuickPanelTap(int x, int y) {
   }
 
   if (y >= 470 && y < 570) {
+    quickPanelOpen_ = false;
+    storage_.unmount();
+    phoneLink_.stop();
+    wifi_.setRadioEnabled(false);
+    if (bluetoothActive_) BLEDevice::deinit(true);
+    power_.powerOff();
+    return;
+  }
+
+  if (y >= 580 && y < 690) {
     Page keep = page_;
     quickPanelOpen_ = false;
     display_.cleanRefresh();
@@ -519,7 +532,7 @@ int UiManager::wheelItemCount() const {
   switch (page_) {
     case Page::Home: return 8;
     case Page::Apps: return 18;
-    case Page::Settings: return 10;
+    case Page::Settings: return 11;
     case Page::Files: return static_cast<int>(fileEntries_.size());
     case Page::Tools: return 6;
     case Page::NetworkTools: return 6;
@@ -676,7 +689,8 @@ void UiManager::activateWheelFocus() {
       uint8_t next=(display_.profile()+1)%3;
       display_.setProfile(next);config_.edit().displayProfile=static_cast<DisplayProfile>(next);config_.save();showSettings();
     } else if(idx==7 || idx==8) showStorageTools();
-    else showLabs();
+    else if (idx == 9) showLabs();
+    else showResetSettings();
     return;
   }
 
@@ -966,9 +980,9 @@ void UiManager::showSettings() {
   UiTheme::value(config_.get().deviceName, 112, 164, false);
   UiTheme::detail(String("PaperOS ") + VERSION + "  /  " + UiTheme::styleName(), 112, 202);
 
-  const char* glyphs[10] = {"GN","TH","WF","BT","TM","PW","EP","SD","BK","LB"};
-  const char* titles[10] = {"Generali","Tema","Wi-Fi","Bluetooth","Data e ora","Batteria e Lock","Display / EPD","Storage / SD","Backup & Restore","Labs"};
-  String details[10] = {
+  const char* glyphs[11] = {"GN","TH","WF","BT","TM","PW","EP","SD","BK","LB","RS"};
+  const char* titles[11] = {"Generali","Tema","Wi-Fi","Bluetooth","Data e ora","Batteria e Lock","Display / EPD","Storage / SD","Backup & Restore","Labs","Reset"};
+  String details[11] = {
     "Info dispositivo, firmware e memoria",
     String(UiTheme::styleName()) + " / tap to change",
     wifi_.isConnected() ? WiFi.SSID() : (wifi_.radioEnabled() ? "Non connesso" : "Radio OFF"),
@@ -978,11 +992,12 @@ void UiManager::showSettings() {
     String("Qualita ") + display_.profileLabel(),
     storage_.available() ? String("microSD / ") + String((uint32_t)(storage_.freeBytes()/1048576ULL)) + " MB liberi" : "microSD non disponibile",
     "Configurazione e reti Wi-Fi su SD",
-    "NFC / GPIO / BLE / strumenti beta"
+    "NFC / GPIO / BLE / strumenti beta",
+    "Ripristino contenuti e impostazioni"
   };
 
   const int visible = 6;
-  settingsScroll_ = constrain(settingsScroll_, 0, 10 - visible);
+  settingsScroll_ = constrain(settingsScroll_, 0, 11 - visible);
   UiTheme::shadowCard(18, 257, 504, 510, 4);
   for (int row = 0; row < visible; ++row) {
     int idx = settingsScroll_ + row;
@@ -990,7 +1005,7 @@ void UiManager::showSettings() {
   }
 
   UiTheme::card(18, 782, 504, 68);
-  UiTheme::detail(String(settingsScroll_ + 1) + "-" + String(settingsScroll_ + visible) + " / 10  -  swipe", 34, 806);
+  UiTheme::detail(String(settingsScroll_ + 1) + "-" + String(min(settingsScroll_ + visible, 11)) + " / 11  -  swipe", 34, 806);
 
   bottomNav(4);
   commitPage();
@@ -1047,10 +1062,10 @@ void UiManager::showStorageTools() {
   statusBar();
 
   UiTheme::title("Storage & Backup", 18, 76);
-  UiTheme::detail(storage_.available() ? "microSD mounted" : "microSD unavailable", 20, 116);
+  UiTheme::detail(storage_.available() ? "microSD montata" : "microSD non disponibile", 20, 116);
 
   UiTheme::card(18, 145, 504, 100, true);
-  UiTheme::label("SD STATUS", 34, 161);
+  UiTheme::label("SD STATUS / TOCCA PER MOUNT O UNMOUNT", 34, 161);
   UiTheme::value(storage_.available() ? String((uint32_t)(storage_.freeBytes()/1048576ULL)) + " MB free" : String("No card"), 34, 198, false);
   UiTheme::detail(storage_.available() ? String((uint32_t)(storage_.totalBytes()/1048576ULL)) + " MB total" : String("Insert microSD"), 34, 230);
 
@@ -1065,6 +1080,36 @@ void UiManager::showStorageTools() {
   UiTheme::detail(storageStatus_.length() ? storageStatus_ : String("Wi-Fi text stores passwords in plain text by explicit choice."), 34, 797);
   UiTheme::detail("Backup/restore and format actions require the microSD.", 34, 826);
 
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showResetSettings() {
+  const bool wasResetPage = page_ == Page::ResetSettings;
+  page_ = Page::ResetSettings;
+  if (!wasResetPage) {
+    resetConfirmArmed_ = false;
+    resetConfirmChoice_ = 0;
+  }
+  preparePage();
+  statusBar();
+  UiTheme::title("Reset", 18, 76);
+  UiTheme::detail("Scegli cosa ripristinare", 20, 116);
+  UiTheme::card(18, 154, 504, 172, true);
+  UiTheme::label("SOLO IMPOSTAZIONI", 38, 176);
+  UiTheme::value("Rete, tema e preferenze", 38, 218, false);
+  UiTheme::detail("Mantiene file, note e cartelle sulla SD.", 38, 269);
+  UiTheme::card(18, 348, 504, 204, true);
+  UiTheme::label("CONTENUTI + IMPOSTAZIONI", 38, 370);
+  UiTheme::value("Cancella /PaperOS sulla SD", 38, 412, false);
+  UiTheme::detail("Non formatta la scheda e non tocca altri percorsi.", 38, 463);
+  UiTheme::detail(resetConfirmArmed_ ? "Tocca di nuovo la stessa scelta per confermare." : "Ogni scelta richiede due tocchi.", 38, 515);
+  UiTheme::card(18, 590, 504, 126);
+  UiTheme::value("⚠", 38, 608, false);
+  UiTheme::detail("Il reset contenuti elimina documenti PaperOS,", 90, 620);
+  UiTheme::detail("immagini, download e note archiviati qui.", 90, 654);
+  UiTheme::detail("Wi-Fi e accesso Web Console verranno azzerati.", 38, 686);
+  if (storageStatus_.length()) UiTheme::detail(storageStatus_, 38, 742);
   bottomNav(4);
   commitPage();
 }
@@ -5053,6 +5098,7 @@ void UiManager::loop() {
         }
         else if (idx == 7 || idx == 8) showStorageTools();
         else if (idx == 9) showLabs();
+        else if (idx == 10) showResetSettings();
       }
       return;
     }
@@ -5073,8 +5119,49 @@ void UiManager::loop() {
       return;
     }
 
+    if (page_ == Page::ResetSettings) {
+      const bool settingsOnly = e.y >= 154 && e.y < 326;
+      const bool contentAndSettings = e.y >= 348 && e.y < 554;
+      if (!settingsOnly && !contentAndSettings) return;
+      const uint8_t choice = settingsOnly ? 1 : 2;
+      if (!resetConfirmArmed_ || resetConfirmChoice_ != choice) {
+        resetConfirmArmed_ = true;
+        resetConfirmChoice_ = choice;
+        showResetSettings();
+        return;
+      }
+      resetConfirmArmed_ = false;
+      resetConfirmChoice_ = 0;
+      bool ok = true;
+      if (contentAndSettings) {
+        if (!storage_.available()) {
+          storageStatus_ = "Monta la SD prima del reset dei contenuti.";
+          showResetSettings();
+          return;
+        }
+        ok = storage_.clearPaperOSContents();
+      }
+      if (ok) ok = config_.resetToDefaults();
+      if (ok) {
+        showAppLoading("Reset completato", contentAndSettings ? "Contenuti PaperOS e impostazioni azzerati" : "Impostazioni iniziali ripristinate", 100);
+        delay(350);
+        ESP.restart();
+      }
+      storageStatus_ = "Reset non completato; controlla la SD e riprova.";
+      showResetSettings();
+      return;
+    }
+
     if (page_ == Page::StorageTools) {
-      if (e.y >= 266 && e.y < 344) {
+      if (e.y >= 145 && e.y < 255) {
+        if (storage_.available()) {
+          storage_.unmount();
+          storageStatus_ = "SD smontata in sicurezza; ora puoi rimuoverla.";
+        } else {
+          storageStatus_ = storage_.mount() ? "SD montata e pronta." : "Mount fallito: controlla scheda e contatti.";
+        }
+        showStorageTools();
+      } else if (e.y >= 266 && e.y < 344) {
         storageStatus_ = config_.exportBackupToSd() ? "Settings backup written to SD" : "Backup failed";
         showStorageTools();
       } else if (e.y >= 348 && e.y < 426) {

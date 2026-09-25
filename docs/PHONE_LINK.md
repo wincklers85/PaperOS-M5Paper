@@ -27,7 +27,7 @@ After secure BLE bonding, PaperOS can receive current iOS notification events an
 5. Allow notification access for the accessory if iOS prompts for it.
 6. Return to PaperOS. The status should become **iPhone ANCS connected**.
 
-A DIY BLE accessory may not always appear in the normal Settings > Bluetooth device list before a connection is initiated. nRF Connect is therefore the recommended first-pair tool and diagnostic fallback.
+For this PaperOS prototype, initiate the BLE connection with **nRF Connect**. Opening iOS Settings > Bluetooth alone does not initiate the required PaperOS GATT/ANCS exchange. Phone Link now displays separate status messages when the BLE link, bond or ANCS service setup fails; use those messages to diagnose first pairing.
 
 ### What ANCS does not provide
 

@@ -69,6 +69,7 @@ class PhoneLinkService::NotificationCallbacks : public BLECharacteristicCallback
 bool PhoneLinkService::begin() {
   if (active_) return true;
   instance_ = this;
+  ancsStatus_ = "Advertising PaperOS; connect with nRF Connect";
 
   BLEDevice::init("PaperOS");
   BLEDevice::setEncryptionLevel(ESP_BLE_SEC_ENCRYPT);
@@ -182,10 +183,12 @@ void PhoneLinkService::onConnected(bool connected, const String& address) {
   connected_ = connected;
   if (!connected) {
     ancsReady_ = false;
+    ancsStatus_ = "BLE link closed; start pairing again from nRF Connect";
     return;
   }
   if (address.length()) {
     peerAddress_ = address;
+    ancsStatus_ = "BLE linked; negotiating Apple ANCS";
     startAncsClient(address);
   }
 }
@@ -203,14 +206,14 @@ void PhoneLinkService::ancsTaskThunk(void* arg) {
 
 void PhoneLinkService::ancsTask() {
   delay(900);
-  if (!peerAddress_.length()) return;
+  if (!peerAddress_.length()) { ancsStatus_ = "No iPhone address was received"; return; }
 
   BLEAddress address(peerAddress_.c_str());
   ancsClient_ = BLEDevice::createClient();
-  if (!ancsClient_) return;
-  if (!ancsClient_->connect(address)) return;
+  if (!ancsClient_) { ancsStatus_ = "BLE client allocation failed; restart Phone Link"; return; }
+  if (!ancsClient_->connect(address)) { ancsStatus_ = "iPhone ANCS connection failed; remove bond and pair again"; return; }
 
-  setupAncs();
+  if (!setupAncs()) ancsStatus_ = "iPhone connected but ANCS service was not exposed";
 }
 
 bool PhoneLinkService::setupAncs() {
@@ -235,6 +238,7 @@ bool PhoneLinkService::setupAncs() {
 
   ancsReady_ = true;
   bonded_ = true;
+  ancsStatus_ = "ANCS ready; iPhone notifications enabled";
   return true;
 }
 
@@ -360,11 +364,11 @@ String PhoneLinkService::statusText() const {
   if (ancsReady_) return "iPhone ANCS connected";
   if (bonded_) return "Bonded / waiting for ANCS";
   if (connected_) return "Connected / pairing";
-  return "Pairing mode / waiting for iPhone";
+  return ancsStatus_.length() ? ancsStatus_ : "Advertising PaperOS; connect with nRF Connect";
 }
 
 String PhoneLinkService::pairingHelp() const {
-  return "Use nRF Connect on iPhone: Scan > PaperOS > Connect > Pair > Allow Notifications.";
+  return "iPhone: nRF Connect > Scan > PaperOS > Connect > Pair. Then allow notifications.";
 }
 
 }

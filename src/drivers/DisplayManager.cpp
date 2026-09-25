@@ -53,13 +53,44 @@ void DisplayManager::splash() {
   const int barX = 74;
   const int barY = cy + 128;
   const int barW = width() - 148;
-  M5.Display.drawRoundRect(barX, barY, barW, 14, 7, TFT_BLACK);
-  M5.Display.fillRoundRect(barX + 3, barY + 3, barW - 6, 8, 4, TFT_BLACK);
+  M5.Display.drawRoundRect(barX, barY, barW, 24, 8, TFT_BLACK);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString("Avvio in corso", barX, barY + 44);
 
   M5.Display.display();
   delay(120);
   M5.Display.setFont(&fonts::Font2);
   M5.Display.setTextDatum(top_left);
+  splashProgress(0, "Preparazione display");
+}
+
+void DisplayManager::splashProgress(uint8_t percent, const String& phase) {
+  percent = percent > 100 ? 100 : percent;
+  const int cx = width() / 2;
+  const int cy = height() / 2;
+  const int barX = 74;
+  const int barY = cy + 128;
+  const int barW = width() - 148;
+  M5.Display.fillRect(barX + 3, barY + 3, barW - 6, 18, TFT_WHITE);
+  const int fillW = (barW - 6) * percent / 100;
+  // One-bit display: a checker pattern creates a stable mid-gray impression.
+  for (int y = 0; y < 18; ++y) {
+    int x = (y & 1) ? 1 : 0;
+    while (x < fillW) {
+      M5.Display.drawPixel(barX + 3 + x, barY + 3 + y, TFT_BLACK);
+      x += 2;
+    }
+  }
+  M5.Display.fillRect(74, barY + 38, width() - 148, 30, TFT_WHITE);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString(phase, 74, barY + 51);
+  M5.Display.setTextDatum(middle_right);
+  M5.Display.drawString(String(percent) + "%", width() - 74, barY + 51);
+  M5.Display.display(barX - 4, barY - 2, barW + 8, 74);
+  M5.Display.setTextDatum(top_left);
+  M5.Display.setFont(&fonts::Font2);
 }
 
 void DisplayManager::pageRefresh() {

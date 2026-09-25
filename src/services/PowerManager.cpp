@@ -109,7 +109,7 @@ void PowerManager::loop() {
   }
 }
 
-void PowerManager::drawSleepScreen(uint32_t wakeSeconds) {
+void PowerManager::drawSleepScreen(uint32_t wakeSeconds, bool powerOff) {
   auto dt = M5.Rtc.getDateTime();
 
   M5.Display.setEpdMode(m5gfx::epd_text);
@@ -132,7 +132,7 @@ void PowerManager::drawSleepScreen(uint32_t wakeSeconds) {
   M5.Display.drawString(clockText, M5.Display.width() / 2, 252);
 
   M5.Display.setFont(&fonts::FreeSansBold12pt7b);
-  M5.Display.drawString("Deep Sleep", M5.Display.width() / 2, 334);
+  M5.Display.drawString(powerOff ? "Power Off" : "Deep Sleep", M5.Display.width() / 2, 334);
 
   M5.Display.drawRoundRect(74, 404, 392, 166, 18, TFT_BLACK);
   M5.Display.setFont(&fonts::FreeSansBold12pt7b);
@@ -141,13 +141,15 @@ void PowerManager::drawSleepScreen(uint32_t wakeSeconds) {
   M5.Display.setFont(&fonts::FreeSans9pt7b);
   M5.Display.drawString(String(batteryMillivolts()) + " mV", M5.Display.width() / 2, 493);
 
-  if (cfg_.get().touchWakeEnabled || wakeSeconds == 0) {
+  if (!powerOff && (cfg_.get().touchWakeEnabled || wakeSeconds == 0)) {
     M5.Display.drawString("Touch the screen to wake PaperOS", M5.Display.width() / 2, 535);
-  } else {
+  } else if (!powerOff) {
     M5.Display.drawString("Wake by timer", M5.Display.width() / 2, 535);
   }
 
-  if (wakeSeconds) {
+  if (powerOff) {
+    M5.Display.drawString("Press the rear reset button to restart", M5.Display.width() / 2, 632);
+  } else if (wakeSeconds) {
     M5.Display.drawString(String("Timer: ") + (wakeSeconds / 60UL) + " min", M5.Display.width() / 2, 632);
   } else {
     M5.Display.drawString("No wake timer", M5.Display.width() / 2, 632);
@@ -183,6 +185,11 @@ void PowerManager::deepSleepNow(uint32_t wakeSeconds) {
   M5.update();
   delay(40);
   M5.Power.deepSleep(wakeUs, touchWake);
+}
+
+void PowerManager::powerOff() {
+  drawSleepScreen(0, true);
+  M5.Power.powerOff();
 }
 
 void PowerManager::sleepForMinutes(uint32_t minutes) {

@@ -13,6 +13,9 @@ A feature is complete only when its backend and UI work together, CI passes, and
 - [ ] Run a clean firmware and LittleFS build from documented instructions.
 - [ ] Test first flash and first-boot setup on the original M5Paper, including setup AP from an iPhone.
 - [ ] Verify portrait orientation, touch mapping, physical buttons, Wi-Fi reconnect, RTC, battery display and microSD read/write.
+- [ ] Test SD mount/unmount, image previews, reset modes and hardware power-off on the original M5Paper.
+- [ ] Replace the current FAT32 deleted-directory-entry lookup with a bounded, progress-reporting sector scan before calling SD Recovery a sector-by-sector carver.
+- [ ] Record whether iPhone Phone Link completes GATT bonding and ANCS setup with the documented nRF Connect flow; keep failure reasons visible.
 - [ ] Fix issues found during the user's installation and record the tested board/revision.
 - [ ] Confirm the boot/recovery path when the microSD is absent or unreadable.
 - [ ] Update version-stale BUILD, RELEASE, API, TESTING, SECURITY and hardware documentation to describe 0.3.1+ accurately.

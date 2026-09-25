@@ -29,6 +29,7 @@ class UiManager {
   void showApps();
   void showSystem();
   void showSettings();
+  void showResetSettings();
   void showNotes();
   void showFiles(const String& path = "/PaperOS");
   void showTools();
@@ -74,7 +75,7 @@ class UiManager {
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, LockScreen, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, RecoveryHelp, RecoveryPreview, RecoveryConfirm, PhoneLink, Phone, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, LockScreen, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, ResetSettings, RecoveryHelp, RecoveryPreview, RecoveryConfirm, PhoneLink, Phone, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -237,6 +238,8 @@ class UiManager {
   String phoneAppStatus_;
   size_t selectedRecoveryIndex_ = 0;
   bool recoveryExportConfirmed_ = false;
+  bool resetConfirmArmed_ = false;
+  uint8_t resetConfirmChoice_ = 0;
   bool gpioInitialized_ = false;
   uint8_t gpioModeState_[6] = {0,0,0,0,0,0};
   bool gpioOutputLevel_[6] = {false,false,false,false,false,false};

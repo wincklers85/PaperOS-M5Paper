@@ -12,9 +12,26 @@ static constexpr int PIN_SD_MISO = 13;
 static constexpr int PIN_SD_MOSI = 12;
 
 bool StorageManager::begin() {
+  if (mounted_) return true;
   SPI.begin(PIN_SD_SCK, PIN_SD_MISO, PIN_SD_MOSI, PIN_SD_CS);
   mounted_ = SD.begin(PIN_SD_CS, SPI, 25000000);
   return mounted_;
+}
+
+bool StorageManager::mount() {
+  if (mounted_) return true;
+  bool ok = begin();
+  if (ok) ensureLayout();
+  return ok;
+}
+
+void StorageManager::unmount() {
+  recoveredFiles_.clear();
+  recoveryVisitedDirs_.clear();
+  recoveryCursorFile_ = static_cast<size_t>(-1);
+  recoveryStatus_ = "SD unmounted";
+  if (mounted_) SD.end();
+  mounted_ = false;
 }
 
 void StorageManager::ensureLayout() {
@@ -106,6 +123,22 @@ bool StorageManager::removePath(const String& path) {
     if (!removePath(childPath)) return false;
   }
   return SD.rmdir(path);
+}
+
+bool StorageManager::clearPaperOSContents() {
+  if (!mounted_ || !SD.exists("/PaperOS")) return false;
+  File root = SD.open("/PaperOS");
+  if (!root || !root.isDirectory()) { if (root) root.close(); return false; }
+  std::vector<String> children;
+  for (File child = root.openNextFile(); child; child = root.openNextFile()) {
+    String name = String(child.name());
+    child.close();
+    if (!name.startsWith("/")) name = String("/PaperOS/") + name;
+    children.push_back(name);
+  }
+  root.close();
+  for (const auto& path : children) if (!removePath(path)) return false;
+  return true;
 }
 
 bool StorageManager::renamePath(const String& from, const String& to) {

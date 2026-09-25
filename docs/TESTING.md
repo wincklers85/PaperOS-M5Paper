@@ -24,6 +24,9 @@
 - SD present: boot does not create folders, append logs or export configuration automatically
 - explicit Notes/configuration saves create only the required folders
 - browser upload/list/download/mkdir/rename/copy/delete
+- tap SD status in Settings > Storage to unmount; remove/reinsert card; tap again to mount; verify Files and Notes recover without reboot
+- open a JPEG/PNG/BMP from SD repeatedly; verify the UI does not freeze and RAM returns after closing previews
+- Settings > Reset: confirm settings-only reset preserves SD contents; confirm content reset removes only `/PaperOS` and resets preferences
 - note create/edit/autosave/delete survives reboot
 - FAT32 recovery scan leaves source sectors unchanged until an explicit save is selected
 - preview supported JPEG/PNG/BMP/text candidates and export to the browser device
@@ -31,12 +34,15 @@
 - verify unsupported formats produce a clear status (NTFS, APFS and exFAT recovery)
 
 ## Power / OTA
+- Quick Settings > Power Off shows the power-off screen and shuts the original M5Paper down when running from battery; verify USB-powered behavior separately
 - deep-sleep screen remains visible
 - touch/power wake returns through cold boot
 - timer wake tested with USB disconnected if RTC/timer behavior requires it
 - OTA rejects invalid/incomplete image and reboots only after successful `Update.end(true)`
 
 ## Soak
+- verify splash progress advances with initialized services and ends before Home is drawn
+- pair an iPhone with nRF Connect and record the Phone Link status for success/failure; normal iOS Bluetooth Settings alone is not a supported first-pair path
 - 24 h connected run
 - repeated Wi-Fi loss/recovery
 - 100 partial top-bar refreshes followed by quality refresh

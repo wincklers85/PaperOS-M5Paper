@@ -73,6 +73,7 @@ class PhoneLinkService {
   std::vector<PhoneNotification> notifications_;
   String lastCommand_;
   String peerAddress_;
+  String ancsStatus_;
   int phoneBatteryPercent_ = -1;
   bool phoneCharging_ = false;
   bool phoneChargingKnown_ = false;

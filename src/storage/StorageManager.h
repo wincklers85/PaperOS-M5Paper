@@ -16,6 +16,8 @@ struct RecoveredSdFile {
 class StorageManager {
  public:
   bool begin();
+  bool mount();
+  void unmount();
   bool available() const { return mounted_; }
   uint64_t totalBytes() const;
   uint64_t usedBytes() const;
@@ -23,6 +25,7 @@ class StorageManager {
   String listJson(const String& path);
   bool makeDir(const String& path);
   bool removePath(const String& path);
+  bool clearPaperOSContents();
   bool renamePath(const String& from, const String& to);
   bool copyFile(const String& from, const String& to);
   bool copyPath(const String& from, const String& to);

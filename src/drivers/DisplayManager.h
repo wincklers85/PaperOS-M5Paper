@@ -7,6 +7,7 @@ class DisplayManager {
  public:
   void begin();
   void splash();
+  void splashProgress(uint8_t percent, const String& phase);
 
   // Fast full-screen refresh for normal page changes.
   void pageRefresh();

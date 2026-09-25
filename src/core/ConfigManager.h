@@ -12,6 +12,7 @@ class ConfigManager {
   bool begin();
   bool load();
   bool save();
+  bool resetToDefaults();
   const AppConfig& get() const { return config_; }
   AppConfig& edit() { return config_; }
   void setAdminPassword(const String& password);

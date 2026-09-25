@@ -43,6 +43,7 @@ class PowerManager {
 
   // Explicit real ESP32 deep sleep for advanced/diagnostic use only.
   void deepSleepNow(uint32_t wakeSeconds = 0);
+  void powerOff();
 
   // Convenience timed sleep with touch wake still enabled.
   void sleepForMinutes(uint32_t minutes);
@@ -69,7 +70,7 @@ class PowerManager {
   uint8_t voltageHistoryIndex_ = 0;
 
   void sampleBattery();
-  void drawSleepScreen(uint32_t wakeSeconds);
+  void drawSleepScreen(uint32_t wakeSeconds, bool powerOff = false);
 };
 
 }

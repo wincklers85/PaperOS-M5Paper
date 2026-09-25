@@ -10,6 +10,11 @@ All notable changes follow Semantic Versioning.
 - Updated build, release, security and device-test documentation to reflect the 0.3.1-alpha codebase and the 0.3.2-alpha stabilization gate.
 - Corrected SD tests for the no-write-on-boot behavior and documented the recovery-format and same-card-save limits.
 - System information now distinguishes directly usable PSRAM from the 8 MB physically installed on the original M5Paper.
+- Storage settings now include explicit SD mount/unmount controls; unmount clears cached recovery candidates before card removal.
+- Added a two-step Settings reset for preferences only or the PaperOS SD folder plus preferences.
+- Added a device power-off action to Quick Settings and a boot splash with staged progress updates.
+- Phone Link now reports distinct BLE/ANCS connection failures and points to the nRF Connect pairing flow.
+- The current recovery scan still searches FAT32 deleted directory entries; full-volume sector carving remains a required follow-up before describing it as sector-by-sector recovery.
 
 ## [0.3.1-alpha] - 2026-09-25
 

@@ -31,6 +31,14 @@ bool ConfigManager::load() {
   return save();
 }
 
+bool ConfigManager::resetToDefaults() {
+  config_ = AppConfig();
+  if (LittleFS.exists(CONFIG_PATH)) LittleFS.remove(CONFIG_PATH);
+  if (LittleFS.exists(TMP_PATH)) LittleFS.remove(TMP_PATH);
+  if (LittleFS.exists(BAK_PATH)) LittleFS.remove(BAK_PATH);
+  return save();
+}
+
 bool ConfigManager::loadFromPath(const char* path) {
   if (!LittleFS.exists(path)) return false;
   File f = LittleFS.open(path, FILE_READ);

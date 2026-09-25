@@ -5635,4 +5635,8 @@ void UiManager::loop() {
   }
 
   if (millis() - lastDeepClean_ > 25UL * 60UL * 1000UL && page_ == Page::Home) {
-    showHome(true
+    showHome(true);
+  }
+}
+
+}

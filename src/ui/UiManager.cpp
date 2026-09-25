@@ -13,6 +13,16 @@
 
 namespace paperos {
 
+static String normalizedPhoneNumber(const String& raw) {
+  String value;
+  for (size_t i = 0; i < raw.length(); ++i) {
+    char c = raw[i];
+    if ((c >= '0' && c <= '9') || c == '*' || c == '#') value += c;
+    else if (c == '+' && value.length() == 0) value += c;
+  }
+  return value;
+}
+
 void UiManager::preparePage(bool forceClean) {
   const bool pageChanged = hasRenderedPage_ && page_ != lastRenderedPage_;
 
@@ -203,7 +213,9 @@ void UiManager::renderPage(Page target) {
     case Page::DateTime: showDateTime(); break;
     case Page::StorageTools: showStorageTools(); break;
     case Page::StorageFormat: showStorageFormat(); break;
+    case Page::RecoveryHelp: showRecoveryHelp(); break;
     case Page::PhoneLink: showPhoneLink(); break;
+    case Page::Phone: showPhone(); break;
     case Page::GpioLab: showGpioLab(); break;
     case Page::NfcLab: showNfcLab(); break;
     case Page::Labs: showLabs(); break;
@@ -244,11 +256,11 @@ void UiManager::navigateBack() {
 
 void UiManager::showQuickPanel() {
   quickPanelOpen_ = true;
-
-  // E-paper cannot perform GPU blur. Dither the already-rendered page to
-  // create a frosted/dimmed depth layer, then place a floating sheet above it.
-  UiTheme::ditherOverlay(0, 0, UiTheme::ScreenW, UiTheme::ScreenH);
-  UiTheme::shadowCard(10, 10, 520, 610, 7);
+  // E-paper has no alpha compositing. Render an opaque page after a clean
+  // white refresh so the old app cannot ghost through this control panel.
+  display_.cleanRefresh();
+  UiTheme::beginFrame();
+  UiTheme::shadowCard(10, 10, 520, 936, 4);
   M5.Display.fillRoundRect(218, 594, 104, 6, 3, TFT_BLACK);
 
   UiTheme::title("Quick Settings", 28, 28);
@@ -264,11 +276,11 @@ void UiManager::showQuickPanel() {
   UiTheme::iconButton(280, 348, 238, 106, "LOCK", "Blocca", true);
 
   UiTheme::card(22, 470, 496, 100);
-  UiTheme::label("ACTIVE PAGE BELOW", 40, 487);
-  UiTheme::detail("The dotted layer simulates frosted glass on monochrome e-paper.", 40, 522);
-  UiTheme::detail(String("Theme: ") + UiTheme::styleName() + "  /  pull-up to dismiss", 40, 550);
+  UiTheme::label("DISPLAY CLEANUP", 40, 487);
+  UiTheme::detail("Tap here for a full white refresh to clear ghosting.", 40, 522);
+  UiTheme::detail("Swipe up anywhere to return to the open app.", 40, 550);
 
-  display_.partialRefresh(0, 0, UiTheme::ScreenW, 630);
+  display_.pageRefresh();
 }
 
 void UiManager::closeQuickPanel() {
@@ -321,6 +333,14 @@ void UiManager::handleQuickPanelTap(int x, int y) {
       quickPanelOpen_ = false;
       power_.sleepNow();
     }
+    return;
+  }
+
+  if (y >= 470 && y < 570) {
+    Page keep = page_;
+    quickPanelOpen_ = false;
+    display_.cleanRefresh();
+    renderPage(keep);
   }
 }
 
@@ -496,7 +516,7 @@ bool UiManager::isClassicPage() const {
 int UiManager::wheelItemCount() const {
   switch (page_) {
     case Page::Home: return 8;
-    case Page::Apps: return 16;
+    case Page::Apps: return 17;
     case Page::Settings: return 10;
     case Page::Files: return static_cast<int>(fileEntries_.size());
     case Page::Tools: return 6;
@@ -525,9 +545,9 @@ void UiManager::drawWheelFocus() {
     };
     x=rects[idx][0];y=rects[idx][1];w=rects[idx][2];h=rects[idx][3];
   } else if (page_ == Page::Apps) {
-    if (idx < 15) {
-      int col=idx%3,row=idx/3;
-      x=16+col*172; y=152+row*116; w=164; h=112;
+    if (idx < 16) {
+      int col=idx%4,row=idx/4;
+      x=16+col*128; y=152+row*116; w=124; h=112;
     } else { x=16;y=744;w=508;h=108; }
   } else if (page_ == Page::Settings) {
     if (idx < settingsScroll_ || idx >= settingsScroll_+6) return;
@@ -637,7 +657,7 @@ void UiManager::activateWheelFocus() {
   }
 
   if (page_ == Page::Apps) {
-    if(idx<15) openAppIndex(idx); else showClassicSplash();
+    if(idx<16) openAppIndex(idx); else showClassicSplash();
     return;
   }
 
@@ -743,6 +763,10 @@ void UiManager::handleScrollGesture(TouchGesture gesture) {
     int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - 2);
     phoneScroll_ = constrain(phoneScroll_ + delta * 2, 0, maxOffset);
     showPhoneLink();
+  } else if (page_ == Page::Phone) {
+    int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - 3);
+    phoneScroll_ = constrain(phoneScroll_ + delta * 2, 0, maxOffset);
+    showPhone();
   } else if (page_ == Page::Browser && browserPage_.ok) {
     browserTextScroll_ = max(0, browserTextScroll_ + delta * 850);
     browserLinkScroll_ = max(0, browserLinkScroll_ + delta * 2);
@@ -798,31 +822,31 @@ void UiManager::showApps() {
   statusBar();
 
   UiTheme::title("Apps", 18, 76);
-  UiTheme::detail("PaperOS tools  /  buffered one-pass UI", 20, 116);
+  UiTheme::detail("PaperOS tools  /  touch an app to open", 20, 116);
 
-  const char* names[15] = {
+  const char* names[16] = {
     "Notes", "Files", "Calculator",
     "Wi-Fi", "Bluetooth", "Browser",
     "Battery", "Clock", "Focus",
     "OTP", "Network", "Settings",
-    "System", "Labs", "Phone Link"
+    "System", "Labs", "Phone Link", "Phone"
   };
-  const char* glyphs[15] = {
+  const char* glyphs[16] = {
     "NT", "FL", "CAL",
     "WF", "BT", "WEB",
     "BAT", "CK", "25",
     "OTP", "NET", "ST",
-    "SYS", "LAB", "PH"
+    "SYS", "LAB", "PH", "TEL"
   };
 
-  const int tileW = 160;
+  const int tileW = 120;
   const int tileH = 108;
   const int startY = 154;
   const int pitchY = 116;
-  for (int i = 0; i < 15; ++i) {
-    int col = i % 3;
-    int row = i / 3;
-    int x = 18 + col * 172;
+  for (int i = 0; i < 16; ++i) {
+    int col = i % 4;
+    int row = i / 4;
+    int x = 16 + col * 128;
     int y = startY + row * pitchY;
     UiTheme::appTile(x, y, tileW, tileH, glyphs[i], names[i], false);
   }
@@ -1030,7 +1054,7 @@ void UiManager::showStorageTools() {
   settingsRow(430, "WF", "Export Wi-Fi text", "/PaperOS/Config/wifi_networks.txt");
   settingsRow(512, "IM", "Import Wi-Fi text", "Read edited SSID/Password blocks");
   settingsRow(594, "FM", "Format / partition", "Single-volume SD tools");
-  settingsRow(676, "IN", "Storage info", "Capacity / free / filesystem mount");
+  settingsRow(676, "RC", "Recover deleted files", "Read this before using the card again");
 
   UiTheme::card(18, 770, 504, 80);
   UiTheme::detail(storageStatus_.length() ? storageStatus_ : String("Wi-Fi text stores passwords in plain text by explicit choice."), 34, 797);
@@ -1243,7 +1267,8 @@ void UiManager::showBluetooth() {
   }
 
   UiTheme::card(18, 792, 504, 58);
-  UiTheme::detail("Advertising is passive; GATT Reader connects only when requested.", 34, 811);
+  UiTheme::detail("Your AirTag: iPhone Find My > Items > Play Sound.", 34, 811);
+  UiTheme::detail("PaperOS BLE cannot read owner details or sound it.", 34, 835);
 
   bottomNav(4);
   commitPage();
@@ -1849,7 +1874,7 @@ void UiManager::finishKeyboard() {
       browserPage_ = BrowserPage();
       browserPage_.error = "Connect Wi-Fi first";
     } else {
-      showAppLoading("Web Search", "Searching DuckDuckGo HTML...", 55);
+          showAppLoading("Web Search", "Trying lightweight search providers...", 55);
       browserPage_ = browserService_.search(browserSearchQuery_);
       if (browserPage_.finalUrl.length()) browserUrl_ = browserPage_.finalUrl;
     }
@@ -1922,6 +1947,29 @@ void UiManager::finishKeyboard() {
     bool ok = phoneLink_.sendCommand(phoneCommandDraft_);
     phoneLinkStatus_ = ok ? String("Command sent: ") + phoneCommandDraft_ : String("Start Phone Link bridge first");
     showPhoneLink();
+    return;
+  }
+
+  if (target == InputTarget::PhoneNumber) {
+    phoneNumberDraft_ = normalizedPhoneNumber(inputValue_);
+    phoneAppStatus_ = phoneNumberDraft_.length() ? "Number ready" : "Enter a valid phone number";
+    showPhone();
+    return;
+  }
+
+  if (target == InputTarget::PhoneMessage) {
+    phoneMessageDraft_ = inputValue_;
+    const String number = normalizedPhoneNumber(phoneNumberDraft_);
+    if (!number.length() || !phoneMessageDraft_.length()) {
+      phoneAppStatus_ = "Enter a number and message first";
+    } else {
+      String message = phoneMessageDraft_;
+      message.replace("|", " ");
+      phoneAppStatus_ = phoneLink_.sendCommand(String("message:") + number + "|" + message)
+        ? "SMS request sent; approve it on the iPhone"
+        : "No companion connected; install/open the iPhone companion";
+    }
+    showPhone();
     return;
   }
 
@@ -2023,11 +2071,17 @@ void UiManager::showBrowser() {
 
   if (!browserPage_.ok) {
     UiTheme::card(18, 354, 504, 360);
-    UiTheme::value(browserPage_.error.length() ? browserPage_.error : String("Search or enter a URL"), 40, 398, false);
-    UiTheme::detail("Default search: DuckDuckGo HTML (no JavaScript required).", 40, 452);
-    UiTheme::detail("Reader mode extracts title, readable text and internal links.", 40, 488);
-    UiTheme::detail("JavaScript, video and complex CSS are not rendered.", 40, 524);
-    UiTheme::detail("HTTPS uses lightweight transport without CA validation.", 40, 560);
+    String error = browserPage_.error.length() ? browserPage_.error : String("Search or enter a URL");
+    if (error.length() > 46) error = error.substring(0, 43) + "...";
+    UiTheme::value(error, 40, 398, false);
+    if (browserPage_.error.length() > 46) {
+      UiTheme::detail(browserPage_.error.substring(43, min(103, static_cast<int>(browserPage_.error.length()))), 40, 442);
+      if (browserPage_.error.length() > 103) UiTheme::detail(browserPage_.error.substring(103, min(163, static_cast<int>(browserPage_.error.length()))), 40, 469);
+    }
+    UiTheme::detail("Search tries DuckDuckGo, Lite and Google HTML.", 40, 516);
+    UiTheme::detail("Reader mode extracts title, text and internal links.", 40, 548);
+    UiTheme::detail("JavaScript, video and complex CSS are not rendered.", 40, 580);
+    UiTheme::detail("HTTPS uses lightweight transport without CA validation.", 40, 612);
   } else {
     UiTheme::card(18, 354, 504, 76, true);
     String title = browserPage_.title;
@@ -2173,6 +2227,93 @@ void UiManager::showStorageFormat() {
   UiTheme::detail("the current ESP32 SD mount layer exposes one mounted volume.", 34, 737);
   UiTheme::detail(storage_.filesystemHint(), 34, 770);
 
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showRecoveryHelp() {
+  page_ = Page::RecoveryHelp;
+  preparePage();
+  statusBar();
+  UiTheme::title("SD Data Recovery", 18, 76);
+  UiTheme::detail("Protect deleted data before attempting recovery", 20, 116);
+
+  UiTheme::card(18, 145, 504, 132, true);
+  UiTheme::label("IF YOU JUST DELETED A FILE", 34, 162);
+  UiTheme::value("Stop using the SD card now", 34, 199, false);
+  UiTheme::detail("Power off PaperOS and remove the card.", 34, 239);
+
+  UiTheme::card(18, 300, 504, 190);
+  UiTheme::label("WHY PAPEROS CANNOT SAFELY RESTORE IT IN PLACE", 34, 318);
+  UiTheme::detail("FAT/exFAT may reuse the deleted file's sectors immediately.", 34, 360);
+  UiTheme::detail("Writing a recovered copy back to this same card can overwrite", 34, 394);
+  UiTheme::detail("the data you are trying to save. A format makes recovery harder.", 34, 428);
+  UiTheme::detail("PaperOS does not claim to recover fragmented or overwritten data.", 34, 462);
+
+  UiTheme::card(18, 514, 504, 206);
+  UiTheme::label("SAFEST RECOVERY", 34, 532);
+  UiTheme::detail("1. Keep the card out of PaperOS; do not format it.", 34, 574);
+  UiTheme::detail("2. Use a computer and card reader with a recovery tool.", 34, 608);
+  UiTheme::detail("3. Save recovered files to a different drive, never this SD.", 34, 642);
+  UiTheme::detail("If the card is failing, make an image before scanning it.", 34, 676);
+
+  UiTheme::iconButton(18, 744, 504, 78, "FMT", "Format SD (erases everything)", false);
+  UiTheme::detail("Formatting cannot recover deleted files.", 34, 842);
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showPhone() {
+  page_ = Page::Phone;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Phone", 18, 76);
+  UiTheme::detail("iPhone notifications and companion dialer", 20, 116);
+  UiTheme::shadowCard(18, 145, 504, 86, 4);
+  UiTheme::label("IPHONE LINK", 34, 158);
+  UiTheme::value(phoneLink_.statusText(), 34, 188, false);
+  UiTheme::pill(phoneLink_.active() ? "STOP" : "PAIR", 430, 159, true);
+
+  UiTheme::card(18, 244, 504, 102);
+  UiTheme::label("PHONE NUMBER", 34, 258);
+  String number = phoneNumberDraft_.length() ? phoneNumberDraft_ : String("Tap to enter a number");
+  UiTheme::value(number, 34, 293, false);
+  UiTheme::pill("EDIT", 438, 255, false);
+  UiTheme::iconButton(18, 358, 246, 86, "CALL", "Call via iPhone app", false);
+  UiTheme::iconButton(276, 358, 246, 86, "SMS", "Compose message", false);
+
+  UiTheme::label("RECENT PHONE NOTIFICATIONS", 20, 466);
+  UiTheme::pill("CLEAR", 444, 458, false);
+  UiTheme::card(18, 490, 504, 322);
+  const size_t count = phoneLink_.notificationCount();
+  phoneScroll_ = constrain(phoneScroll_, 0, max(0, static_cast<int>(count) - 3));
+  if (!count) {
+    UiTheme::value("No notifications received", 38, 530, false);
+    UiTheme::detail(phoneLink_.ancsReady() ? "New calls and messages will appear here." : "Pair the iPhone in iPhone Link first.", 38, 570);
+  } else {
+    const size_t shown = min<size_t>(3, count - static_cast<size_t>(phoneScroll_));
+    for (size_t i = 0; i < shown; ++i) {
+      const PhoneNotification* n = phoneLink_.notification(static_cast<size_t>(phoneScroll_) + i);
+      if (!n) continue;
+      const int y = 508 + static_cast<int>(i) * 94;
+      String title = n->title.length() ? n->title : n->app;
+      if (title.length() > 47) title = title.substring(0, 44) + "...";
+      String body = n->body;
+      if (body.length() > 64) body = body.substring(0, 61) + "...";
+      UiTheme::value(title, 34, y, false);
+      UiTheme::detail(n->app + (n->category == 1 ? " / CALL" : (n->category == 2 ? " / MISSED CALL" : "")), 34, y + 31);
+      UiTheme::detail(body, 34, y + 57);
+      if (i + 1 < shown) M5.Display.drawFastHLine(34, y + 80, 454, TFT_BLACK);
+    }
+  }
+
+  UiTheme::card(18, 824, 504, 42);
+  String status = phoneAppStatus_.length() ? phoneAppStatus_ :
+    (phoneLink_.connected() ? "Commands go to the connected companion for approval." :
+                              "Calling and SMS need a compatible iPhone companion app.");
+  if (status.length() > 62) status = status.substring(0, 59) + "...";
+  UiTheme::detail(status, 28, 836);
   bottomNav(4);
   commitPage();
 }
@@ -3586,14 +3727,23 @@ void UiManager::showFiles(const String& path) {
   UiTheme::title("File Manager", 18, 72);
   UiTheme::detail("PaperOS + full microSD", 20, 111);
 
-  UiTheme::iconButton(18, 137, 246, 72, "P", "PaperOS", currentFilePath_.startsWith("/PaperOS"));
-  UiTheme::iconButton(276, 137, 246, 72, "SD", "SD Card /", currentFilePath_ == "/" || !currentFilePath_.startsWith("/PaperOS"));
+  const bool inPaperOs = currentFilePath_.startsWith("/PaperOS");
+  UiTheme::iconButton(18, 137, 246, 72, "P", inPaperOs ? "PaperOS  /  OPEN" : "PaperOS", false);
+  UiTheme::iconButton(276, 137, 246, 72, "SD", !inPaperOs ? "SD Card /  /  OPEN" : "SD Card /", false);
+  if (inPaperOs) {
+    M5.Display.drawRoundRect(20, 139, 242, 68, 18, TFT_BLACK);
+    M5.Display.drawRoundRect(21, 140, 240, 66, 17, TFT_BLACK);
+  } else {
+    M5.Display.drawRoundRect(278, 139, 242, 68, 18, TFT_BLACK);
+    M5.Display.drawRoundRect(279, 140, 240, 66, 17, TFT_BLACK);
+  }
 
   UiTheme::card(18, 220, 504, 54);
   String shownPath = currentFilePath_;
-  if (shownPath.length() > 54) shownPath = "..." + shownPath.substring(shownPath.length() - 51);
+  if (shownPath.length() > 34) shownPath = "..." + shownPath.substring(shownPath.length() - 31);
   UiTheme::detail(shownPath, 34, 239);
-  if (fileSelectionMode_) UiTheme::pill("SELECT", 423, 230, true);
+  UiTheme::pill("SD TOOLS", 404, 228, false);
+  if (fileSelectionMode_) UiTheme::pill("SELECT", 286, 230, true);
 
   if (!storage_.available()) {
     UiTheme::card(18, 286, 504, 260, true);
@@ -4330,6 +4480,7 @@ void UiManager::openAppIndex(int index) {
   else if (index == 12) showSystem();
   else if (index == 13) showLabs();
   else if (index == 14) showPhoneLink();
+  else if (index == 15) showPhone();
 }
 
 void UiManager::loop() {
@@ -4471,12 +4622,12 @@ void UiManager::loop() {
     if (page_ == Page::Apps) {
       const int startY = 154;
       const int pitchY = 116;
-      if (e.y >= startY && e.y < startY + 5 * pitchY && e.x >= 18) {
+      if (e.y >= startY && e.y < startY + 4 * pitchY && e.x >= 16) {
         int row = (e.y - startY) / pitchY;
-        int col = (e.x - 18) / 172;
-        int localX = (e.x - 18) % 172;
+        int col = (e.x - 16) / 128;
+        int localX = (e.x - 16) % 128;
         int localY = (e.y - startY) % pitchY;
-        if (col >= 0 && col < 3 && localX < 160 && localY < 108) openAppIndex(row * 3 + col);
+        if (col >= 0 && col < 4 && localX < 120 && localY < 108) openAppIndex(row * 4 + col);
       } else if (e.y >= 746 && e.y < 850) {
         showClassicSplash();
       }
@@ -4492,6 +4643,10 @@ void UiManager::loop() {
     }
 
     if (page_ == Page::Files) {
+      if (e.y >= 220 && e.y < 274 && e.x >= 390) {
+        showStorageTools();
+        return;
+      }
       if (e.y >= 137 && e.y < 209) {
         fileSelectionMode_ = false;
         selectedFilePath_ = "";
@@ -4575,6 +4730,40 @@ void UiManager::loop() {
         }
         showFiles(currentFilePath_);
         return;
+      }
+      return;
+    }
+
+    if (page_ == Page::Phone) {
+      if (e.y >= 145 && e.y < 232) {
+        if (phoneLink_.active()) {
+          phoneLink_.stop();
+          phoneAppStatus_ = "Phone Link stopped";
+        } else {
+          bool ok = phoneLink_.begin();
+          bluetoothActive_ = bluetoothActive_ || ok;
+          phoneAppStatus_ = ok ? "Pairing mode started; connect the iPhone" : "Bluetooth could not start";
+        }
+        showPhone();
+      } else if (e.y >= 244 && e.y < 346) {
+        showKeyboard(InputTarget::PhoneNumber, "Phone number", phoneNumberDraft_, false);
+      } else if (e.y >= 358 && e.y < 444) {
+        String number = normalizedPhoneNumber(phoneNumberDraft_);
+        if (!number.length()) {
+          phoneAppStatus_ = "Enter a phone number first";
+        } else if (e.x < 270) {
+          phoneAppStatus_ = phoneLink_.sendCommand(String("call:") + number)
+            ? "Call request sent; approve it on the iPhone"
+            : "No companion connected; install/open the iPhone companion";
+        } else {
+          showKeyboard(InputTarget::PhoneMessage, "Message to " + number, phoneMessageDraft_, false);
+          return;
+        }
+        showPhone();
+      } else if (e.y >= 458 && e.y < 490 && e.x >= 420) {
+        phoneLink_.clearNotifications();
+        phoneAppStatus_ = "Notification list cleared";
+        showPhone();
       }
       return;
     }
@@ -4778,11 +4967,7 @@ void UiManager::loop() {
         pendingFormatType_ = "";
         showStorageFormat();
       } else if (e.y >= 676 && e.y < 754) {
-        storageStatus_ = storage_.available()
-          ? String("Card ") + String((uint32_t)(storage_.totalBytes()/1048576ULL)) + " MB / used " +
-            String((uint32_t)(storage_.usedBytes()/1048576ULL)) + " MB"
-          : String("No microSD mounted");
-        showStorageTools();
+        showRecoveryHelp();
       }
       return;
     }
@@ -4915,6 +5100,15 @@ void UiManager::loop() {
           pendingFormatType_ = "";
           showStorageTools();
         }
+      }
+      return;
+    }
+
+    if (page_ == Page::RecoveryHelp) {
+      if (e.y >= 744 && e.y < 822) {
+        formatConfirmArmed_ = false;
+        pendingFormatType_ = "";
+        showStorageFormat();
       }
       return;
     }

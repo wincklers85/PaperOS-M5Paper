@@ -44,7 +44,30 @@ BrowserPage SimpleBrowser::search(const String& query) {
     p.error = "Empty search";
     return p;
   }
-  return fetch(searchUrl(q));
+  // Search hosts sometimes refuse embedded/low-memory clients. Try a small
+  // set of HTML-only endpoints so the reader still has a chance to work on
+  // networks that block one provider.
+  const String encoded = urlEncode(q);
+  const String candidates[] = {
+    String("https://html.duckduckgo.com/html/?q=") + encoded,
+    String("https://lite.duckduckgo.com/lite/?q=") + encoded,
+    String("https://www.google.com/search?gbv=1&q=") + encoded
+  };
+  String errors;
+  for (const auto& candidate : candidates) {
+    BrowserPage attempt = fetch(candidate);
+    if (attempt.ok && attempt.text.length()) return attempt;
+    if (errors.length()) errors += " | ";
+    String host = candidate.substring(candidate.indexOf("://") + 3);
+    int slash = host.indexOf('/');
+    if (slash >= 0) host.remove(slash);
+    errors += host + ": " + (attempt.error.length() ? attempt.error : String("empty response"));
+  }
+  BrowserPage failed;
+  failed.finalUrl = candidates[0];
+  failed.error = "Search providers unavailable. Check Wi-Fi/internet: " + errors;
+  if (failed.error.length() > 150) failed.error = failed.error.substring(0, 147) + "...";
+  return failed;
 }
 
 String SimpleBrowser::resolveLink(const String& baseUrl, const String& hrefRaw) const {
@@ -186,10 +209,11 @@ BrowserPage SimpleBrowser::fetch(const String& rawUrl) {
   if (!url.length()) { page.error = "Empty URL"; return page; }
 
   HTTPClient http;
-  http.setConnectTimeout(6000);
-  http.setTimeout(8000);
+  http.setReuse(false);
+  http.setConnectTimeout(12000);
+  http.setTimeout(14000);
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-  http.setUserAgent("PaperOS/0.1 M5Paper Reader");
+  http.setUserAgent("Mozilla/5.0 (Linux; Android 10; M5Paper) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36 PaperOS/0.3.1");
 
   WiFiClient plain;
   WiFiClientSecure secure;

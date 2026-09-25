@@ -21,7 +21,7 @@
 - native Clock desk display, Focus 25-minute timer and Fun random tools (dice / coin / 1–100)
 - native Web Reader with DuckDuckGo non-JavaScript text search, HTTP/HTTPS reader mode, relative-link navigation and scrolling
 - native RFC6238 TOTP calculator with volatile-only Base32 secret storage
-- native **iPhone Link / Apple ANCS** accessory mode with secure BLE bonding, live iOS notifications and supported notification actions
+- native **iPhone Link / Apple ANCS** accessory mode with secure BLE bonding, live iOS notifications and supported notification actions; the Phone dialer UI needs a compatible iPhone companion app to place calls or send SMS
 - four persistent native UI themes: Soft, Classic, Technical and Minimal
 - frosted/depth Quick Settings overlay designed for monochrome e-paper
 - optional **PN532 NFC Lab** on Port C UART (G18/G19) with module diagnostics and ISO14443A UID scanning
@@ -70,7 +70,15 @@ PaperOS includes a native network toolbox intended for diagnostics and local dev
 - **MQTT Client** — connect, subscribe, publish and show the latest message on a topic. The alpha client targets plain local MQTT on port 1883; TLS/authentication are not yet implemented.
 - **Wake-on-LAN** — sends a standard magic packet to the current subnet broadcast address.
 
-BLE Inspector also recognises common iBeacon/Eddystone advertising markers and offers a **read-only GATT Reader** for connectable BLE devices. Only characteristics advertising the READ property are read; PaperOS does not write characteristics from this tool.
+BLE Inspector also recognises common iBeacon/Eddystone advertising markers and offers a **read-only GATT Reader** for connectable BLE devices. Only characteristics advertising the READ property are read; PaperOS does not write characteristics from this tool. AirTag owner identity and speaker control are not available to a generic BLE scanner; use Apple's Find My app with the Apple Account that owns or shares the AirTag.
+
+## First web setup
+
+During first boot, join the `PaperOS-Setup` Wi-Fi network and open `http://192.168.4.1`. The hostname `http://paperos.local` is available after PaperOS has joined the same local Wi-Fi network as the browser. If the emergency setup page says the Web UI files are missing, connect over USB and upload LittleFS with `pio run -e m5paper -t uploadfs`.
+
+## Phone and SD recovery limits
+
+Phone Link can display iOS notifications provided by ANCS. Placing calls and composing SMS requires a separately installed iPhone companion that implements PaperOS's BLE command bridge; this repository does not include an iOS app. The SD recovery screen gives safe first steps, but does not scan or restore deleted files. Stop using the card and recover to a different drive with a computer; writes to the same FAT/exFAT card can overwrite deleted data.
 
 ## GPIO Port map
 

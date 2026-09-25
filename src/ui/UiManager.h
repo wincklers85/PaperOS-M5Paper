@@ -57,7 +57,9 @@ class UiManager {
   void showDateTime();
   void showStorageTools();
   void showStorageFormat();
+  void showRecoveryHelp();
   void showPhoneLink();
+  void showPhone();
   void showGpioLab();
   void showNfcLab();
   void showClassicSplash();
@@ -70,7 +72,7 @@ class UiManager {
  private:
   enum class Page {
     Home, Apps, System, Settings, Notes, NoteView,
-    Files, FileView, LockScreen, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, PhoneLink, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
+    Files, FileView, LockScreen, Tools, NetworkTools, PingTool, DnsTool, LanScan, ApiTester, Mqtt, WakeOnLan, WiFi, WifiAudit, Bluetooth, BleDetail, BleGatt, General, DateTime, StorageTools, StorageFormat, RecoveryHelp, PhoneLink, Phone, GpioLab, NfcLab, Labs, HidLab, ClassicSplash, ClassicDesktop, ClassicTerminal, ClassicHid, ClassicSki, ClassicSolitaire, Calculator, Battery, Clock, Focus, Fun, Browser, Otp, Keyboard, ComingSoon
   };
 
   struct FileEntry {
@@ -113,6 +115,8 @@ class UiManager {
     MqttPayload,
     WolMac,
     BrowserSearch,
+    PhoneNumber,
+    PhoneMessage,
     ManualTime,
     PhoneCommand,
     ClassicTerminal
@@ -226,6 +230,9 @@ class UiManager {
   bool formatConfirmArmed_ = false;
   String phoneLinkStatus_ = "Bridge not connected";
   String phoneCommandDraft_ = "camera:shutter";
+  String phoneNumberDraft_;
+  String phoneMessageDraft_;
+  String phoneAppStatus_;
   bool gpioInitialized_ = false;
   uint8_t gpioModeState_[6] = {0,0,0,0,0,0};
   bool gpioOutputLevel_[6] = {false,false,false,false,false,false};

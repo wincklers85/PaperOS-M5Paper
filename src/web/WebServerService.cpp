@@ -6,6 +6,27 @@
 #include <esp_system.h>
 
 namespace paperos {
+static const char kEmergencyPortal[] PROGMEM = R"paperosportal(
+<!doctype html><html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111315"><title>PaperOS Setup</title>
+<style>
+:root{color-scheme:light;font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#151719;background:#eef0ed}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:18px}
+main{width:min(720px,100%);background:white;border:1px solid #d9ddd8;border-radius:24px;padding:clamp(22px,5vw,42px);box-shadow:0 24px 70px #11131518}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:34px}.mark{width:46px;height:46px;border-radius:14px;background:#111315;color:white;display:grid;place-items:center;font-weight:800;font-size:22px}.brand small{display:block;color:#6b716d;margin-top:3px}
+.eyebrow{font-size:12px;letter-spacing:.14em;font-weight:800;color:#6b716d}h1{font-size:clamp(28px,5vw,42px);line-height:1.08;letter-spacing:-.04em;margin:8px 0 10px}p{color:#626a65;line-height:1.55}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.wide{grid-column:1/-1}label{font-weight:700;font-size:13px;color:#505652}input,select{display:block;width:100%;margin-top:7px;padding:13px;border:1px solid #cfd4cf;border-radius:12px;background:white;font:inherit}button{width:100%;margin-top:18px;border:0;border-radius:12px;padding:14px;background:#111315;color:white;font:inherit;font-weight:700;font-size:15px}.status{min-height:24px;color:#8a3b2e}.tip{background:#f5f6f4;padding:14px;border-radius:12px;font-size:14px}.hidden{display:none!important}@media(max-width:560px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}
+</style><body><main><div class="brand"><div class="mark">P</div><div><strong>PaperOS</strong><small>Setup &amp; device console</small></div></div>
+<section id="setup" class="hidden"><div class="eyebrow">FIRST START</div><h1>Connect your M5Paper</h1><p>Set an administrator password and connect PaperOS to your 2.4 GHz Wi-Fi network.</p>
+<div class="grid"><label>Device name<input id="device" value="PaperOS"></label><label>Language<select id="language"><option value="it">Italiano</option><option value="en">English</option></select></label><label>Wi-Fi name (SSID)<input id="ssid" autocomplete="off"></label><label>Wi-Fi password<input id="wifi" type="password"></label><label class="wide">Administrator password (at least 6 characters)<input id="admin" type="password"></label></div>
+<button onclick="setupDevice()">Save and connect</button><div id="status" class="status"></div></section>
+<section id="missing" class="hidden"><div class="eyebrow">WEB CONSOLE FILES NOT INSTALLED</div><h1>PaperOS is running</h1><p>The firmware is responding, but its Web UI filesystem has not been uploaded yet. Connect by USB to a computer and run:</p><div class="tip"><code>pio run -e m5paper -t uploadfs</code></div><p>After the upload, reconnect to the device and open <b>http://paperos.local</b>. During first setup, use <b>http://192.168.4.1</b>.</p></section>
+</main><script>
+fetch('/api/setup/status').then(r=>r.json()).then(s=>document.getElementById(s.setupComplete?'missing':'setup').classList.remove('hidden')).catch(()=>document.getElementById('missing').classList.remove('hidden'));
+async function setupDevice(){const status=document.getElementById('status');status.textContent='Saving settings…';try{const r=await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({deviceName:document.getElementById('device').value,language:document.getElementById('language').value,timezone:'Europe/Rome',ssid:document.getElementById('ssid').value,wifiPassword:document.getElementById('wifi').value,password:document.getElementById('admin').value})});const d=await r.json();status.textContent=d.ok?'Saved. PaperOS is restarting…':(d.error||'Setup failed');}catch(e){status.textContent='Cannot reach PaperOS. Stay connected to its Wi-Fi and retry.'}}
+</script></body></html>
+)paperosportal";
+
 String WebServerService::newToken() { char b[33]; for(int i=0;i<32;i++) b[i]="0123456789abcdef"[esp_random()&15]; b[32]=0; return String(b); }
 String WebServerService::body() { return server_.arg("plain"); }
 void WebServerService::sendJson(int code,const String& json) { server_.send(code,"application/json",json); }
@@ -25,12 +46,14 @@ void WebServerService::begin() {
 void WebServerService::routes() {
   server_.on("/",HTTP_GET,[this](){
     if (LittleFS.exists("/index.html")) { File f=LittleFS.open("/index.html",FILE_READ); server_.streamFile(f,"text/html"); f.close(); }
-    else server_.send(200,"text/plain","PaperOS Web UI filesystem missing. Run pio run -t uploadfs");
+    else server_.send_P(200,"text/html; charset=utf-8",kEmergencyPortal);
   });
   server_.on("/style.css",HTTP_GET,[this](){ File f=LittleFS.open("/style.css",FILE_READ); if(!f){server_.send(404);return;} server_.streamFile(f,"text/css"); f.close(); });
   server_.on("/app.js",HTTP_GET,[this](){ File f=LittleFS.open("/app.js",FILE_READ); if(!f){server_.send(404);return;} server_.streamFile(f,"application/javascript"); f.close(); });
   server_.on("/generate_204",HTTP_ANY,[this](){ server_.sendHeader("Location","http://192.168.4.1/",true); server_.send(302,"text/plain",""); });
   server_.on("/hotspot-detect.html",HTTP_ANY,[this](){ server_.sendHeader("Location","http://192.168.4.1/",true); server_.send(302,"text/plain",""); });
+  server_.on("/connecttest.txt",HTTP_ANY,[this](){ server_.sendHeader("Location",wifi_.setupApActive()?"http://192.168.4.1/":"http://paperos.local/",true); server_.send(302,"text/plain",""); });
+  server_.on("/ncsi.txt",HTTP_ANY,[this](){ server_.sendHeader("Location",wifi_.setupApActive()?"http://192.168.4.1/":"http://paperos.local/",true); server_.send(302,"text/plain",""); });
   server_.onNotFound([this](){ if(wifi_.setupApActive()){ server_.sendHeader("Location","http://192.168.4.1/",true); server_.send(302,"text/plain",""); } else server_.send(404,"application/json","{\"error\":\"not_found\"}"); });
 
   server_.on("/api/setup/status",HTTP_GET,[this](){ sendJson(200,String("{\"setupComplete\":")+(config_.get().setupComplete?"true":"false")+"}"); });

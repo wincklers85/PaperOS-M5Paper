@@ -348,10 +348,10 @@ bool PhoneLinkService::performNotificationAction(uint32_t uid, bool positive) {
 }
 
 bool PhoneLinkService::sendCommand(const String& command) {
-  if (!active_ || !commandOut_ || !command.length()) return false;
+  if (!active_ || !connected_ || !commandOut_ || !command.length()) return false;
   lastCommand_ = command;
   commandOut_->setValue(command.c_str());
-  if (connected_) commandOut_->notify();
+  commandOut_->notify();
   return true;
 }
 

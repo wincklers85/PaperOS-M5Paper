@@ -133,7 +133,7 @@ bool NfcService::detectType2(uint8_t* version, uint8_t& versionLen) {
 
 bool NfcService::readType2Bytes(std::vector<uint8_t>& data, uint16_t maxBytes) {
   data.clear();
-  if (!nfc_ || lastTag_.kind != NfcTagKind::Type2) return false;
+  if (!nfc_ || !lastUidLength_) return false;
 
   uint8_t ccBlock[16] = {0};
   if (!nfc_->mifareultralight_ReadPage(3, ccBlock)) return false;
@@ -339,6 +339,7 @@ NfcTagInfo NfcService::scan(uint16_t timeoutMs) {
 }
 
 bool NfcService::readType2UserMemory(String& hexDump, uint16_t maxBytes) {
+  if (lastTag_.kind != NfcTagKind::Type2) return false;
   std::vector<uint8_t> data;
   if (!readType2Bytes(data, maxBytes)) return false;
   hexDump = hexPreview(data.data(), data.size(), data.size());

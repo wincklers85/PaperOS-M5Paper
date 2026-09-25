@@ -2,6 +2,14 @@
 
 All notable changes follow Semantic Versioning.
 
+## [Unreleased] — stabilization work toward 0.3.2-alpha
+
+### Build and validation
+- CI now checks Web UI JavaScript syntax alongside repository preflight, firmware compilation and LittleFS packaging.
+- Fixed the SD Recovery source code to compile with the classic ESP32 C++ toolchain, based on the compile log from the target build.
+- Updated build, release, security and device-test documentation to reflect the 0.3.1-alpha codebase and the 0.3.2-alpha stabilization gate.
+- Corrected SD tests for the no-write-on-boot behavior and documented the recovery-format and same-card-save limits.
+
 ## [0.3.1-alpha] - 2026-09-25
 
 ### Lock / standby
@@ -35,6 +43,11 @@ All notable changes follow Semantic Versioning.
 - REST endpoint `POST /api/phone/status` accepts the same data.
 - `GET /api/phone/status` now reports phone name, battery, charging state and status age.
 - Notification Center displays `N/D` until a companion or Shortcut has supplied battery status.
+
+### SD Recovery
+- Added best-effort FAT32 deleted-entry scanning, previews for supported images/text and authenticated browser export.
+- Added optional same-card save with two confirmations, full-file PSRAM staging and a 1 MiB limit; other deleted data can still be overwritten.
+- NTFS and APFS recovery remain unsupported.
 
 ## [0.3.0-alpha] - 2026-09-24
 

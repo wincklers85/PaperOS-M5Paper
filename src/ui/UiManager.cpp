@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 50034)
-Total output lines: 5552
-
 #include "UiManager.h"
 #include "PaperOS.h"
 #include <WiFi.h>
@@ -2252,7 +2249,1048 @@ void UiManager::showRecoveryHelp() {
   UiTheme::pill("SCAN", 430, 159, true);
 
   UiTheme::card(18, 254, 504, 452);
-  UiTheme::label("FOUND CANDIDATES", 34, 27…10034 tokens truncated…5.Display.drawLine(x, y-16, x-13, y+10, TFT_BLACK);
+  UiTheme::label("FOUND CANDIDATES", 34, 270);
+  UiTheme::detail(String(storage_.recoveredFileCount()) + " file(s)  /  swipe to browse", 34, 302);
+  const size_t count = storage_.recoveredFileCount();
+  fileScroll_ = constrain(fileScroll_, 0, max(0, static_cast<int>(count) - 4));
+  if (!count) {
+    String scanStatus = storage_.recoveryStatus().length() ? storage_.recoveryStatus() : String("Tap SCAN to check the card");
+    if (scanStatus.length() > 40) scanStatus = scanStatus.substring(0, 37) + "...";
+    UiTheme::value(scanStatus, 34, 354, false);
+    UiTheme::detail("Only FAT32 deleted entries are listed by this first version.", 34, 402);
+  } else {
+    const size_t shown = min<size_t>(4, count - static_cast<size_t>(fileScroll_));
+    for (size_t i = 0; i < shown; ++i) {
+      const size_t idx = static_cast<size_t>(fileScroll_) + i;
+      const RecoveredSdFile* f = storage_.recoveredFile(idx);
+      if (!f) continue;
+      const int y = 324 + static_cast<int>(i) * 86;
+      UiTheme::value(String(idx + 1) + ". " + f->name, 34, y, false);
+      UiTheme::detail(String(f->size / 1024) + " KB  /  " + (f->fatChainAvailable ? "FAT chain hint" : "contiguous guess"), 34, y + 34);
+      if (i + 1 < shown) M5.Display.drawFastHLine(34, y + 64, 454, TFT_BLACK);
+    }
+  }
+
+  UiTheme::card(18, 724, 504, 126);
+  UiTheme::label("EXPORT TO A COMPUTER", 34, 740);
+  UiTheme::detail("Sign in to the Web Console, then open /recovery", 34, 776);
+  UiTheme::detail("Export safely, or use the website's risky same-card save (files up to 1 MiB).", 34, 810);
+  String status = storage_.recoveryStatus();
+  if (status.length() > 58) status = status.substring(0, 55) + "...";
+  UiTheme::detail(status, 34, 842);
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showRecoveryPreview(size_t index) {
+  const RecoveredSdFile* file = storage_.recoveredFile(index);
+  if (!file) { showRecoveryHelp(); return; }
+  selectedRecoveryIndex_ = index;
+  page_ = Page::RecoveryPreview;
+  preparePage();
+  statusBar();
+  UiTheme::title(file->name, 18, 76);
+  UiTheme::detail(String(file->size) + " bytes / candidate data preview", 20, 116);
+  UiTheme::card(18, 145, 504, 570, true);
+  String upper = file->name;
+  upper.toUpperCase();
+  const bool jpeg = upper.endsWith(".JPG") || upper.endsWith(".JPEG");
+  const bool png = upper.endsWith(".PNG");
+  const bool bmp = upper.endsWith(".BMP");
+  const bool text = upper.endsWith(".TXT") || upper.endsWith(".MD") || upper.endsWith(".CSV") ||
+                    upper.endsWith(".JSON") || upper.endsWith(".LOG");
+  if (jpeg || png || bmp) {
+    const size_t maxPreview = 2U * 1024U * 1024U;
+    if (file->size > maxPreview) {
+      UiTheme::value("Image too large for on-device preview", 38, 210, false);
+    } else {
+      uint8_t* bytes = static_cast<uint8_t*>(ps_malloc(file->size));
+      if (!bytes) {
+        UiTheme::value("Not enough memory for preview", 38, 210, false);
+      } else {
+        size_t got = storage_.readRecoveredFile(index, 0, bytes, file->size);
+        if (got == file->size) {
+          if (jpeg) M5.Display.drawJpg(bytes, got, 38, 170, 464, 520);
+          else if (png) M5.Display.drawPng(bytes, got, 38, 170, 464, 520);
+          else M5.Display.drawBmp(bytes, got, 38, 170, 464, 520);
+        } else {
+          UiTheme::value("Preview read failed", 38, 210, false);
+        }
+        free(bytes);
+      }
+    }
+  } else if (text) {
+    char bytes[769];
+    size_t got = storage_.readRecoveredFile(index, 0, reinterpret_cast<uint8_t*>(bytes), sizeof(bytes) - 1);
+    bytes[got] = 0;
+    String preview;
+    for (size_t i = 0; i < got && preview.length() < 680; ++i) {
+      const uint8_t ch = static_cast<uint8_t>(bytes[i]);
+      if (ch == '\n' || ch == '\r' || ch == '\t' || ch >= 32) preview += static_cast<char>(ch);
+    }
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+    M5.Display.setTextWrap(true, true);
+    M5.Display.setCursor(36, 178);
+    M5.Display.print(preview);
+    UiTheme::resetFont();
+  } else {
+    UiTheme::value("No on-device preview for this type", 38, 210, false);
+    UiTheme::detail("Use Export to open or save it on a computer.", 38, 252);
+  }
+  UiTheme::card(18, 744, 504, 78);
+  UiTheme::value("EXPORT FILE", 182, 762, false);
+  UiTheme::detail("Opens a risk confirmation first", 125, 794);
+  UiTheme::detail("Preview may be incomplete if sectors were reused or the file was fragmented.", 26, 838);
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showRecoveryConfirm() {
+  page_ = Page::RecoveryConfirm;
+  preparePage();
+  statusBar();
+  const RecoveredSdFile* file = storage_.recoveredFile(selectedRecoveryIndex_);
+  UiTheme::title("Recover file?", 18, 76);
+  UiTheme::detail(file ? file->name : "File no longer available", 20, 116);
+  UiTheme::card(18, 150, 504, 440, true);
+  UiTheme::label("POSSIBLE RISKS", 36, 172);
+  UiTheme::detail("The directory entry survived, but some file data may", 36, 218);
+  UiTheme::detail("already have been reused. Fragmented files can export", 36, 254);
+  UiTheme::detail("incomplete or damaged. Previewing does not verify every byte.", 36, 290);
+  UiTheme::detail("PaperOS will stream the file to your signed-in browser.", 36, 350);
+  UiTheme::detail("Export does not write to SD. Same-card save is on the web app.", 36, 386);
+  if (recoveryExportConfirmed_) {
+    UiTheme::card(34, 436, 472, 112);
+    UiTheme::label("NEXT", 50, 451);
+    UiTheme::detail("On a computer/phone, sign in to Web Console and open:", 50, 484);
+    UiTheme::value("http://paperos.local/recovery", 50, 516, false);
+    UiTheme::detail("Then select the candidate and download it to that device.", 36, 568);
+    UiTheme::iconButton(18, 744, 246, 78, "OK", "Return to preview", false);
+    UiTheme::iconButton(276, 744, 246, 78, "LIST", "Back to results", false);
+  } else {
+    UiTheme::detail("Continue only if you accept these limitations.", 36, 520);
+    UiTheme::iconButton(18, 744, 246, 78, "YES", "Continue to export", true);
+    UiTheme::iconButton(276, 744, 246, 78, "NO", "Cancel", false);
+  }
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showPhone() {
+  page_ = Page::Phone;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Phone", 18, 76);
+  UiTheme::detail("iPhone notifications and companion dialer", 20, 116);
+  UiTheme::shadowCard(18, 145, 504, 86, 4);
+  UiTheme::label("IPHONE LINK", 34, 158);
+  UiTheme::value(phoneLink_.statusText(), 34, 188, false);
+  UiTheme::pill(phoneLink_.active() ? "STOP" : "PAIR", 430, 159, true);
+
+  UiTheme::card(18, 244, 504, 102);
+  UiTheme::label("PHONE NUMBER", 34, 258);
+  String number = phoneNumberDraft_.length() ? phoneNumberDraft_ : String("Tap to enter a number");
+  UiTheme::value(number, 34, 293, false);
+  UiTheme::pill("EDIT", 438, 255, false);
+  UiTheme::iconButton(18, 358, 246, 86, "CALL", "Call via iPhone app", false);
+  UiTheme::iconButton(276, 358, 246, 86, "SMS", "Compose message", false);
+
+  UiTheme::label("RECENT PHONE NOTIFICATIONS", 20, 466);
+  UiTheme::pill("CLEAR", 444, 458, false);
+  UiTheme::card(18, 490, 504, 322);
+  const size_t count = phoneLink_.notificationCount();
+  phoneScroll_ = constrain(phoneScroll_, 0, max(0, static_cast<int>(count) - 3));
+  if (!count) {
+    UiTheme::value("No notifications received", 38, 530, false);
+    UiTheme::detail(phoneLink_.ancsReady() ? "New calls and messages will appear here." : "Pair the iPhone in iPhone Link first.", 38, 570);
+  } else {
+    const size_t shown = min<size_t>(3, count - static_cast<size_t>(phoneScroll_));
+    for (size_t i = 0; i < shown; ++i) {
+      const PhoneNotification* n = phoneLink_.notification(static_cast<size_t>(phoneScroll_) + i);
+      if (!n) continue;
+      const int y = 508 + static_cast<int>(i) * 94;
+      String title = n->title.length() ? n->title : n->app;
+      if (title.length() > 47) title = title.substring(0, 44) + "...";
+      String body = n->body;
+      if (body.length() > 64) body = body.substring(0, 61) + "...";
+      UiTheme::value(title, 34, y, false);
+      UiTheme::detail(n->app + (n->category == 1 ? " / CALL" : (n->category == 2 ? " / MISSED CALL" : "")), 34, y + 31);
+      UiTheme::detail(body, 34, y + 57);
+      if (i + 1 < shown) M5.Display.drawFastHLine(34, y + 80, 454, TFT_BLACK);
+    }
+  }
+
+  UiTheme::card(18, 824, 504, 42);
+  String status = phoneAppStatus_.length() ? phoneAppStatus_ :
+    (phoneLink_.connected() ? "Commands go to the connected companion for approval." :
+                              "Calling and SMS need a compatible iPhone companion app.");
+  if (status.length() > 62) status = status.substring(0, 59) + "...";
+  UiTheme::detail(status, 28, 836);
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showPhoneLink() {
+  page_ = Page::PhoneLink;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("iPhone Link", 18, 76);
+  UiTheme::detail("Native Apple ANCS + optional companion bridge", 20, 116);
+
+  UiTheme::shadowCard(18, 145, 504, 112, 4);
+  UiTheme::label("IPHONE ACCESSORY", 34, 161);
+  UiTheme::value(phoneLink_.statusText(), 34, 196, false);
+  UiTheme::pill(phoneLink_.active() ? "STOP" : "PAIR", 430, 160, true);
+  String peer = phoneLink_.peerAddress();
+  if (peer.length() > 20) peer = peer.substring(0, 20);
+  UiTheme::detail(phoneLink_.ancsReady() ? String("ANCS READY / ") + peer :
+                  (phoneLink_.bonded() ? "Bond saved / waiting for ANCS" : "Secure BLE bonding / ANCS solicitation"), 34, 232);
+
+  UiTheme::shadowCard(18, 274, 504, 176, 4);
+  UiTheme::label(phoneLink_.ancsReady() ? "IOS CONNECTION" : "FIRST PAIRING", 34, 291);
+  if (phoneLink_.ancsReady()) {
+    UiTheme::value("Notifications from iPhone are live", 34, 326, false);
+    UiTheme::detail("Incoming/missed calls, messages, mail and app notifications", 34, 365);
+    UiTheme::detail("arrive through Apple's ANCS service. Full Contacts / message", 34, 396);
+    UiTheme::detail("history databases are not exposed by ANCS.", 34, 426);
+  } else {
+    UiTheme::detail("1. Tap PAIR above.", 34, 323);
+    UiTheme::detail("2. On iPhone open nRF Connect > Scan > PaperOS > Connect.", 34, 352);
+    UiTheme::detail("3. Accept the iOS Bluetooth pairing request.", 34, 381);
+    UiTheme::detail("4. Allow notifications for PaperOS when iOS asks.", 34, 410);
+    UiTheme::detail("Direct visibility in Settings > Bluetooth can vary on DIY BLE.", 34, 436);
+  }
+
+  UiTheme::label("IPHONE NOTIFICATIONS", 20, 470);
+  UiTheme::shadowCard(18, 494, 504, 170, 4);
+  if (phoneLink_.notificationCount() == 0) {
+    UiTheme::value(phoneLink_.ancsReady() ? "No current notifications" : "Waiting for iPhone", 38, 530, false);
+    UiTheme::detail("ANCS events will appear here automatically after pairing.", 38, 568);
+    UiTheme::detail("Swipe this page to browse more notifications.", 38, 600);
+  } else {
+    const int visible = 2;
+    int maxOffset = max(0, static_cast<int>(phoneLink_.notificationCount()) - visible);
+    phoneScroll_ = constrain(phoneScroll_, 0, maxOffset);
+    int shown = min(visible, static_cast<int>(phoneLink_.notificationCount()) - phoneScroll_);
+    for (int row = 0; row < shown; ++row) {
+      const PhoneNotification* n = phoneLink_.notification(static_cast<size_t>(phoneScroll_ + row));
+      if (!n) continue;
+      String cat;
+      switch (n->category) {
+        case 1: cat="CALL"; break; case 2: cat="MISSED"; break; case 3: cat="VOICEMAIL"; break;
+        case 4: cat="SOCIAL"; break; case 5: cat="CALENDAR"; break; case 6: cat="MAIL"; break;
+        case 7: cat="NEWS"; break; case 8: cat="HEALTH"; break; case 9: cat="BUSINESS"; break;
+        default: cat="IOS"; break;
+      }
+      String title = cat + " / " + (n->title.length() ? n->title : n->app);
+      if (title.length() > 45) title = title.substring(0, 42) + "...";
+      String body = n->body;
+      if (body.length() > 62) body = body.substring(0, 59) + "...";
+      UiTheme::value(title, 34, 511 + row * 74, false);
+      UiTheme::detail(body, 34, 546 + row * 74);
+      if (row == 0 && shown > 1) M5.Display.drawFastHLine(34, 574, 454, TFT_BLACK);
+    }
+  }
+
+  const PhoneNotification* first = phoneLink_.notification(static_cast<size_t>(phoneScroll_));
+  UiTheme::iconButton(18, 680, 160, 76, "+", "ANCS action +", first && first->positiveAction);
+  UiTheme::iconButton(190, 680, 160, 76, "-", "ANCS action -", first && first->negativeAction);
+  UiTheme::iconButton(362, 680, 160, 76, "CLR", "Clear list", false);
+
+  UiTheme::iconButton(18, 772, 160, 70, "CAM", "Companion camera", false);
+  UiTheme::iconButton(190, 772, 160, 70, "PLAY", "Media control", false);
+  UiTheme::iconButton(362, 772, 160, 70, "...", "Custom command", false);
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showGpioLab() {
+  nfcService_.stop();
+  page_ = Page::GpioLab;
+
+  static const int pins[6] = {25, 32, 26, 33, 18, 19};
+  static const char* labels[6] = {
+    "Port A Yellow / G25", "Port A White / G32",
+    "Port B Yellow / G26", "Port B White / G33",
+    "Port C Yellow / G18", "Port C White / G19"
+  };
+
+  if (!gpioInitialized_) {
+    for (int i = 0; i < 6; ++i) {
+      pinMode(pins[i], INPUT);
+      gpioModeState_[i] = 0;
+      gpioOutputLevel_[i] = false;
+    }
+    gpioInitialized_ = true;
+  }
+
+  preparePage();
+  statusBar();
+
+  UiTheme::title("GPIO Lab", 18, 76);
+  UiTheme::detail("M5Paper Port A / B / C", 20, 116);
+
+  for (int i = 0; i < 6; ++i) {
+    int y = 145 + i * 94;
+    UiTheme::card(18, y, 504, 82);
+    String mode;
+    if (gpioModeState_[i] == 0) mode = String("INPUT / ") + (digitalRead(pins[i]) ? "HIGH" : "LOW");
+    else mode = String("OUTPUT / ") + (gpioOutputLevel_[i] ? "HIGH" : "LOW");
+    UiTheme::value(labels[i], 34, y + 14, false);
+    UiTheme::detail(mode + "  - tap to cycle INPUT -> LOW -> HIGH", 34, y + 49);
+    UiTheme::chevron(491, y + 28);
+  }
+
+  UiTheme::card(18, 720, 504, 122);
+  UiTheme::label("PIN MAP / SAFETY", 34, 738);
+  UiTheme::detail("A: G25/G32  B: G26/G33  C: G18/G19", 34, 774);
+  UiTheme::detail("Signal pins are 3.3 V logic. Grove red wire is 5 V.", 34, 806);
+  UiTheme::detail("Default is INPUT; do not drive unknown external hardware.", 34, 833);
+
+  bottomNav(4);
+  commitPage();
+}
+
+
+void UiManager::showNfcLab() {
+  page_ = Page::NfcLab;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("NFC Lab", 18, 76);
+  UiTheme::detail("PN532 / Port C UART / ISO14443A", 20, 116);
+
+  UiTheme::shadowCard(18, 145, 504, 128, 4);
+  UiTheme::label("PN532 MODULE", 34, 162);
+  UiTheme::value(nfcService_.ready() ? nfcService_.firmwareText() : String("Not initialized"), 34, 198, false);
+  UiTheme::pill(nfcService_.ready() ? "READY" : "TEST", 420, 160, true);
+  UiTheme::detail("Port C: G18 RX <- PN532 TX / G19 TX -> PN532 RX", 34, 235);
+
+  UiTheme::iconButton(18, 294, 246, 106, "NFC", "Test module", false);
+  UiTheme::iconButton(276, 294, 246, 106, "TAG", "Scan tag", true);
+
+  UiTheme::shadowCard(18, 420, 504, 190, 4);
+  UiTheme::label("LAST TAG", 34, 438);
+  if (lastNfcTag_.found) {
+    UiTheme::value(lastNfcTag_.uid, 34, 477, false);
+    UiTheme::detail(lastNfcTag_.type, 34, 520);
+    UiTheme::detail(String("UID length: ") + lastNfcTag_.uidLength + " bytes", 34, 554);
+  } else {
+    UiTheme::value(nfcStatus_.length() ? nfcStatus_ : String("No tag scanned"), 34, 477, false);
+    UiTheme::detail("Place an ISO14443A / MIFARE / NTAG-compatible tag near PN532.", 34, 520);
+  }
+
+  UiTheme::shadowCard(18, 630, 504, 190, 4);
+  UiTheme::label("WIRING / SAFETY", 34, 648);
+  UiTheme::detail("Set the PN532 board switches/jumpers to HSU / UART mode.", 34, 684);
+  UiTheme::detail("PN532 TX -> Port C G18 (RX)", 34, 718);
+  UiTheme::detail("PN532 RX -> Port C G19 (TX) / GND -> GND", 34, 750);
+  UiTheme::detail("Port C red wire is 5 V: power only if your PN532 board accepts it.", 34, 782);
+  UiTheme::detail("This Lab reads tags only; no write/emulation is performed.", 34, 810);
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showLabs() {
+  page_ = Page::Labs;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("Labs", 18, 78);
+  UiTheme::detail("WinLabs Solutions / hardware & beta features", 20, 119);
+
+  UiTheme::shadowCard(18, 150, 504, 84, 4);
+  UiTheme::pill("LABS", 34, 172, true);
+  UiTheme::detail("Experimental tools with explicit hardware limits.", 130, 180);
+
+  settingsRow(252, "USB", "USB HID Lab", "Script library / external HID adapter");
+  settingsRow(342, "BT", "BLE Explorer", "Advertising / GATT diagnostics");
+  settingsRow(432, "NFC", "NFC / PN532", "Port C UART / tag UID reader");
+  settingsRow(522, "IO", "GPIO Lab", "Port A / B / C pin controls");
+  settingsRow(612, "EPD", "Display Test", "Refresh / ghosting diagnostics");
+  settingsRow(702, "DEV", "Developer", "System / logs / experimental tools");
+
+  bottomNav(4);
+  commitPage();
+}
+
+void UiManager::showHidLab() {
+  page_ = Page::HidLab;
+  preparePage();
+  statusBar();
+
+  UiTheme::title("USB HID Lab", 18, 78);
+  UiTheme::detail("Labs / script library", 20, 119);
+
+  UiTheme::card(18, 150, 504, 150, true);
+  UiTheme::label("HARDWARE LIMIT", 34, 168);
+  UiTheme::value("External HID adapter required", 34, 204, false);
+  UiTheme::detail("M5Paper USB-C is USB-to-serial, not native HID.", 34, 246);
+  UiTheme::detail("Scripts can be stored here but are not executed over USB-C.", 34, 274);
+
+  UiTheme::label("SCRIPT LIBRARY", 20, 326);
+  int row = 0;
+  if (storage_.available()) {
+    File root = SD.open("/PaperOS/Labs/HID");
+    for (File file = root.openNextFile(); file && row < 5; file = root.openNextFile()) {
+      if (!file.isDirectory()) {
+        String n = String(file.name());
+        int slash = n.lastIndexOf('/');
+        if (slash >= 0) n = n.substring(slash + 1);
+        settingsRow(356 + row * 82, "SC", n, String((uint32_t)file.size()) + " bytes", false);
+        ++row;
+      }
+      file.close();
+    }
+    root.close();
+  }
+  if (row == 0) {
+    UiTheme::card(18, 356, 504, 118);
+    UiTheme::value("Nessuno script", 34, 390, false);
+    UiTheme::detail("Carica file in /PaperOS/Labs/HID dal File Manager web.", 34, 432);
+  }
+
+  UiTheme::card(18, 786, 504, 64);
+  UiTheme::detail("Execution on internal USB-C: unavailable on this hardware", 34, 808);
+
+  bottomNav(4);
+  commitPage();
+}
+
+
+void UiManager::classicDrawChrome(const String& titleText) {
+  M5.Display.fillScreen(TFT_WHITE);
+
+  // Windows 3.x-style monochrome desktop texture.
+  for (int y = 0; y < UiTheme::ScreenH; y += 6) {
+    for (int x = ((y / 6) & 1) ? 3 : 0; x < UiTheme::ScreenW; x += 6) {
+      M5.Display.drawPixel(x, y, TFT_BLACK);
+    }
+  }
+
+  M5.Display.fillRect(8, 8, 524, 902, TFT_WHITE);
+  M5.Display.drawRect(8, 8, 524, 902, TFT_BLACK);
+  M5.Display.drawRect(10, 10, 520, 898, TFT_BLACK);
+
+  M5.Display.fillRect(14, 14, 512, 42, TFT_BLACK);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold12pt7b);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.drawString(titleText, 26, 35);
+
+  M5.Display.fillRect(486, 20, 30, 28, TFT_WHITE);
+  M5.Display.drawRect(486, 20, 30, 28, TFT_BLACK);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString("X", 501, 34);
+
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.drawString("File", 24, 76);
+  M5.Display.drawString("Options", 78, 76);
+  M5.Display.drawString("Window", 160, 76);
+  M5.Display.drawString("Help", 250, 76);
+  M5.Display.drawFastHLine(14, 95, 512, TFT_BLACK);
+  UiTheme::resetFont();
+}
+
+void UiManager::classicDrawCursor() {
+  int x = constrain(classicMouseX_, 2, UiTheme::ScreenW - 18);
+  int y = constrain(classicMouseY_, 2, UiTheme::ScreenH - 24);
+  M5.Display.drawLine(x, y, x, y + 20, TFT_BLACK);
+  M5.Display.drawLine(x, y, x + 13, y + 13, TFT_BLACK);
+  M5.Display.drawLine(x + 1, y + 1, x + 1, y + 17, TFT_WHITE);
+  M5.Display.drawLine(x + 2, y + 2, x + 11, y + 11, TFT_WHITE);
+  M5.Display.drawLine(x + 4, y + 13, x + 9, y + 20, TFT_BLACK);
+}
+
+void UiManager::showClassicSplash() {
+  page_ = Page::ClassicSplash;
+  preparePage(true);
+  M5.Display.fillScreen(TFT_WHITE);
+
+  M5.Display.drawRect(25, 90, 490, 690, TFT_BLACK);
+  M5.Display.drawRect(29, 94, 482, 682, TFT_BLACK);
+
+  // Period-correct geometric flag/splash, rendered from vectors.
+  const int ox = 78, oy = 190, cell = 62;
+  M5.Display.fillRect(ox, oy, cell, cell, TFT_BLACK);
+  for (int y = 0; y < cell; y += 6)
+    for (int x = 0; x < cell; x += 6)
+      M5.Display.drawPixel(ox + x, oy + y, TFT_WHITE);
+  M5.Display.drawRect(ox + 76, oy, cell, cell, TFT_BLACK);
+  M5.Display.fillRect(ox, oy + 76, cell, cell, TFT_BLACK);
+  M5.Display.drawRect(ox + 76, oy + 76, cell, cell, TFT_BLACK);
+
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.setFont(&fonts::FreeSansBold24pt7b);
+  M5.Display.drawString("Microsoft Windows", 270, 410);
+  M5.Display.setFont(&fonts::FreeSansBold18pt7b);
+  M5.Display.drawString("Version 3.11", 270, 472);
+
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString("Classic Desktop for PaperOS", 270, 550);
+  M5.Display.drawString("WinLabs Solutions", 270, 585);
+  M5.Display.drawString("Starting Program Manager...", 270, 690);
+  UiTheme::resetFont();
+
+  display_.pageRefresh();
+  delay(1300);
+  navigatingBack_ = true;
+  showClassicDesktop();
+}
+
+void UiManager::showClassicDesktop() {
+  page_ = Page::ClassicDesktop;
+  preparePage();
+  classicDrawChrome("Program Manager - Windows 3.11");
+
+  M5.Display.fillRect(28, 112, 484, 620, TFT_WHITE);
+  M5.Display.drawRect(28, 112, 484, 620, TFT_BLACK);
+  M5.Display.fillRect(32, 116, 476, 34, TFT_BLACK);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextDatum(middle_left);
+  M5.Display.drawString("Main", 44, 133);
+  UiTheme::resetFont();
+
+  struct Icon { int x; int y; const char* name; const char* glyph; };
+  const Icon icons[] = {
+    {54, 178, "Terminal", "C:\\>"},
+    {208, 178, "File Manager", "FILE"},
+    {362, 178, "Control Panel", "CTRL"},
+    {54, 330, "Bluetooth Input", "HID"},
+    {208, 330, "Ski", "SKI"},
+    {362, 330, "Solitaire", "SOL"},
+    {54, 482, "Network", "NET"},
+    {208, 482, "NFC / GPIO", "I/O"},
+    {362, 482, "Exit to PaperOS", "EXIT"}
+  };
+
+  for (const auto& icon : icons) {
+    M5.Display.fillRect(icon.x, icon.y, 100, 82, TFT_WHITE);
+    M5.Display.drawRect(icon.x + 20, icon.y, 60, 50, TFT_BLACK);
+    M5.Display.fillRect(icon.x + 24, icon.y + 4, 52, 42, TFT_BLACK);
+    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.drawString(icon.glyph, icon.x + 50, icon.y + 25);
+    M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+    M5.Display.setFont(&fonts::Font2);
+    M5.Display.drawString(icon.name, icon.x + 50, icon.y + 66);
+  }
+
+  M5.Display.drawRect(28, 750, 484, 120, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.setTextDatum(top_left);
+  M5.Display.drawString("PaperOS Classic Desktop", 44, 766);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString(hidInput_.statusText(), 44, 802);
+  M5.Display.drawString("Touch, BLE mouse and BLE keyboard supported", 44, 836);
+  UiTheme::resetFont();
+
+  classicDrawCursor();
+  commitPage();
+}
+
+void UiManager::showClassicHid() {
+  page_ = Page::ClassicHid;
+  preparePage();
+  classicDrawChrome("Bluetooth Input Devices");
+
+  M5.Display.drawRect(28, 118, 484, 108, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  M5.Display.drawString("BLE HID Host", 44, 136);
+  M5.Display.setFont(&fonts::FreeSans9pt7b);
+  M5.Display.drawString(classicHidStatus_.length() ? classicHidStatus_ : hidInput_.statusText(), 44, 170);
+  M5.Display.drawString("Mouse / Keyboard service 0x1812 / BLE HID", 44, 200);
+
+  M5.Display.fillRect(392, 140, 96, 54, TFT_WHITE);
+  M5.Display.drawRect(392, 140, 96, 54, TFT_BLACK);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextDatum(middle_center);
+  M5.Display.drawString("SCAN", 440, 167);
+
+  const auto& devices = hidInput_.devices();
+  int shown = min(7, static_cast<int>(devices.size()));
+  for (int i = 0; i < shown; ++i) {
+    int y = 248 + i * 76;
+    M5.Display.drawRect(28, y, 484, 66, TFT_BLACK);
+    String n = devices[i].name;
+    if (n.length() > 31) n = n.substring(0, 28) + "...";
+    M5.Display.setTextDatum(top_left);
+    M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+    M5.Display.drawString(n, 44, y + 9);
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    String kind = devices[i].likelyKeyboard ? "Keyboard" : (devices[i].likelyMouse ? "Mouse" : "HID");
+    M5.Display.drawString(kind + " / " + String(devices[i].rssi) + " dBm / " + devices[i].address, 44, y + 37);
+    M5.Display.drawRect(430, y + 12, 64, 38, TFT_BLACK);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.drawString("LINK", 462, y + 31);
+  }
+
+  if (!shown) {
+    M5.Display.setFont(&fonts::FreeSans9pt7b);
+    M5.Display.setTextDatum(middle_center);
+    M5.Display.drawString("Press SCAN with your mouse/keyboard in pairing mode.", 270, 360);
+  }
+
+  UiTheme::resetFont();
+  classicDrawCursor();
+  commitPage();
+}
+
+
+std::vector<String> UiManager::classicTokenize(const String& command) const {
+  std::vector<String> out;
+  String current;
+  bool quoted = false;
+  for (size_t i = 0; i < command.length(); ++i) {
+    char c = command[i];
+    if (c == '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (!quoted && (c == ' ' || c == '\t')) {
+      if (current.length()) {
+        out.push_back(current);
+        current = "";
+      }
+    } else {
+      current += c;
+    }
+  }
+  if (current.length()) out.push_back(current);
+  return out;
+}
+
+void UiManager::classicTerminalPrint(const String& text) {
+  int start = 0;
+  while (start <= (int)text.length()) {
+    int nl = text.indexOf('\n', start);
+    String line = nl >= 0 ? text.substring(start, nl) : text.substring(start);
+
+    while (line.length() > 64) {
+      classicTerminalLines_.push_back(line.substring(0, 64));
+      line = line.substring(64);
+    }
+    classicTerminalLines_.push_back(line);
+
+    if (nl < 0) break;
+    start = nl + 1;
+  }
+  while (classicTerminalLines_.size() > 80) classicTerminalLines_.erase(classicTerminalLines_.begin());
+}
+
+bool UiManager::classicPinAllowed(int pin) const {
+  if (classicUnsafeGpio_) return pin >= 0 && pin <= 39;
+  return pin == 18 || pin == 19 || pin == 25 || pin == 26 || pin == 32 || pin == 33;
+}
+
+void UiManager::classicTerminalExecute(const String& commandRaw) {
+  String command = commandRaw;
+  command.trim();
+  if (!command.length()) return;
+
+  classicTerminalPrint(classicCwd_ + "> " + command);
+  auto a = classicTokenize(command);
+  if (a.empty()) return;
+  String cmd = a[0];
+  cmd.toLowerCase();
+
+  auto resolve = [this](const String& p) {
+    if (!p.length()) return classicCwd_;
+    if (p == "C:" || p == "c:") return String("/PaperOS");
+    if (p == "D:" || p == "d:") return String("/");
+    if (p.startsWith("/")) return p;
+    return joinPath(classicCwd_, p);
+  };
+
+  if (cmd == "help" || cmd == "?") {
+    classicTerminalPrint("PaperOS ROOT Terminal commands:");
+    classicTerminalPrint("ver sysinfo heap battery time sd cls pwd cd dir ls type cat");
+    classicTerminalPrint("mkdir md del rm copy cp move touch write append gpio wifi hid bt nfc");
+    classicTerminalPrint("reboot lock sleep deepsleep");
+    classicTerminalPrint("unsafe on|off  - unlock internal GPIO 0..39");
+    return;
+  }
+
+  if (cmd == "cls" || cmd == "clear") {
+    classicTerminalLines_.clear();
+    return;
+  }
+
+  if (cmd == "ver") {
+    classicTerminalPrint(String("PaperOS ") + VERSION + " / Classic Desktop 3.11");
+    return;
+  }
+
+  if (cmd == "sysinfo") {
+    classicTerminalPrint(String("CPU ESP32 @ ") + getCpuFrequencyMhz() + " MHz");
+    classicTerminalPrint(String("Heap free: ") + ESP.getFreeHeap() + " / PSRAM free: " + ESP.getFreePsram());
+    classicTerminalPrint(String("Flash: ") + ESP.getFlashChipSize() + " bytes");
+    classicTerminalPrint(String("Wi-Fi: ") + (wifi_.isConnected() ? WiFi.SSID() : "offline"));
+    classicTerminalPrint(String("SD: ") + (storage_.available() ? "mounted" : "not mounted"));
+    return;
+  }
+
+  if (cmd == "heap") {
+    classicTerminalPrint(String("heap=") + ESP.getFreeHeap() + " min=" + ESP.getMinFreeHeap() +
+                         " psram=" + ESP.getFreePsram());
+    return;
+  }
+
+  if (cmd == "battery") {
+    classicTerminalPrint(String("battery=") + power_.batteryPercent() + "%  " +
+                         power_.batteryMillivolts() + "mV  trend=" + power_.batteryTrendLabel());
+    return;
+  }
+
+  if (cmd == "time") {
+    auto dt = M5.Rtc.getDateTime();
+    char b[40];
+    snprintf(b, sizeof(b), "%04d-%02d-%02d %02d:%02d:%02d",
+             dt.date.year, dt.date.month, dt.date.date,
+             dt.time.hours, dt.time.minutes, dt.time.seconds);
+    classicTerminalPrint(String(b));
+    return;
+  }
+
+  if (cmd == "sd") {
+    classicTerminalPrint(storage_.available()
+      ? String("SD mounted total=") + (uint32_t)(storage_.totalBytes()/1048576ULL) +
+        "MB free=" + (uint32_t)(storage_.freeBytes()/1048576ULL) + "MB " + storage_.filesystemHint()
+      : String("SD not mounted"));
+    return;
+  }
+
+  if (cmd == "pwd") {
+    classicTerminalPrint(classicCwd_);
+    return;
+  }
+
+  if (cmd == "cd") {
+    String p = a.size() >= 2 ? resolve(a[1]) : String("/PaperOS");
+    if (storage_.isDirectory(p)) {
+      classicCwd_ = p;
+      classicTerminalPrint(classicCwd_);
+    } else classicTerminalPrint("Path not found");
+    return;
+  }
+
+  if (cmd == "dir" || cmd == "ls") {
+    String p = a.size() >= 2 ? resolve(a[1]) : classicCwd_;
+    File d = SD.open(p);
+    if (!d || !d.isDirectory()) {
+      if (d) d.close();
+      classicTerminalPrint("Directory not found");
+      return;
+    }
+    int count = 0;
+    for (File x = d.openNextFile(); x && count < 40; x = d.openNextFile()) {
+      String n = String(x.name());
+      int slash = n.lastIndexOf('/');
+      if (slash >= 0) n = n.substring(slash + 1);
+      classicTerminalPrint((x.isDirectory() ? "<DIR> " : "      ") + n +
+                           (x.isDirectory() ? "" : String("  ") + (uint32_t)x.size()));
+      x.close();
+      ++count;
+    }
+    d.close();
+    if (!count) classicTerminalPrint("<empty>");
+    return;
+  }
+
+  if (cmd == "type" || cmd == "cat") {
+    if (a.size() < 2) { classicTerminalPrint("Usage: type <file>"); return; }
+    String p = resolve(a[1]);
+    File f = SD.open(p, FILE_READ);
+    if (!f || f.isDirectory()) { if (f) f.close(); classicTerminalPrint("File not found"); return; }
+    String content;
+    while (f.available() && content.length() < 2048) content += (char)f.read();
+    f.close();
+    classicTerminalPrint(content);
+    if (storage_.exists(p) && content.length() >= 2048) classicTerminalPrint("[output clipped at 2048 bytes]");
+    return;
+  }
+
+  if (cmd == "mkdir" || cmd == "md") {
+    if (a.size() < 2) { classicTerminalPrint("Usage: mkdir <path>"); return; }
+    String p = resolve(a[1]);
+    classicTerminalPrint(storage_.makeDir(p) ? "Directory created" : "mkdir failed");
+    return;
+  }
+
+  if (cmd == "del" || cmd == "rm") {
+    if (a.size() < 2) { classicTerminalPrint("Usage: del <path>"); return; }
+    String p = resolve(a[1]);
+    classicTerminalPrint(storage_.removePath(p) ? "Deleted" : "delete failed/protected");
+    return;
+  }
+
+  if (cmd == "copy" || cmd == "cp") {
+    if (a.size() < 3) { classicTerminalPrint("Usage: copy <source> <destination>"); return; }
+    String from = resolve(a[1]), to = resolve(a[2]);
+    classicTerminalPrint(storage_.copyPath(from, to) ? "Copied" : "copy failed");
+    return;
+  }
+
+  if (cmd == "touch") {
+    if (a.size() < 2) { classicTerminalPrint("Usage: touch <file>"); return; }
+    String p=resolve(a[1]);
+    File f=SD.open(p, FILE_APPEND);
+    bool ok=(bool)f;
+    if(f) f.close();
+    classicTerminalPrint(ok ? "File ready" : "touch failed");
+    return;
+  }
+
+  if (cmd == "write" || cmd == "append") {
+    if (a.size() < 3) { classicTerminalPrint(String("Usage: ")+cmd+" <file> <text>"); return; }
+    String p=resolve(a[1]);
+    String textValue;
+    for(size_t i=2;i<a.size();++i){ if(i>2) textValue+=" "; textValue+=a[i]; }
+    if (cmd == "write" && SD.exists(p)) SD.remove(p);
+    File f=SD.open(p, cmd=="append" ? FILE_APPEND : FILE_WRITE);
+    if(!f){ classicTerminalPrint("open failed"); return; }
+    size_t n=f.print(textValue);
+    if(cmd=="append") f.print("\n");
+    f.flush(); f.close();
+    classicTerminalPrint(n ? "Written" : "write failed");
+    return;
+  }
+
+  if (cmd == "move" || cmd == "mv") {
+    if (a.size() < 3) { classicTerminalPrint("Usage: move <source> <destination>"); return; }
+    String from = resolve(a[1]), to = resolve(a[2]);
+    classicTerminalPrint(storage_.movePath(from, to) ? "Moved" : "move failed");
+    return;
+  }
+
+  if (cmd == "unsafe") {
+    if (a.size() >= 2) {
+      String v = a[1]; v.toLowerCase();
+      classicUnsafeGpio_ = v == "on" || v == "1" || v == "true";
+    }
+    classicTerminalPrint(String("unsafe GPIO=") + (classicUnsafeGpio_ ? "ON" : "OFF"));
+    if (classicUnsafeGpio_) classicTerminalPrint("WARNING: internal display/SD pins can be disrupted.");
+    return;
+  }
+
+  if (cmd == "gpio") {
+    if (a.size() < 2 || a[1] == "list") {
+      classicTerminalPrint("Expansion pins: A=25,32  B=26,33  C=18,19");
+      classicTerminalPrint(String("Internal pins: ") + (classicUnsafeGpio_ ? "UNLOCKED" : "locked; use unsafe on"));
+      return;
+    }
+    String sub = a[1]; sub.toLowerCase();
+    if (a.size() < 3) { classicTerminalPrint("gpio read|write|mode|adc <pin> [value]"); return; }
+    int pin = a[2].toInt();
+    if (!classicPinAllowed(pin)) { classicTerminalPrint("Pin locked. Use expansion GPIO or 'unsafe on'."); return; }
+
+    if (sub == "read") {
+      pinMode(pin, INPUT);
+      classicTerminalPrint(String("GPIO") + pin + "=" + digitalRead(pin));
+    } else if (sub == "write") {
+      if (a.size() < 4) { classicTerminalPrint("gpio write <pin> 0|1"); return; }
+      pinMode(pin, OUTPUT);
+      int v = a[3].toInt() ? HIGH : LOW;
+      digitalWrite(pin, v);
+      classicTerminalPrint(String("GPIO") + pin + "=" + (v == HIGH ? "HIGH" : "LOW"));
+    } else if (sub == "mode") {
+      if (a.size() < 4) { classicTerminalPrint("gpio mode <pin> in|out|pullup"); return; }
+      String m=a[3]; m.toLowerCase();
+      if (m == "out") pinMode(pin, OUTPUT);
+      else if (m == "pullup") pinMode(pin, INPUT_PULLUP);
+      else pinMode(pin, INPUT);
+      classicTerminalPrint("Mode updated");
+    } else if (sub == "adc") {
+      classicTerminalPrint(String("ADC GPIO") + pin + "=" + analogRead(pin));
+    } else classicTerminalPrint("Unknown gpio subcommand");
+    return;
+  }
+
+  if (cmd == "wifi") {
+    String sub = a.size() >= 2 ? a[1] : "status";
+    sub.toLowerCase();
+    if (sub == "on") {
+      wifi_.setRadioEnabled(true);
+      classicTerminalPrint("Wi-Fi radio ON");
+    } else if (sub == "off") {
+      wifi_.setRadioEnabled(false);
+      classicTerminalPrint("Wi-Fi radio OFF");
+    } else if (sub == "scan") {
+      int n = WiFi.scanNetworks(false, true);
+      classicTerminalPrint(String("Networks: ") + n);
+      for (int i=0; i<n && i<20; ++i)
+        classicTerminalPrint(WiFi.SSID(i) + "  " + WiFi.RSSI(i) + "dBm CH" + WiFi.channel(i));
+      WiFi.scanDelete();
+    } else {
+      classicTerminalPrint(String("radio=") + (wifi_.radioEnabled() ? "on" : "off") +
+                           " connected=" + (wifi_.isConnected() ? "yes" : "no"));
+      if (wifi_.isConnected()) classicTerminalPrint(WiFi.SSID() + " / " + WiFi.localIP().toString());
+    }
+    return;
+  }
+
+  if (cmd == "hid" || cmd == "bt") {
+    String sub = a.size() >= 2 ? a[1] : "status";
+    sub.toLowerCase();
+    if (!bluetoothActive_) {
+      BLEDevice::init("PaperOS");
+      bluetoothActive_ = true;
+    }
+    hidInput_.begin();
+
+    if (sub == "scan") {
+      classicTerminalPrint("Scanning BLE HID...");
+      hidInput_.scan(4);
+      const auto& d = hidInput_.devices();
+      for (size_t i=0;i<d.size() && i<15;++i)
+        classicTerminalPrint(String(i) + ": " + d[i].name + " / " + d[i].address);
+      if (d.empty()) classicTerminalPrint("No BLE HID found");
+    } else if (sub == "connect") {
+      if (a.size() < 3) { classicTerminalPrint("hid connect <index>"); return; }
+      int idx = a[2].toInt();
+      classicTerminalPrint(hidInput_.connect(idx) ? "HID connected" : "HID connect failed");
+    } else {
+      classicTerminalPrint(hidInput_.statusText());
+    }
+    return;
+  }
+
+  if (cmd == "nfc") {
+    String sub = a.size() >= 2 ? a[1] : "scan";
+    sub.toLowerCase();
+    if (sub == "scan") {
+      NfcTagInfo tag = nfcService_.scan(1600);
+      classicTerminalPrint(tag.found ? String("NFC UID=") + tag.uid + " / " + tag.type : String("No NFC tag"));
+    } else classicTerminalPrint(nfcService_.statusText());
+    return;
+  }
+
+  if (cmd == "reboot") {
+    classicTerminalPrint("Rebooting...");
+    showClassicTerminal();
+    delay(250);
+    ESP.restart();
+    return;
+  }
+
+  if (cmd == "sleep" || cmd == "lock") {
+    classicTerminalPrint("Locking PaperOS...");
+    showClassicTerminal();
+    delay(120);
+    power_.sleepNow();
+    return;
+  }
+
+  if (cmd == "deepsleep") {
+    classicTerminalPrint("Entering hardware deep sleep...");
+    showClassicTerminal();
+    delay(180);
+    power_.deepSleepNow(0);
+    return;
+  }
+
+  classicTerminalPrint("Bad command or file name");
+}
+
+void UiManager::showClassicTerminal() {
+  page_ = Page::ClassicTerminal;
+  preparePage();
+  classicDrawChrome("MS-DOS Prompt - PaperOS ROOT Terminal");
+
+  M5.Display.fillRect(24, 108, 492, 696, TFT_BLACK);
+  M5.Display.drawRect(22, 106, 496, 700, TFT_BLACK);
+
+  M5.Display.setFont(&fonts::FreeMono9pt7b);
+  M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+  M5.Display.setTextDatum(top_left);
+
+  const int visible = 22;
+  int start = max(0, static_cast<int>(classicTerminalLines_.size()) - visible);
+  int y = 118;
+  for (int i = start; i < (int)classicTerminalLines_.size(); ++i) {
+    String line = classicTerminalLines_[i];
+    if (line.length() > 66) line = line.substring(0, 66);
+    M5.Display.drawString(line, 32, y);
+    y += 27;
+  }
+
+  M5.Display.fillRect(24, 816, 492, 64, TFT_WHITE);
+  M5.Display.drawRect(24, 816, 492, 64, TFT_BLACK);
+  M5.Display.setTextColor(TFT_BLACK, TFT_WHITE);
+  String prompt = classicCwd_ + "> " + classicTerminalInput_;
+  if (prompt.length() > 63) prompt = "..." + prompt.substring(prompt.length() - 60);
+  M5.Display.drawString(prompt + "_", 32, 835);
+  M5.Display.setFont(&fonts::Font2);
+  M5.Display.drawString("Tap prompt for touch keyboard / BLE keyboard types directly", 32, 864);
+  UiTheme::resetFont();
+
+  classicDrawCursor();
+  commitPage();
+}
+
+
+void UiManager::classicInitSki() {
+  skiPlayerX_ = 270;
+  skiScore_ = 0;
+  skiRunning_ = true;
+  classicLastGameTick_ = millis();
+  for (int i = 0; i < 9; ++i) {
+    skiObstacles_[i].x = 35 + (esp_random() % 470);
+    skiObstacles_[i].y = 120 + (esp_random() % 620);
+    skiObstacles_[i].type = esp_random() & 1U;
+  }
+}
+
+void UiManager::classicStepSki() {
+  if (!skiRunning_) return;
+  for (int i = 0; i < 9; ++i) {
+    skiObstacles_[i].y += 52;
+    if (skiObstacles_[i].y > 830) {
+      skiObstacles_[i].y = 120 - (esp_random() % 220);
+      skiObstacles_[i].x = 35 + (esp_random() % 470);
+      skiObstacles_[i].type = esp_random() & 1U;
+      ++skiScore_;
+    }
+
+    if (abs(skiObstacles_[i].x - skiPlayerX_) < 28 &&
+        skiObstacles_[i].y > 720 && skiObstacles_[i].y < 800) {
+      skiRunning_ = false;
+    }
+  }
+}
+
+void UiManager::showClassicSki() {
+  page_ = Page::ClassicSki;
+  if (!skiRunning_ && skiScore_ == 0) classicInitSki();
+  preparePage();
+  classicDrawChrome("Ski - Windows Entertainment Pack");
+
+  M5.Display.fillRect(24, 108, 492, 748, TFT_WHITE);
+  M5.Display.drawRect(24, 108, 492, 748, TFT_BLACK);
+
+  // Mountain/snow field.
+  for (int y=125; y<830; y+=34) {
+    int x = 35 + ((y * 17) % 450);
+    M5.Display.drawPixel(x, y, TFT_BLACK);
+  }
+
+  for (int i=0; i<9; ++i) {
+    int x=skiObstacles_[i].x, y=skiObstacles_[i].y;
+    if (y < 120 || y > 825) continue;
+    if (skiObstacles_[i].type == 0) {
+      M5.Display.drawLine(x, y-16, x-13, y+10, TFT_BLACK);
       M5.Display.drawLine(x, y-16, x+13, y+10, TFT_BLACK);
       M5.Display.drawFastHLine(x-13, y+10, 26, TFT_BLACK);
       M5.Display.drawFastVLine(x, y+10, 10, TFT_BLACK);

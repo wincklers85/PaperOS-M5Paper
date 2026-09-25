@@ -324,7 +324,12 @@ void StorageManager::scanDirectory(uint32_t firstCluster, uint8_t depth) {
               for (uint8_t i = 0; i < 3 && e[8 + i] != ' '; ++i) ext[i] = (char)e[8 + i];
               if (ext[0]) filename += String(".") + ext;
               const uint32_t next = fatEntry(childCluster);
-              recoveredFiles_.push_back({filename, childCluster, size, next >= 2 && next < recoveryDataClusters_ + 2});
+              RecoveredSdFile recovered;
+              recovered.name = filename;
+              recovered.firstCluster = childCluster;
+              recovered.size = size;
+              recovered.fatChainAvailable = next >= 2 && next < recoveryDataClusters_ + 2;
+              recoveredFiles_.push_back(recovered);
             }
           }
         } else if (!deleted && (attr & 0x10) && e[0] != '.' && childCluster >= 2) {

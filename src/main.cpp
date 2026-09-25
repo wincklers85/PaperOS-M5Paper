@@ -36,9 +36,10 @@ void setup() {
   bool sdOk = storageManager.begin();
   if (sdOk) {
     if (SD.exists("/PaperOS/Config/wifi_networks.txt")) configManager.importWifiTextFromSd();
-    else configManager.exportWifiTextToSd();
   }
-  logger.begin(sdOk ? &storageManager.fs() : nullptr);
+  // Do not write to the microSD during boot. This preserves deleted sectors
+  // long enough for the read-only recovery app to inspect the card.
+  logger.begin(nullptr);
   logger.info(String("Boot ") + NAME + " " + VERSION);
   if (!sdOk) logger.warn("microSD not mounted; SD-backed features disabled");
 

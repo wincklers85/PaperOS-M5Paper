@@ -42,6 +42,8 @@ String NotesService::get(const String& id) {
 
 bool NotesService::save(const String& id, const String& json) {
   if (!storage_.available()) return false;
+  if (!SD.exists("/PaperOS")) SD.mkdir("/PaperOS");
+  if (!SD.exists("/PaperOS/Notes")) SD.mkdir("/PaperOS/Notes");
   String sid=sanitizeId(id); String p="/PaperOS/Notes/"+sid+".json"; String tmp=p+".tmp";
   DynamicJsonDocument d(8192); if (deserializeJson(d,json)) return false;
   d["id"]=sid; d["updated"]=millis();

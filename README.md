@@ -38,7 +38,7 @@
 - password-protected responsive Web UI
 - first-boot browser-assisted wizard
 - microSD layout and scrollable file manager: list, upload, download, create folder, rename, copy and delete; native text, JPEG/PNG/BMP and PDF-Lite readers
-- SD Recovery app with a read-only FAT32 deleted-entry scan, on-device previews for JPEG/PNG/BMP/text candidates and authenticated browser export with an explicit risk confirmation; FAT32 only, contiguous best-effort recovery
+- SD Recovery app with a read-only FAT32 deleted-entry scan, on-device previews for JPEG/PNG/BMP/text candidates and authenticated browser export with an explicit risk confirmation; FAT32 only, contiguous best-effort recovery. Boot does not create folders or append logs to the SD, so the card can be scanned before PaperOS writes to it.
 - Notes on microSD with browser editing, categories, favorite and autosave
 - settings persistence in LittleFS with atomic `.tmp` / `.bak` recovery
 - system status REST API

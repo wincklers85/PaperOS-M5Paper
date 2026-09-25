@@ -172,6 +172,8 @@ bool ConfigManager::exportBackup(const String& path) {
 bool ConfigManager::exportBackupToSd(const String& path) {
   File src = LittleFS.open(CONFIG_PATH, FILE_READ);
   if (!src) return false;
+  if (!SD.exists("/PaperOS")) SD.mkdir("/PaperOS");
+  if (!SD.exists("/PaperOS/Backup")) SD.mkdir("/PaperOS/Backup");
   if (SD.exists(path)) SD.remove(path);
   File dst = SD.open(path, FILE_WRITE);
   if (!dst) { src.close(); return false; }
@@ -222,6 +224,8 @@ bool ConfigManager::restoreBackupFromSd(const String& path) {
 
 bool ConfigManager::exportWifiTextToSd(const String& path) {
   if (SD.cardType() == CARD_NONE) return false;
+  if (!SD.exists("/PaperOS")) SD.mkdir("/PaperOS");
+  if (!SD.exists("/PaperOS/Config")) SD.mkdir("/PaperOS/Config");
   if (SD.exists(path)) SD.remove(path);
   File f = SD.open(path, FILE_WRITE);
   if (!f) return false;

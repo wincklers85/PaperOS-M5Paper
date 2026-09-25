@@ -14,7 +14,6 @@ static constexpr int PIN_SD_MOSI = 12;
 bool StorageManager::begin() {
   SPI.begin(PIN_SD_SCK, PIN_SD_MISO, PIN_SD_MOSI, PIN_SD_CS);
   mounted_ = SD.begin(PIN_SD_CS, SPI, 25000000);
-  if (mounted_) ensureLayout();
   return mounted_;
 }
 
@@ -371,6 +370,7 @@ size_t StorageManager::readRecoveredFile(size_t index, uint32_t offset, uint8_t*
   uint32_t inCluster = offset % clusterBytes;
   uint8_t sector[512];
   while (written < wanted) {
+    if (cluster < 2 || cluster >= recoveryDataClusters_ + 2) break;
     uint32_t sectorInCluster = inCluster / 512U;
     uint32_t inSector = inCluster % 512U;
     uint32_t lba = recoveryDataStart_ + (cluster - 2) * recoverySectorsPerCluster_ + sectorInCluster;

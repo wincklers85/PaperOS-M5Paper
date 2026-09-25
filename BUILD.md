@@ -1,4 +1,4 @@
-# BUILD — PaperOS 0.1.0-alpha
+# BUILD — PaperOS 0.3.1-alpha
 
 ## Requirements
 
@@ -67,8 +67,8 @@ The Web UI OTA page accepts `firmware.bin` only.
 
 ## CI
 
-`.github/workflows/build.yml` runs JavaScript syntax checking, PaperOS preflight checks and `pio run -e m5paper`. Pushing this repository to GitHub therefore provides a clean-toolchain compilation check independent of a developer workstation.
+`.github/workflows/build.yml` runs JavaScript syntax checking, PaperOS preflight checks, `pio run -e m5paper` and `pio run -e m5paper -t buildfs` from a clean checkout. A green workflow confirms compilation and filesystem packaging, not hardware behavior.
 
 ## Current validation note
 
-This source tree was generated in an environment where the PlatformIO executable/toolchain was not preinstalled and outbound package installation was unavailable. Static repository checks and JavaScript syntax checks can run locally here; the definitive ESP32 toolchain compilation is therefore delegated to PlatformIO/CI using the commands above. Do not treat a release as hardware-validated until that compile and an actual M5Paper boot test pass.
+In the current development environment, static repository checks and JavaScript syntax checks can run locally, but PlatformIO is not installed. Use the CI result for firmware compilation. Do not mark a release hardware-validated until an original M5Paper has completed the installation and test matrix in `docs/TESTING.md`.

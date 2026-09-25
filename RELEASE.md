@@ -1,30 +1,21 @@
-# Release 0.1.4-alpha
+# Release 0.3.2-alpha — installation and stabilization
 
 ## Purpose
 
-Incremental alpha milestone for the original M5Stack M5Paper, establishing the professional 540×960 GUI design-system direction while preserving the installable 0.1.x architecture.
+Stabilize the current PaperOS feature set on the original M5Stack M5Paper (classic ESP32). This release must prove clean installation and core device behavior before development moves on to 0.4.x PDA features.
 
 ## Release checklist
 
-- [x] repository layout created
-- [x] semantic version embedded
-- [x] dual-OTA partition layout
-- [x] Web UI filesystem payload
-- [x] static preflight checks
-- [x] JavaScript syntax check
-- [ ] clean PlatformIO compile
-- [ ] flash to original M5Paper
-- [ ] verify touch coordinate orientation
-- [ ] verify microSD read/write with display active
-- [ ] verify Setup AP on iPhone/Android
-- [ ] verify `paperos.local` on target LAN
-- [ ] verify deep-sleep touch + timer wake
-- [ ] verify OTA and rollback path
-- [ ] 24-hour stability/heap test
+- [x] Static repository preflight passes locally.
+- [x] Web UI JavaScript syntax check passes locally.
+- [ ] Clean firmware and LittleFS CI build passes.
+- [ ] Flash firmware and LittleFS to original M5Paper (not M5Paper S3).
+- [ ] Verify 540×960 portrait layout, touch coordinates, wheel/click and hardware buttons.
+- [ ] Verify setup AP from iPhone, setup completion and reconnect on target LAN.
+- [ ] Verify `paperos.local` on target LAN.
+- [ ] Verify RTC, battery display, SD behavior and boot with missing/unreadable SD.
+- [ ] Verify OTA success, invalid-image rejection and recovery/rollback behavior.
+- [ ] Complete the storage, power and soak tests in `docs/TESTING.md`.
+- [ ] Record the tested board revision, firmware commit, results and defects.
 
-Do not remove the `alpha` suffix until the unchecked hardware/toolchain tests pass.
-\n## Professional UI milestone\n\n0.1.4-alpha now includes the production-oriented 540×960 PaperOS device design system and the responsive authenticated browser console. The browser controls are wired to the existing REST endpoints for live status, files, Notes, Wi-Fi, settings, remote device actions and OTA.\n
-
-## 540×960 native UI milestone
-
-PaperOS 0.1.4-alpha fixes the UI contract to the original M5Paper's native 540×960 portrait panel, adds dedicated Solar and Termo planned dashboards, improves anti-ghosting refresh, and separates inactivity deep sleep from optional timed wake. The sleep screen remains visible on e-paper without continuous display power.
+Do not tag or call 0.3.2-alpha hardware-validated until every required build and device test above has recorded evidence.
